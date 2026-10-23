@@ -52,3 +52,7 @@ desktop.ini
 # visuals are local working artifacts, so neither of them is versioned
 .plans/get-napkin-image.ps1
 .plans/napkin-images/
+
+# Local database reset helper: hand-written and local-only. The no-DROP rule
+# still governs versioned migration scripts; this helper is not a migration.
+.scripts/sync-db-branch.sql

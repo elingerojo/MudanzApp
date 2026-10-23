@@ -64,3 +64,9 @@ se pega en `plantilla-inicializacion-workspace.md` §0, su §7 trae el SQL del r
 bases locales, y su §10 el mapa de tokens que se aplica sobre la copia hecha en la Fase 0. La fuente
 de alcance sigue siendo la plantilla; el archivo es la instantánea que evita teclear marcadores
 ambiguos.
+
+## `workspace-env.md`
+
+Evidencia versionada de la Fase 1: versiones de `Man-2.1`, veredicto de compatibilidad con el stack
+y colisiones que solo se confirman en remoto. No lo produce el generador y no contiene credenciales
+ni valores de `.env*`.
