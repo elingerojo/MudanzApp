@@ -53,6 +53,7 @@ desktop.ini
 .plans/get-napkin-image.ps1
 .plans/napkin-images/
 
-# Local database reset helper: hand-written and local-only. The no-DROP rule
-# still governs versioned migration scripts; this helper is not a migration.
+# Local database helpers: hand-written and local-only. The no-DROP rule still
+# governs versioned migration scripts; these helpers are not migrations.
 .scripts/sync-db-branch.sql
+.scripts/create-rol-and-DBs.sql

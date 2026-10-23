@@ -31,7 +31,7 @@
 | Paquete npm | `npm view @mudanzapp/shared version` → `E404` (no publicado) | sin paquete; la existencia del scope u owner se confirma a mano |
 | Workers `mudanzapp` y `mudanzapp-wiki` | dashboard de Cloudflare | pendiente de `Man-3.5` |
 | Repositorio `MudanzApp` | cuenta de GitHub | pendiente de `Man-3.1` |
-| Rol `mudanzapp` y las cuatro bases | Postgres local | pendiente de `Man-2.2` |
+| Rol `mudanzapp` y las cuatro bases | Postgres local | verificado (2026-10-23) |
 
 ## 4. Decisiones de la fase
 
