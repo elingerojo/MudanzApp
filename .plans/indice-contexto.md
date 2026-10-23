@@ -1,0 +1,47 @@
+# Índice de contexto — qué leer según la tarea
+
+Este índice no define alcance ni contratos: dice **qué documento cargar** para cada tipo de tarea.
+Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hechos.
+
+## Regla base
+
+- **Siempre activo:** `.roo/rules/*` (no se cargan a mano; gobiernan todo).
+- **Al planificar o implementar una funcionalidad:** `.guidelines/00`–`07`, `stack` y, si el corte
+  toca datos, `modelo-datos`.
+- **La plantilla y el manual no se cargan en ciclos de feature.** Son de arranque único y de hechos
+  remotos.
+
+| Tarea | Leer | No leer |
+| --- | --- | --- |
+| Arrancar un workspace nuevo | plantilla, manual, `.scripts/workspace-params.md`, `00`–`07`, stack | modelo-datos (salvo el runner) |
+| Planificar un ciclo 0 → 1 | `00`–`07`, resumen-funcional, stack | plantilla, manual |
+| Corte con base de datos | `04`, `06`, modelo-datos §9, `06-datos`, `07-secretos` | auditoría, glosario |
+| Corte de integración externa | stack §7, `03`, `05`, `00-stack` | manual |
+| Corte de UI o frontend | stack §3, `02`, `03` | modelo-datos |
+| Cerrar el ciclo | `06`, `02-commits`, `04-verificacion` | plantilla |
+| Duda sobre jerarquía o excepción | glosario-de-criterios | el resto |
+| Decisión técnica ya tomada | decisiones-tecnicas (biblioteca de patrones) | — |
+| Llevar un hecho a remoto | manual `Man-3` y la lista de disparadores de `07` §5 | plantilla |
+
+## Documentos y su rol
+
+| Documento | Rol | Versionado | Se carga |
+| --- | --- | --- | --- |
+| `.roo/rules/*` | restricciones no negociables | sí | siempre |
+| `.guidelines/00`–`07` | criterios de planificación | sí | por tarea |
+| `stack-tecnologico-app-mudanzapp.md` | el CÓMO | sí | por tarea |
+| `modelo-datos-app-mudanzapp.md` | modelo de datos | sí | cortes con datos |
+| `resumen-funcional-app-mudanzapp.md` | el QUÉ | sí | planificación |
+| `decisiones-tecnicas-app-mudanzapp.md` | biblioteca de patrones | sí | consulta |
+| `glosario-de-criterios.md` | jerarquía y excepción | sí | consulta |
+| `auditoria-consistencia-workspace.md` | evidencia de la apertura | sí | rara vez |
+| `plantilla-inicializacion-workspace.md` | cómo se arranca | no | solo arranque |
+| `manual-setup-workspace-local-y-remoto.md` | consolas | no | arranque y hechos remotos |
+| `snippets-bootstrap.md` | código de humo de referencia | no | solo arranque |
+| `.scripts/workspace-params.md` | nombres del workspace ya derivados, pendientes y mapa de renombrado | sí | solo arranque |
+
+## Presupuesto de contexto por ciclo
+
+- **Núcleo:** rules + `00`–`07` + stack + modelo-datos cuando aplique.
+- **Fuera:** plantilla, manual, snippets, auditoría y los planes de funcionalidades anteriores.
+- Si un hecho falta en el núcleo, se registra el vacío y se pregunta; no se rellena leyendo todo.

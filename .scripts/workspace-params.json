@@ -1,0 +1,390 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "script": ".scripts/generate-workspace-params.mjs",
+    "version": "1.0.0"
+  },
+  "source": {
+    "argument": "MudanzApp",
+    "slugOverride": null,
+    "frontendsArgument": null
+  },
+  "identity": {
+    "public": {
+      "appName": "MudanzApp"
+    },
+    "internal": {
+      "appSlug": "mudanzapp",
+      "npmScope": "@mudanzapp"
+    }
+  },
+  "parameters": [
+    {
+      "marker": "APP_NAME",
+      "value": "MudanzApp",
+      "nature": "public",
+      "status": "resolved",
+      "derivation": "argumento"
+    },
+    {
+      "marker": "APP_SLUG",
+      "value": "mudanzapp",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "nombre público normalizado a [a-z0-9]"
+    },
+    {
+      "marker": "NPM_SCOPE",
+      "value": "@mudanzapp",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "\"@\" + APP_SLUG"
+    },
+    {
+      "marker": "GIT_REPO",
+      "value": "MudanzApp",
+      "nature": "public",
+      "status": "resolved",
+      "derivation": "nombre público; el owner de la URL queda pendiente"
+    },
+    {
+      "marker": "DB_ROLE",
+      "value": "mudanzapp",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "APP_SLUG"
+    },
+    {
+      "marker": "DB_DEV",
+      "value": "mudanzapp",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "APP_SLUG"
+    },
+    {
+      "marker": "DB_TEST",
+      "value": "mudanzapp_test",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "DB_DEV + \"_test\" (local-only)"
+    },
+    {
+      "marker": "DB_DEV_BRANCH",
+      "value": "mudanzapp_branch",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "DB_DEV + \"_branch\""
+    },
+    {
+      "marker": "DB_DEV_BRANCH_TEST",
+      "value": "mudanzapp_branch_test",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "DB_DEV_BRANCH + \"_test\" (local-only)"
+    },
+    {
+      "marker": "FRONTENDS",
+      "value": "frontend, wiki",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "argumento --frontends o default"
+    },
+    {
+      "marker": "WORKER_NAME",
+      "value": "mudanzapp, mudanzapp-wiki",
+      "nature": "internal",
+      "status": "resolved",
+      "derivation": "primero APP_SLUG; el resto APP_SLUG + \"-\" + ⟨FE⟩; ver workers[]"
+    },
+    {
+      "marker": "NEON_PROJECT",
+      "value": "MudanzApp",
+      "nature": "platform",
+      "status": "resolved",
+      "derivation": "etiqueta de plataforma; puede cambiar sin tocar el código"
+    },
+    {
+      "marker": "RAILWAY_PROJECT",
+      "value": "MudanzApp",
+      "nature": "platform",
+      "status": "resolved",
+      "derivation": "etiqueta de plataforma; puede cambiar sin tocar el código"
+    },
+    {
+      "marker": "BACKEND_HOST",
+      "value": null,
+      "nature": "pending",
+      "status": "pending",
+      "derivation": "manual §3.4 paso 5; sin barra final"
+    },
+    {
+      "marker": "COMPAT_DATE",
+      "value": null,
+      "nature": "pending",
+      "status": "pending",
+      "derivation": "se confirma al crear cada wrangler.jsonc; propuesta del manual §0.1: 2026-10-06"
+    },
+    {
+      "marker": "STORAGE",
+      "value": null,
+      "nature": "not-applicable",
+      "status": "not-applicable",
+      "derivation": "solo si la app guarda archivos; propuesta: mudanzapp-staging"
+    }
+  ],
+  "packages": {
+    "root": "mudanzapp",
+    "shared": "@mudanzapp/shared",
+    "backend": "@mudanzapp/backend",
+    "frontends": [
+      {
+        "frontend": "frontend",
+        "name": "@mudanzapp/frontend"
+      },
+      {
+        "frontend": "wiki",
+        "name": "@mudanzapp/wiki"
+      }
+    ]
+  },
+  "databases": {
+    "role": "mudanzapp",
+    "dev": "mudanzapp",
+    "test": "mudanzapp_test",
+    "devBranch": "mudanzapp_branch",
+    "devBranchTest": "mudanzapp_branch_test"
+  },
+  "workers": [
+    {
+      "frontend": "frontend",
+      "name": "mudanzapp",
+      "primary": true,
+      "url": null,
+      "status": "pending",
+      "source": "manual §3.5"
+    },
+    {
+      "frontend": "wiki",
+      "name": "mudanzapp-wiki",
+      "primary": false,
+      "url": null,
+      "status": "pending",
+      "source": "manual §3.5"
+    }
+  ],
+  "conventions": {
+    "localStoragePrefix": "mudanzapp.",
+    "docPointers": [
+      "resumen-funcional-app-mudanzapp.md",
+      "stack-tecnologico-app-mudanzapp.md",
+      "modelo-datos-app-mudanzapp.md",
+      "decisiones-tecnicas-app-mudanzapp.md"
+    ]
+  },
+  "storage": {
+    "status": "not-applicable",
+    "resource": null,
+    "reason": "el bootstrap no declara capacidad de archivos",
+    "suggestedIfNeeded": "mudanzapp-staging"
+  },
+  "pending": [
+    {
+      "marker": "BACKEND_HOST",
+      "alsoKnownAs": "BACKEND_PUBLIC_URL",
+      "source": "manual §3.4 (dominio público de Railway)",
+      "note": "se necesita antes de construir los Workers; sin barra final"
+    },
+    {
+      "marker": "APP_BASE_URL",
+      "source": "manual §3.6",
+      "note": "todos los orígenes de los Workers, separados por comas; se completa al final"
+    },
+    {
+      "marker": "COMPAT_DATE",
+      "source": "manual §3.5 y plantilla §0",
+      "note": "una fecha por wrangler.jsonc, en formato YYYY-MM-DD"
+    },
+    {
+      "marker": "GIT_REMOTE_URL",
+      "source": "manual §3.1",
+      "note": "owner y URL del repositorio; el nombre del repo sí se deriva del nombre público"
+    },
+    {
+      "marker": "WORKERS_DEV_SUBDOMAIN",
+      "source": "manual §3.5",
+      "note": "subdominio de workers.dev donde cuelga cada WORKER_NAME"
+    },
+    {
+      "marker": "NEON_ROLE",
+      "source": "manual §3.2",
+      "note": "rol existente del proyecto Neon (por ejemplo neondb_owner); no se deriva"
+    },
+    {
+      "marker": "STORAGE",
+      "source": "manual §3.3",
+      "note": "no aplica en el bootstrap; sin capacidad de archivos no hay bucket ni token"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "I1",
+      "statement": "APP_SLUG cumple /^[a-z][a-z0-9]{1,31}$/",
+      "holds": true
+    },
+    {
+      "id": "I2",
+      "statement": "NPM_SCOPE es \"@\" + APP_SLUG",
+      "holds": true
+    },
+    {
+      "id": "I3",
+      "statement": "DB_TEST es DB_DEV + \"_test\"",
+      "holds": true
+    },
+    {
+      "id": "I4",
+      "statement": "DB_DEV_BRANCH es DB_DEV + \"_branch\"",
+      "holds": true
+    },
+    {
+      "id": "I5",
+      "statement": "DB_DEV_BRANCH_TEST es DB_DEV_BRANCH + \"_test\"",
+      "holds": true
+    },
+    {
+      "id": "I6",
+      "statement": "toda base de prueba termina en _test y no se sufija dos veces",
+      "holds": true
+    },
+    {
+      "id": "I7",
+      "statement": "hay un WORKER_NAME por frontend y ninguno se repite",
+      "holds": true
+    },
+    {
+      "id": "I8",
+      "statement": "cada WORKER_NAME empieza por APP_SLUG",
+      "holds": true
+    },
+    {
+      "id": "I9",
+      "statement": "los nombres de paquete son únicos",
+      "holds": true
+    },
+    {
+      "id": "I10",
+      "statement": "el prefijo de localStorage termina en \".\"",
+      "holds": true
+    },
+    {
+      "id": "I11",
+      "statement": "cada base local termina en _test o es la principal o la dev branch",
+      "holds": true
+    }
+  ],
+  "renameMap": [
+    {
+      "from": "MiApp",
+      "to": "MudanzApp",
+      "kind": "public",
+      "where": [
+        "shared/src/brand.json (appName) y shared/src/brand.ts (acceso tipado)",
+        "index.html de cada frontend (title) y metadatos",
+        "manifest del frontend",
+        "copy de UI que consuma brand",
+        "e2e/ y specs que comparan texto visible",
+        "prosa de .plans/"
+      ]
+    },
+    {
+      "from": "miapp",
+      "to": "mudanzapp",
+      "kind": "internal",
+      "where": [
+        "package.json raíz (name)",
+        "SQL de rol y de las cuatro bases locales",
+        ".roo/rules/04-verificacion.md (miapp_test, miapp_branch, miapp_branch_test)",
+        ".roo/rules/06-datos.md (ejemplo de derivación _branch)",
+        "name de cada wrangler.jsonc",
+        "prefijo de claves de localStorage",
+        "literales de e2e/support/harness.ts",
+        ".plans/modelo-datos-app-miapp.md y demás punteros"
+      ]
+    },
+    {
+      "from": "@miapp",
+      "to": "@mudanzapp",
+      "kind": "internal",
+      "where": [
+        "package.json de shared, backend y cada frontend",
+        "imports @miapp/shared en backend/src/app.ts y en el componente de estado",
+        "comentarios y documentación técnica",
+        "package-lock.json: se regenera con npm install, nunca se edita a mano"
+      ]
+    },
+    {
+      "from": "miapp-wiki",
+      "to": "mudanzapp-wiki",
+      "kind": "internal",
+      "where": [
+        "wiki/wrangler.jsonc",
+        "dashboard de Cloudflare",
+        "documentación de despliegue"
+      ]
+    },
+    {
+      "from": "*-app-miapp.md",
+      "to": "*-app-mudanzapp.md",
+      "kind": "pointer",
+      "where": [
+        ".plans/resumen-funcional-app-miapp.md",
+        ".plans/stack-tecnologico-app-miapp.md",
+        ".plans/modelo-datos-app-miapp.md",
+        ".plans/decisiones-tecnicas-app-miapp.md",
+        "citas en .roo/rules/01-scope.md y .roo/rules/00-stack.md",
+        "citas en .roo/rules/05-deps.md y .roo/rules/06-datos.md",
+        "tabla de .plans/indice-contexto.md"
+      ]
+    },
+    {
+      "from": "miapp-staging",
+      "to": "mudanzapp-staging",
+      "kind": "internal",
+      "where": [
+        "solo si aparece ⟨STORAGE⟩; hoy no hay capacidad de archivos"
+      ]
+    }
+  ],
+  "brandSurfaces": [
+    {
+      "surface": "Título y metadatos",
+      "consumer": "shared/src/brand.json -> brand.ts -> index.html",
+      "status": "pendiente de crear en Fase 2/3"
+    },
+    {
+      "surface": "Manifest",
+      "consumer": "shared/src/brand.json",
+      "status": "pendiente de crear en Fase 2/3"
+    },
+    {
+      "surface": "Copy de UI",
+      "consumer": "brand.ts tipado; nunca cableado",
+      "status": "pendiente del primer ciclo que toque UI"
+    },
+    {
+      "surface": "Correos",
+      "consumer": "primera capacidad que envíe correo",
+      "status": "fuera del bootstrap"
+    },
+    {
+      "surface": "Legales",
+      "consumer": "documentos externos enlazados",
+      "status": "fuera del bootstrap"
+    },
+    {
+      "surface": "Dominio y handles",
+      "consumer": "externo; se planifican redirecciones",
+      "status": "fuera del bootstrap"
+    }
+  ]
+}

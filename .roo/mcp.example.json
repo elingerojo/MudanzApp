@@ -1,0 +1,16 @@
+{
+	"mcpServers": {
+		"cloudflare-docs": {
+			"type": "streamable-http",
+			"url": "https://docs.mcp.cloudflare.com/mcp"
+		},
+		"napkin-ai": {
+			"command": "npx",
+			"args": ["-y", "napkin-ai-mcp"],
+			"env": {
+				"NAPKIN_API_KEY": "<replace-with-napkin-api-key>"
+			},
+			"disabled": false
+		}
+	}
+}

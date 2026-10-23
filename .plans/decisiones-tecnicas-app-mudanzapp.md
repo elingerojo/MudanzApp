@@ -1,0 +1,170 @@
+# Decisiones técnicas — MudanzApp
+
+> **Naturaleza:** registro de decisiones de alto costo de reversión. El registro operativo de
+> dependencias vive en `.plans/stack-tecnologico-app-mudanzapp.md` §12; la regla
+> [`05-deps.md`](../.roo/rules/05-deps.md:1) apunta allí.
+> **Dueño:** Architect. **Última revisión:** 2026-10-21. **Disparador de revisión:** nueva
+> dependencia de runtime, cambio de plataforma o decisión que cueste revertir.
+> **Evidencia normativa:** los lineamientos `.guidelines/00`–`07` prevalecen; las reglas son el
+> detalle operativo.
+
+## 1. Identidad
+
+- Nombre interno fijo: `mudanzapp`.
+- Nombre público configurable: `MudanzApp`.
+- Fuente única del nombre público: `shared/src/brand.json` con acceso tipado en
+  `shared/src/brand.ts` (pre-decisión §14.3; se crea en la Fase 2/3).
+- Inventario de superficies del nombre público: título, metadatos, manifest, copy, correos,
+  legales, dominio y handles; plan de redirecciones al lanzamiento.
+- Motivo: separar la estabilidad técnica de la marca; el renombrado público se presupuesta.
+- Evidencia: [`01-alcance-y-momento-de-decision.md`](../.guidelines/01-alcance-y-momento-de-decision.md:19).
+
+## 2. Dos frontends desde el inicio
+
+- `frontend` es la SPA principal; `wiki` es una SPA Angular mínima de una ruta y una página
+  estática.
+- Motivo: ambos existen desde el inicio y comparten la misma forma técnica; el contrato del
+  monorepo queda simétrico.
+- Evidencia: decisión del usuario y
+  [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md:19).
+
+## 3. Integraciones y modos
+
+- Integraciones declaradas: APP (primaria, reemplaza Wix), R2 (almacenamiento opcional) y AI.
+- `APP_MODE`, `R2_MODE` y `AI_MODE` con `live`/`fake`, default `live`. Una variable vacía cuenta
+  como ausente; solo `live` y `fake` son valores válidos; cualquier otro valor produce un error
+  estable en la primera petición.
+- El modo solo se lee cuando la capacidad existe; sin capacidad no se construye adaptador ni se
+  exige credencial.
+- `live` exige credenciales válidas; `fake` es el doble determinista de pruebas mientras se
+  consiguen las credenciales.
+- `APP_MODE` gobierna solo las credenciales de la integración primaria.
+- `AI_MODEL` se parametriza si aplica; el ID del modelo no se cablea.
+- Motivo: cada integración declara su propio modo y sus credenciales, sin compartirlas.
+- Evidencia: [`02-verdad-y-contratos.md`](../.guidelines/02-verdad-y-contratos.md:21) y
+  [`03-fronteras-y-variacion.md`](../.guidelines/03-fronteras-y-variacion.md:5).
+
+## 4. Sin ORM ni query builder
+
+- SQL crudo y parametrizado con `pg`.
+- Motivo: el SQL es parte del contrato y de la evidencia del ciclo.
+- Evidencia: [`04-datos-y-seguridad.md`](../.guidelines/04-datos-y-seguridad.md:1).
+
+## 5. Sin `dotenv`
+
+- Las variables se leen de `process.env`; en desarrollo se usa el soporte nativo de Node
+  (`--env-file-if-exists`).
+- Motivo: una sola forma de cargar entorno y ningún secreto transportado por el prompt.
+
+## 6. Configuración leída una sola vez
+
+- El servidor lee `process.env` una vez, en configuración tipada; el navegador recibe
+  configuración compilada.
+- Una variable declarada pero vacía cuenta como ausente.
+- Motivo: [`03-fronteras-y-variacion.md`](../.guidelines/03-fronteras-y-variacion.md:15).
+
+## 7. URL de pruebas derivada y comando canónico
+
+- La URL de pruebas se deriva de `DATABASE_URL`: mismo rol, host, puerto y parámetros, con el
+  sufijo `_test` en el nombre de la base (`mudanzapp` → `mudanzapp_test`).
+- La dev branch se deriva con `_branch` (`mudanzapp` → `mudanzapp_branch`); su prueba se deriva
+  añadiendo `_test` (`mudanzapp_branch` → `mudanzapp_branch_test`). Toda base de prueba termina en
+  `_test`.
+- La derivación es la **única** forma de obtener la URL. Una variable vacía cuenta como ausente.
+- Comandos canónicos: `npm run test:api:db` y `npm run test:api:db:branch` (alias raíz; delegan
+  en `npm run test:db -w backend`); `db:migrate`, `db:migrate:test`, `db:migrate:branch` y
+  `db:migrate:branch:test` para migrar en local; `db:migrate:remote` y
+  `db:migrate:remote:branch` para remoto. La conectividad usa `db:ping`, `db:ping:test`,
+  `db:ping:branch`, `db:ping:branch:test`, `db:ping:remote` y `db:ping:remote:branch`. El catálogo
+  completo vive en `.roo/rules/07-secretos.md`.
+- Motivo: [`04-datos-y-seguridad.md`](../.guidelines/04-datos-y-seguridad.md:5) y
+  [`07-secretos.md`](../.roo/rules/07-secretos.md:1).
+
+## 8. Dev branch única y estable
+
+- La experimentación vive en una sola dev branch de base de datos, local y remota.
+- La rama principal se protege y solo recibe cambios validados.
+- Motivo: [`04-datos-y-seguridad.md`](../.guidelines/04-datos-y-seguridad.md:39) y
+  [`06-entrega-y-evidencia.md`](../.guidelines/06-entrega-y-evidencia.md:12).
+
+## 9. Sin CI y con protección de rama
+
+- No hay workflows de CI; el gate es local y proporcional al corte.
+- La rama principal se protege igualmente: no es un sandbox.
+- Motivo: la ausencia de CI no elimina la regla de la rama principal.
+
+## 10. MCP sin secretos versionados
+
+- `.roo/mcp.json` no se versiona; `.roo/mcp.example.json` sí, con nombres y placeholders no
+  secretos.
+- Motivo: [`07-secretos.md`](../.roo/rules/07-secretos.md:16).
+
+## 11. Invitación como capacidad core
+
+- `invite` se declara como capacidad core en el resumen funcional.
+- No forma parte del código de arranque: su script y su camino canónico (autorizado) llegan con su propio
+  ciclo.
+- Motivo: el bootstrap se mantiene cero-features y la capacidad pertenece al producto.
+- Evidencia: `resumen-funcional-app-mudanzapp.md` y decisión del usuario.
+
+## 12. MCP: muestra genérica y regla del workspace
+
+- `03-mcp-sample.md` es la plantilla genérica reutilizable.
+- `03-mcp.md` es la regla específica del workspace y nombra `cloudflare-docs` y `napkin-ai`.
+- Motivo: separar el patrón reutilizable del inventario real sin inventar servidores.
+
+## 13. Dueños y disparadores de revisión
+
+| Hecho | Dueño | Fuente | Disparador de revisión |
+| --- | --- | --- | --- |
+| Identidad | Architect | este documento (decisión); §14.3 (pre-decisión de marca) | Cambio de marca o de plataforma |
+| Stack | Architect | `stack-tecnologico-app-mudanzapp.md` | Nueva dependencia de runtime |
+| Frontends | Architect | `stack-tecnologico-app-mudanzapp.md` | Cambio de topología |
+| Integraciones y modos | Architect | `stack-tecnologico-app-mudanzapp.md` | Nueva integración o credenciales |
+| Alcance | Architect con el usuario | `resumen-funcional-app-mudanzapp.md` | Cierre de ciclo |
+| Capacidades core | Architect con el usuario | `resumen-funcional-app-mudanzapp.md` | Nueva capacidad declarada |
+| Modelo de datos | Architect / Backend | `modelo-datos-app-mudanzapp.md` | Nueva tabla o migración |
+| MCP | Architect | `.roo/rules/03-mcp.md` | Nuevo servidor o credencial |
+| Gate | Architect | `.guidelines/06-entrega-y-evidencia.md`; detalle en `.roo/rules/04-verificacion.md` | Cambio de runner o script |
+| Secretos | Architect | `.guidelines/04-datos-y-seguridad.md`; detalle en `.roo/rules/07-secretos.md` | Incidente o fuga |
+| Dependencias | Architect | `.plans/stack-tecnologico-app-mudanzapp.md` §12 | Nueva dependencia autorizada |
+
+## 14. Pre-decisiones de bootstrap
+
+Una pre-decisión no es una fuente normativa: declara un hecho ya decidido cuya implementación
+está pendiente. Cuando el artefacto exista, la pre-decisión se reemplaza por un puntero al
+artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
+
+### 14.1 Errores de la API (`backend/src/errors.ts`)
+
+- **Estado:** pendiente de crear en la Fase 4.
+- **Dueño:** Backend.
+- **Evidencia normativa:** `.guidelines/05` §5 y `.roo/rules/00-stack.md` §Fallos.
+- **Lugar de construcción:** `backend/src/errors.ts`, Fase 4.
+- **Disparador de revisión:** la primera capacidad que cruce un error por la frontera HTTP.
+- **Contenido:** sin payload. Debe exponer `ERROR_CATALOG`, `INTERNAL_ERROR`, `VALIDATION_FAILED`
+  e `isAppError`, consumidos por `error-handler.ts`; los códigos concretos se fijan con la
+  capacidad que los necesite.
+
+### 14.2 DDL inicial (`backend/sql/001_init.sql`)
+
+- **Estado:** pendiente de crear en la Fase 4.
+- **Dueño:** Architect / Backend.
+- **Evidencia normativa:** `.guidelines/04` §3 y nota E5; `.plans/modelo-datos-app-mudanzapp.md` §1
+  y §9.
+- **Lugar de construcción:** `backend/sql/001_init.sql`, Fase 4.
+- **Disparador de revisión:** la primera tabla de negocio del modelo.
+- **Contenido:** sin payload. Marcador idempotente, sin tablas de negocio, con la forma
+  idempotente que permita el DDL.
+
+### 14.3 Marca pública (`shared/src/brand.json` + `shared/src/brand.ts`)
+
+- **Estado:** pendiente de crear en la Fase 2/3. Sin payload en esta pre-decisión: los valores se
+  fijan al construir el archivo, con la marca aprobada.
+- **Dueño:** Architect.
+- **Evidencia normativa:** `.guidelines/01` §3 y §Presupuesto de renombrado.
+- **Lugar de construcción:** `shared/src/brand.json` para los datos y `shared/src/brand.ts` para
+  el acceso tipado, Fase 2/3.
+- **Disparador de revisión:** cambio de marca o de plataforma.
+- **Consumo:** `index.html`, el manifest y el copy se generan o consumen desde ahí; el nombre
+  público no se cablea en el código.

@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment: values are never versioned, only the reference file
+.env
+.env.*
+!.env.example
+
+# Roo workspace configuration
+.roo/*
+!.roo/rules/
+!.roo/rules-orchestrator/
+!.roo/mcp.example.json
+.roo/mcp.json
+
+
+# Angular cache
+.angular/
+
+# Test outputs
+coverage/
+playwright-report/
+blob-report/
+test-results/
+.vitest/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local plan handoff, reusable setup template and manual: local working
+# documents, not versioned. The source documents of the project are versioned.
+.plans/00-prompt-para-continuar.md
+.plans/plantilla-inicializacion-workspace.md
+.plans/manual-setup-workspace-local-y-remoto.md
+.plans/snippets-bootstrap.md
+
+# Napkin AI: the download script carries the token in clear text and the fetched
+# visuals are local working artifacts, so neither of them is versioned
+.plans/get-napkin-image.ps1
+.plans/napkin-images/
