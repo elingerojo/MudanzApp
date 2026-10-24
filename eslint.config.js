@@ -1,8 +1,14 @@
 // Única configuración de ESLint del monorepo (plantilla §2.1).
 // Pasada única desde la raíz: `eslint .` cubre la raíz, `.scripts/`, cada workspace y `e2e/`.
-// Las reglas de Angular se añaden en la Fase 5, cuando exista el código que las consume.
+// Las reglas de Angular se limitan a los frontends; el backend y `shared` no las consumen.
 import js from '@eslint/js';
+import angular from 'angular-eslint';
 import tseslint from 'typescript-eslint';
+
+const angularFrontends = ['frontend/**/*.ts', 'wiki/**/*.ts'];
+const angularTemplates = ['frontend/**/*.html', 'wiki/**/*.html'];
+
+const scopeTo = (patterns) => (config) => ({ ...config, files: patterns });
 
 export default [
   {
@@ -39,4 +45,22 @@ export default [
       sourceType: 'module',
     },
   },
+  // Reglas de Angular, solo para los workspaces de frontend (Fase 5).
+  ...angular.configs.tsRecommended.map(scopeTo(angularFrontends)),
+  {
+    files: angularFrontends,
+    processor: angular.processInlineTemplates,
+    rules: {
+      '@angular-eslint/component-selector': [
+        'error',
+        { type: 'element', prefix: 'app', style: 'kebab-case' },
+      ],
+      '@angular-eslint/directive-selector': [
+        'error',
+        { type: 'attribute', prefix: 'app', style: 'camelCase' },
+      ],
+    },
+  },
+  ...angular.configs.templateRecommended.map(scopeTo(angularTemplates)),
+  ...angular.configs.templateAccessibility.map(scopeTo(angularTemplates)),
 ];
