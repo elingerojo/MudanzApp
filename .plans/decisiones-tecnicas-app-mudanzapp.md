@@ -168,3 +168,19 @@ artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
 - **Disparador de revisión:** cambio de marca o de plataforma.
 - **Consumo:** `index.html`, el manifest y el copy se generan o consumen desde ahí; el nombre
   público no se cablea en el código.
+
+## 15. Incidente de secretos: contraseña local en el transcript (2026-10-24)
+
+- **Qué ocurrió:** durante la Fase 4 el contenido de `backend/.env.local` llegó al transcript con
+  el valor de `DATABASE_URL` visible. El archivo está ignorado por git; el alcance del incidente es
+  la credencial local, no el repositorio.
+- **Protocolo aplicado:** se detuvo la ejecución, se reportó el archivo y la variable (nunca el
+  valor) y se recomendó rotación (`.roo/rules/07-secretos.md`).
+- **Decisión del usuario:** **no se rota**. Se acepta el riesgo porque la base es local y
+  desechable; los puntos 2–4 de `Man-2.4` se ejecutaron después de esa aceptación explícita.
+- **Alcance del riesgo:** rol `mudanzapp` en `localhost`; ninguna base remota usa esa credencial y
+  el valor no se versiona.
+- **Condición de revisión:** si esa contraseña se reutiliza en un entorno remoto (Neon, Railway u
+  otro), se rota **antes** de moverla; al provisionar la base remota se genera una credencial nueva.
+- **Registro:** la recomendación de rotación sigue en pie; esta sección documenta la aceptación, no
+  la anula.

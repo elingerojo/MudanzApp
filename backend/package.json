@@ -1,0 +1,42 @@
+{
+  "name": "@mudanzapp/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env.local src/index.ts",
+    "db:ping": "tsx --env-file-if-exists=.env.local scripts/db-ping.ts",
+    "db:ping:test": "tsx --env-file-if-exists=.env.local scripts/db-ping.ts --test",
+    "db:ping:branch": "tsx --env-file-if-exists=.env.local scripts/db-ping.ts --branch",
+    "db:ping:branch:test": "tsx --env-file-if-exists=.env.local scripts/db-ping.ts --branch --test",
+    "db:ping:remote": "tsx --env-file-if-exists=.env.migration.local scripts/db-ping.ts --remote",
+    "db:ping:remote:branch": "tsx --env-file-if-exists=.env.migration.local scripts/db-ping.ts --remote --branch",
+    "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
+    "db:migrate:remote": "tsx --env-file-if-exists=.env.migration.local scripts/migrate.ts --remote",
+    "db:migrate:remote:branch": "tsx --env-file-if-exists=.env.migration.local scripts/migrate.ts --remote --branch",
+    "db:migrate:test": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --test",
+    "db:migrate:branch": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --branch",
+    "db:migrate:branch:test": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --branch --test",
+    "test:db": "tsx --env-file-if-exists=.env.local scripts/test-db.ts",
+    "test:db:branch": "tsx --env-file-if-exists=.env.local scripts/test-db.ts --branch",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write . --ignore-path ../.prettierignore --ignore-path ../.gitignore",
+    "format:check": "prettier --check . --ignore-path ../.prettierignore --ignore-path ../.gitignore"
+  },
+  "dependencies": {
+    "@mudanzapp/shared": "*",
+    "express": "^5.2.1",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.13.4",
+    "@types/pg": "^8.23.1"
+  }
+}
