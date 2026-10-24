@@ -1,8 +1,11 @@
 /**
  * Punto de entrada del contrato compartido.
  *
- * La Fase 2 solo deja el esqueleto que compila: el `prepare` de `shared` emite `dist` en
- * cada `npm install`. El contrato tipado (el helper `health` y la marca pública en
- * `brand.json` + `brand.ts`) entra en la Fase 3.
+ * Es el hub del contrato: tipos por defecto y valores de runtime solo cuando un consumidor los
+ * necesita. `zod` vive en `dependencies` y se usa en la frontera del backend; hoy no se exporta
+ * ningún schema porque la frontera todavía no tiene payload que validar.
  */
-export {};
+export { health } from './health.js';
+export type { DatabaseState, Health } from './health.js';
+export { brand } from './brand.js';
+export type { Brand } from './brand.js';
