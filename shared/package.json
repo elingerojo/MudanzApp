@@ -15,7 +15,6 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
     "prepare": "tsc -p tsconfig.build.json",
     "lint": "eslint .",
     "format": "prettier --write . --ignore-path ../.prettierignore --ignore-path ../.gitignore",
