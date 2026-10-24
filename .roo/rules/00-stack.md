@@ -20,6 +20,9 @@ integraciones concretas viven en la fuente del stack.
 - Prohibido `dotenv`: las variables se leen de `process.env`.
 - Configuración: el servidor lee el entorno **una sola vez**, en configuración tipada; el
   navegador recibe configuración compilada. Una variable vacía cuenta como ausente.
+- Puerto del backend: `PORT` se lee de `process.env`. El default `3000` del código es solo de local y
+  de pruebas. En Railway el servicio **define `PORT=3000`** de forma explícita y el dominio público
+  apunta a ese puerto; el target port sigue al listener y nunca lo sustituye.
 - Integraciones declaradas: `APP_MODE` (integración primaria que reemplaza Wix), `R2_MODE`
   (almacenamiento opcional) y `AI_MODE` (IA), con `live`/`fake` y default `live`. `live` exige
   credenciales válidas; `fake` es el doble determinista de pruebas mientras se consiguen.

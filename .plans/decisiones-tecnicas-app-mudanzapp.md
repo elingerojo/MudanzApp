@@ -128,6 +128,7 @@
 | Gate | Architect | `.guidelines/06-entrega-y-evidencia.md`; detalle en `.roo/rules/04-verificacion.md` | Cambio de runner o script |
 | Secretos | Architect | `.guidelines/04-datos-y-seguridad.md`; detalle en `.roo/rules/07-secretos.md` | Incidente o fuga |
 | Dependencias | Architect | `.plans/stack-tecnologico-app-mudanzapp.md` §12 | Nueva dependencia autorizada |
+| Puerto del backend | Architect | este documento §18; `stack-tecnologico-app-mudanzapp.md` §6 | Cambio de plataforma o de puerto |
 
 ## 14. Pre-decisiones de bootstrap
 
@@ -222,3 +223,30 @@ artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
   está en la tabla de `Man-3.4`.
 - **Disparador de revisión:** que `shared` pase a exportar valores de runtime —hoy sus imports son
   solo de tipo— o que aparezca un segundo servicio de Railway en el mismo repositorio.
+
+## 18. Puerto del backend: `PORT=3000` en Railway (2026-10-24)
+
+- **Decisión:** el servicio de Railway **define `PORT=3000`** como variable de servicio. La variable
+  no se omite para que la plataforma inyecte su puerto por defecto. El dominio público apunta al
+  target port `3000` y el healthcheck `/health` se evalúa contra ese puerto.
+- **Motivo:** una sola fuente por hecho. El repo ya declara `3000` en
+  [`backend/src/config.ts`](../backend/src/config.ts:12), en
+  [`frontend/proxy.conf.json`](../frontend/proxy.conf.json:1) y en
+  [`e2e/support/harness.ts`](../e2e/support/harness.ts:27). Dejar que producción escuche en `8080`
+  convierte ese `3000` en un valor verdadero solo en local y obliga a cada documento a arrastrar la
+  excepción. El puerto de producción es un hecho de la plataforma: se declara donde vive.
+- **Alternativa descartada — subir el default del código a `8080`:** no cambia nada en producción
+  (la variable manda), rompe el proxy y el arnés, y traslada la incoherencia al repo entero en vez de
+  eliminarla.
+- **Alternativa descartada — `PORT=3000` en línea dentro del Start Command:** esconde el hecho en una
+  cadena del dashboard, donde no se inspecciona ni se compara con la tabla de `Man-3.4`.
+- **Alternativa descartada — `railway.json` o `railway.toml`:** la decisión 16 ya excluye Config as
+  Code; un puerto no justifica reintroducirlo.
+- **Alternativa descartada — fijar solo el target port del dominio:** el dominio enruta hacia un
+  puerto interno. Si el proceso escucha en otro, el servicio queda inaccesible. El target port sigue
+  al listener; no lo define.
+- **Consecuencia aceptada:** el dashboard lleva un valor explícito donde la plataforma inyectaba uno
+  por defecto. Es visible, se verifica en `Man-3.4` y no exige cambiar código: el listener ya lee
+  `process.env.PORT` en configuración tipada.
+- **Disparador de revisión:** cambio de plataforma de despliegue, cambio del puerto acordado o un
+  segundo servicio de Railway en el mismo repositorio que necesite otro puerto.

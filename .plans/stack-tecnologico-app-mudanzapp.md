@@ -61,6 +61,10 @@
 - El servidor lee el entorno **una sola vez**, en configuración tipada y centralizada.
 - Una variable declarada pero vacía cuenta como ausente.
 - El navegador recibe configuración compilada; nunca lee secretos en runtime.
+- Puerto: el backend escucha en `process.env.PORT`. El default `3000` del código es el fallback de
+  local y de pruebas, no una decisión de producción. En Railway el servicio **define `PORT=3000`**
+  de forma explícita —no se omite para que la plataforma inyecte su puerto por defecto— y el dominio
+  público apunta a ese mismo puerto.
 
 ## 7. Integraciones externas
 
@@ -113,6 +117,7 @@
 | Decisiones técnicas | Architect | `decisiones-tecnicas-app-mudanzapp.md` | Nueva dependencia o cambio de plataforma |
 | Gate de verificación | Architect | `.guidelines/06-entrega-y-evidencia.md`; detalle operativo en `.roo/rules/04-verificacion.md` | Cambio de runner o de script raíz |
 | Secretos y entornos | Architect | `.guidelines/04-datos-y-seguridad.md`; detalle en `.roo/rules/07-secretos.md` | Incidente, fuga o cambio de plataforma |
+| Puerto del backend | Architect | este documento §6 y `decisiones-tecnicas-app-mudanzapp.md` §18 | Cambio de plataforma o de puerto |
 | Códigos de error y evidencia de fallos | Backend | `decisiones-tecnicas-app-mudanzapp.md` §14.1 (pre-decisión de errores) y `.guidelines/05-semantica-de-fallos.md` | Nueva capacidad o cambio de contrato |
 
 ## 12. Registro de dependencias

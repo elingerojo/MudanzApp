@@ -110,6 +110,10 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 - `process.env` se lee **una sola vez**, en [`backend/src/config.ts`](backend/src/config.ts:1). El
   servidor no lanza al importar: lo que falta se registra en `warnings` y `/health` sigue
   respondiendo.
+- `PORT` es la única variable con **dos hechos distintos** y no se confunden: en `backend/.env.local`
+  es opcional y el default del código es `3000`; en **Railway es obligatoria con valor `3000`**
+  (§12). Una variable vacía cuenta como ausente, así que `PORT=` en Railway no fija nada: se
+  escribe `PORT=3000`.
 - Las integraciones (`APP_MODE`, `R2_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales se añaden
   **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`.
 - La configuración del navegador se **compila**: el frontend no lee `process.env`. Ver
@@ -281,6 +285,7 @@ de ciclo.
 | Pieza               | Contrato                                                                                                                                                               |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Backend             | Contrato en el **dashboard** de Railway: build `npm run build`, start `npm run start`, healthcheck `/health` y watch paths. Producción nunca usa `tsx` ni `--env-file` |
+| Puerto del backend  | **`PORT=3000` como variable del servicio**; el dominio público apunta al target port `3000` y el healthcheck `/health` se evalúa contra ese puerto                     |
 | Frontends           | **Un Worker de assets por frontend** (Cloudflare Workers, no Pages), sin `main` ni `_redirects`                                                                        |
 | Nombre del Worker   | **Idéntico** al `name` de su [`wrangler.jsonc`](frontend/wrangler.jsonc:1) y al del dashboard                                                                          |
 | Build del Worker    | `npm run build:web:<FE>` (compila `shared` antes: Angular resuelve tipos desde `dist`)                                                                                 |
@@ -293,6 +298,12 @@ de ciclo.
   **no** lo lee, así que no se crea `railway.json` ni `railway.toml`: los valores se capturan en el
   dashboard y se verifican en `Man-3.4`, que es su única copia. Los watch paths excluyen
   `frontend/`, `wiki/`, `e2e/`, `.plans/` y `.roo/`.
+- `PORT` **se define, no se hereda**. Un servicio nuevo recibe un puerto por defecto de la
+  plataforma (hoy `8080`); omitir la variable deja el contrato del repo —`3000` en
+  [`backend/src/config.ts`](backend/src/config.ts:12), en [`proxy.conf.json`](frontend/proxy.conf.json:1)
+  y en el arnés— describiendo un puerto distinto del que producción usa. La variable del servicio es
+  la **única fuente** del puerto de producción; el target port del dominio y el healthcheck la
+  siguen, nunca la contradicen. El default `3000` del código aplica solo a local y a las pruebas.
 - El despliegue invoca los scripts **de la raíz**, no la variante por workspace: `build` compila
   `shared` antes del backend y el backend resuelve sus tipos desde `shared/dist`.
 
