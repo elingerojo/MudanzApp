@@ -17,9 +17,10 @@ export default [
       '**/build/**',
       '**/.angular/**',
       '**/coverage/**',
-      'playwright-report/**',
-      'blob-report/**',
-      'test-results/**',
+      // Salidas del arnés: viven junto a `e2e/playwright.config.ts`, no en la raíz.
+      '**/playwright-report/**',
+      '**/blob-report/**',
+      '**/test-results/**',
       '**/.vitest/**',
     ],
   },
