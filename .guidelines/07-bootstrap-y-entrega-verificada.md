@@ -45,15 +45,15 @@ en el manual, y los comandos en `.roo/rules/04-verificacion.md`.
   existe en remoto.
 - **Sin obligación de cadencia:** no se verifica producción por calendario ni por número de commits.
 
-| Hecho remoto | Por qué no se puede verificar local |
-| --- | --- |
-| Variable de entorno nueva o renombrada | El valor lo inyecta la plataforma; vacío cuenta como ausente |
-| `APP_BASE_URL`, orígenes de CORS o URL pública | El origen es el Worker desplegado; el preflight solo es cross-origin ahí |
-| Frontend nuevo, nombre de Worker o `wrangler.jsonc` | El nombre del dashboard debe coincidir con `name` o el build falla |
-| Comandos de build, start o healthcheck | Solo la plataforma los resuelve |
-| Migración que debe existir en remoto | El runner es manual y hacia adelante |
-| Dependencia de runtime en el camino de arranque | La resuelve la instalación de la plataforma |
-| Integración que pasa de `fake` a `live` | Las credenciales viven en la plataforma |
+| Hecho remoto                                        | Por qué no se puede verificar local                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| Variable de entorno nueva o renombrada              | El valor lo inyecta la plataforma; vacío cuenta como ausente             |
+| `APP_BASE_URL`, orígenes de CORS o URL pública      | El origen es el Worker desplegado; el preflight solo es cross-origin ahí |
+| Frontend nuevo, nombre de Worker o `wrangler.jsonc` | El nombre del dashboard debe coincidir con `name` o el build falla       |
+| Comandos de build, start o healthcheck              | Solo la plataforma los resuelve                                          |
+| Migración que debe existir en remoto                | El runner es manual y hacia adelante                                     |
+| Dependencia de runtime en el camino de arranque     | La resuelve la instalación de la plataforma                              |
+| Integración que pasa de `fake` a `live`             | Las credenciales viven en la plataforma                                  |
 
 - El hecho remoto se cierra con un commit que anota los valores observados, nunca credenciales.
 

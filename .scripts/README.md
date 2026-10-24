@@ -5,10 +5,10 @@
 Deriva el contrato de nombres del workspace a partir del nombre público y escribe dos artefactos
 en este mismo directorio:
 
-| Archivo | Rol |
-| --- | --- |
-| [`workspace-params.md`](workspace-params.md) | contexto de la Fase 1: marcadores, pendientes, SQL, superficies de marca y mapa de renombrado |
-| [`workspace-params.json`](workspace-params.json) | verdad de máquina con la misma información, en orden determinista |
+| Archivo                                          | Rol                                                                                           |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| [`workspace-params.md`](workspace-params.md)     | contexto de la Fase 1: marcadores, pendientes, SQL, superficies de marca y mapa de renombrado |
+| [`workspace-params.json`](workspace-params.json) | verdad de máquina con la misma información, en orden determinista                             |
 
 ### Invocación canónica
 
@@ -22,24 +22,24 @@ Sin dependencias y sin red: se puede ejecutar antes de que exista `package.json`
 
 ### Opciones
 
-| Opción | Efecto |
-| --- | --- |
-| `--slug <slug>` | fija el nombre interno a mano en lugar de derivarlo del público |
-| `--frontends <lista>` | lista separada por comas; default `frontend,wiki` |
-| `--out-dir <dir>` | directorio de salida; default el de este script |
-| `--force` | sobrescribe un contrato generado para otra app |
-| `--dry-run` | valida y renderiza sin escribir |
-| `--help`, `-h` | ayuda |
+| Opción                | Efecto                                                          |
+| --------------------- | --------------------------------------------------------------- |
+| `--slug <slug>`       | fija el nombre interno a mano en lugar de derivarlo del público |
+| `--frontends <lista>` | lista separada por comas; default `frontend,wiki`               |
+| `--out-dir <dir>`     | directorio de salida; default el de este script                 |
+| `--force`             | sobrescribe un contrato generado para otra app                  |
+| `--dry-run`           | valida y renderiza sin escribir                                 |
+| `--help`, `-h`        | ayuda                                                           |
 
 ### Códigos de salida
 
-| Código | Significado |
-| --- | --- |
-| `0` | archivos escritos, o `--dry-run` validado |
-| `1` | invariante interna rota (defecto del generador) |
-| `2` | uso o argumento inválido |
-| `3` | guarda de sobrescritura: el contrato existente es de otra app |
-| `4` | fallo de escritura |
+| Código | Significado                                                   |
+| ------ | ------------------------------------------------------------- |
+| `0`    | archivos escritos, o `--dry-run` validado                     |
+| `1`    | invariante interna rota (defecto del generador)               |
+| `2`    | uso o argumento inválido                                      |
+| `3`    | guarda de sobrescritura: el contrato existente es de otra app |
+| `4`    | fallo de escritura                                            |
 
 ### Reglas que el script hace cumplir
 

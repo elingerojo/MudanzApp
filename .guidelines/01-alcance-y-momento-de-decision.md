@@ -20,10 +20,10 @@ La unidad de aprendizaje es un walking skeleton con un caso de uso real (tracer 
 
 Separa la identidad técnica de la marca:
 
-| Nombre | Naturaleza | Dónde vive | Política |
-| --- | --- | --- | --- |
-| Interno del proyecto | Fijo, técnico, sin carga de marca | Código, paquetes, roles y bases de datos, Workers, claves, repositorio | Se elige una vez y no se renombra |
-| Público | Configurable, de marca | Título, metadatos, manifest, copy de UI, correos, legales, marketing, dominio y handles | Se espera que cambie al lanzamiento o después de conocer la adopción |
+| Nombre               | Naturaleza                        | Dónde vive                                                                              | Política                                                             |
+| -------------------- | --------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Interno del proyecto | Fijo, técnico, sin carga de marca | Código, paquetes, roles y bases de datos, Workers, claves, repositorio                  | Se elige una vez y no se renombra                                    |
+| Público              | Configurable, de marca            | Título, metadatos, manifest, copy de UI, correos, legales, marketing, dominio y handles | Se espera que cambie al lanzamiento o después de conocer la adopción |
 
 - El nombre público vive en una sola fuente y se consume desde ahí; no se cablea en el código.
 - Las URLs técnicas usan el nombre interno; la marca pública se resuelve en la capa de presentación o con un dominio propio.

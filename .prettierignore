@@ -1,0 +1,22 @@
+# Documentos de trabajo locales y reglas copiadas: no se formatean desde aquí.
+.plans/
+.roo/
+
+# Dependencias y artefactos de build
+node_modules/
+dist/
+build/
+.angular/
+coverage/
+
+# Salidas de pruebas
+playwright-report/
+blob-report/
+test-results/
+.vitest/
+
+# Artefactos generados: no se editan a mano. El lockfile se regenera con `npm install`;
+# los parámetros del workspace, con `node .scripts/generate-workspace-params.mjs`.
+package-lock.json
+.scripts/workspace-params.json
+.scripts/workspace-params.md

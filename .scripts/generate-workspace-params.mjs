@@ -132,9 +132,12 @@ function parseArgs(argv) {
     } else if (args.appName === null) {
       args.appName = arg;
     } else {
-      throw new CliError('E_USAGE_UNEXPECTED_ARGUMENT', 'solo se admite un nombre de app', EXIT.USAGE, [
-        `sobrante: ${arg}`,
-      ]);
+      throw new CliError(
+        'E_USAGE_UNEXPECTED_ARGUMENT',
+        'solo se admite un nombre de app',
+        EXIT.USAGE,
+        [`sobrante: ${arg}`],
+      );
     }
   }
 
@@ -182,15 +185,25 @@ function buildModel(args) {
   if (publicName.length > 64) {
     throw new CliError('E_APP_NAME_TOO_LONG', 'el nombre público supera 64 caracteres', EXIT.USAGE);
   }
-  if (/[\u0000-\u001f\u007f]/.test(publicName)) {
-    throw new CliError('E_APP_NAME_CONTROL_CHARS', 'el nombre público trae caracteres de control', EXIT.USAGE);
+  const hasControlChars = [...publicName].some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint < 0x20 || codePoint === 0x7f;
+  });
+  if (hasControlChars) {
+    throw new CliError(
+      'E_APP_NAME_CONTROL_CHARS',
+      'el nombre público trae caracteres de control',
+      EXIT.USAGE,
+    );
   }
   if (!/[A-Za-z]/.test(publicName.normalize('NFD'))) {
     throw new CliError(
       'E_APP_NAME_NOT_ALPHABETIC',
       'el nombre público no contiene letras ASCII',
       EXIT.USAGE,
-      ['el slug interno se deriva de letras y dígitos; un nombre solo numérico o solo simbólico no sirve'],
+      [
+        'el slug interno se deriva de letras y dígitos; un nombre solo numérico o solo simbólico no sirve',
+      ],
     );
   }
 
@@ -416,7 +429,11 @@ function buildModel(args) {
     ['I1', `APP_SLUG cumple ${SLUG_PATTERN}`, SLUG_PATTERN.test(slug)],
     ['I2', 'NPM_SCOPE es "@" + APP_SLUG', npmScope === `@${slug}`],
     ['I3', 'DB_TEST es DB_DEV + "_test"', databases.test === `${databases.dev}_test`],
-    ['I4', 'DB_DEV_BRANCH es DB_DEV + "_branch"', databases.devBranch === `${databases.dev}_branch`],
+    [
+      'I4',
+      'DB_DEV_BRANCH es DB_DEV + "_branch"',
+      databases.devBranch === `${databases.dev}_branch`,
+    ],
     [
       'I5',
       'DB_DEV_BRANCH_TEST es DB_DEV_BRANCH + "_test"',
@@ -432,7 +449,8 @@ function buildModel(args) {
     [
       'I7',
       'hay un WORKER_NAME por frontend y ninguno se repite',
-      workers.length === frontends.length && new Set(workers.map((w) => w.name)).size === frontends.length,
+      workers.length === frontends.length &&
+        new Set(workers.map((w) => w.name)).size === frontends.length,
     ],
     [
       'I8',
@@ -442,11 +460,19 @@ function buildModel(args) {
     [
       'I9',
       'los nombres de paquete son únicos',
-      new Set([packages.root, ...packages.frontends.map((f) => f.name), packages.shared, packages.backend])
-        .size ===
+      new Set([
+        packages.root,
+        ...packages.frontends.map((f) => f.name),
+        packages.shared,
+        packages.backend,
+      ]).size ===
         3 + packages.frontends.length,
     ],
-    ['I10', 'el prefijo de localStorage termina en "."', conventions.localStoragePrefix.endsWith('.')],
+    [
+      'I10',
+      'el prefijo de localStorage termina en "."',
+      conventions.localStoragePrefix.endsWith('.'),
+    ],
     [
       'I11',
       'cada base local termina en _test o es la principal o la dev branch',
@@ -663,8 +689,6 @@ function renderMarkdown(model) {
   const {
     publicName,
     slug,
-    npmScope,
-    frontends,
     packages,
     databases,
     workers,
@@ -856,7 +880,10 @@ function renderMarkdown(model) {
   );
 
   add('## 9. Superficies del nombre público (`.guidelines/01` §3)', '');
-  add('Inventario del renombrado público; la marca vive solo en la primera columna de consumo.', '');
+  add(
+    'Inventario del renombrado público; la marca vive solo en la primera columna de consumo.',
+    '',
+  );
   add('| Superficie | Se consume en | Estado |', '| --- | --- | --- |');
   for (const item of brandSurfaces) {
     add(`| ${mdCell(item.surface)} | ${mdCell(item.consumer)} | ${mdCell(item.status)} |`);
@@ -900,7 +927,11 @@ function renderMarkdown(model) {
 
   add('## 12. Límites del script', '');
   add(
-    '- No verifica colisión real: `@' + slug + '` en npm, `' + slug + '` en Cloudflare y el repositorio',
+    '- No verifica colisión real: `@' +
+      slug +
+      '` en npm, `' +
+      slug +
+      '` en Cloudflare y el repositorio',
     '  exigen red y son pasos de la Fase 1.',
     '- No crea credenciales, no lee `.env*`, no se conecta a nada y no imprime valores.',
     '- No renombra el workspace: describe el renombrado y deja el reemplazo al ciclo que lo ejecute.',
@@ -931,7 +962,7 @@ function verifyGuard(outDir, model, force) {
   try {
     existing = JSON.parse(readFileSync(jsonPath, 'utf8'));
   } catch {
-    existing = null;
+    // Archivo presente pero ilegible: se trata como contrato ajeno, no como propio.
   }
 
   const existingSlug =
@@ -1019,7 +1050,9 @@ try {
     }
     process.exitCode = error.exitCode;
   } else {
-    process.stderr.write(`[E_UNEXPECTED] ${error instanceof Error ? error.stack : String(error)}\n`);
+    process.stderr.write(
+      `[E_UNEXPECTED] ${error instanceof Error ? error.stack : String(error)}\n`,
+    );
     process.exitCode = EXIT.INTERNAL;
   }
 }

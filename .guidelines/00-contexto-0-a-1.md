@@ -21,14 +21,14 @@ flowchart LR
 
 ## Cómo leer 01–07
 
-| Archivo | Tema |
-| --- | --- |
-| 01 | Alcance y momento de decisión |
-| 02 | Verdad y contratos |
-| 03 | Fronteras y variación |
-| 04 | Datos y seguridad |
-| 05 | Semántica de fallos |
-| 06 | Entrega y evidencia |
-| 07 | Bootstrap y entrega verificada |
+| Archivo | Tema                           |
+| ------- | ------------------------------ |
+| 01      | Alcance y momento de decisión  |
+| 02      | Verdad y contratos             |
+| 03      | Fronteras y variación          |
+| 04      | Datos y seguridad              |
+| 05      | Semántica de fallos            |
+| 06      | Entrega y evidencia            |
+| 07      | Bootstrap y entrega verificada |
 
 Estos archivos son lineamientos de planificación, no especificaciones de implementación.
