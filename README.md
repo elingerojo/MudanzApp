@@ -278,20 +278,21 @@ Notas de corrida:
 Declarado y ejercitado una vez en local; el bring-up remoto es **manual** y no forma parte del gate
 de ciclo.
 
-| Pieza               | Contrato                                                                                                                         |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Backend             | [`railway.json`](railway.json:1) en la raíz: build, start, healthcheck y watch paths. Producción nunca usa `tsx` ni `--env-file` |
-| Frontends           | **Un Worker de assets por frontend** (Cloudflare Workers, no Pages), sin `main` ni `_redirects`                                  |
-| Nombre del Worker   | **Idéntico** al `name` de su [`wrangler.jsonc`](frontend/wrangler.jsonc:1) y al del dashboard                                    |
-| Build del Worker    | `npm run build:web:<FE>` (compila `shared` antes: Angular resuelve tipos desde `dist`)                                           |
-| Deploy              | `npx wrangler deploy -c <FE>/wrangler.jsonc`; `wrangler` es devDependency **raíz**                                               |
-| Config del frontend | `environment.production.ts` se compila: si cambia el host del backend, hay que reconstruir **ese** Worker                        |
-| CORS                | `APP_BASE_URL` con **todos** los orígenes de los Workers, separados por comas                                                    |
-| CI/CD               | No hay workflows; la protección de rama es un paso manual del remoto                                                             |
+| Pieza               | Contrato                                                                                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend             | Contrato en el **dashboard** de Railway: build `npm run build`, start `npm run start`, healthcheck `/health` y watch paths. Producción nunca usa `tsx` ni `--env-file` |
+| Frontends           | **Un Worker de assets por frontend** (Cloudflare Workers, no Pages), sin `main` ni `_redirects`                                                                        |
+| Nombre del Worker   | **Idéntico** al `name` de su [`wrangler.jsonc`](frontend/wrangler.jsonc:1) y al del dashboard                                                                          |
+| Build del Worker    | `npm run build:web:<FE>` (compila `shared` antes: Angular resuelve tipos desde `dist`)                                                                                 |
+| Deploy              | `npx wrangler deploy -c <FE>/wrangler.jsonc`; `wrangler` es devDependency **raíz**                                                                                     |
+| Config del frontend | `environment.production.ts` se compila: si cambia el host del backend, hay que reconstruir **ese** Worker                                                              |
+| CORS                | `APP_BASE_URL` con **todos** los orígenes de los Workers, separados por comas                                                                                          |
+| CI/CD               | No hay workflows; la protección de rama es un paso manual del remoto                                                                                                   |
 
-- [`railway.json`](railway.json:1) es el contrato **ejecutable** del backend: Railway lo lee porque el
-  _root directory_ del servicio es la raíz del repo. El dashboard refleja sus valores; no se
-  duplican aquí. Los watch paths excluyen `frontend/`, `wiki/`, `e2e/`, `.plans/` y `.roo/`.
+- El contrato del backend **no** vive en el repo. Config as Code está deprecado y un servicio nuevo
+  **no** lo lee, así que no se crea `railway.json` ni `railway.toml`: los valores se capturan en el
+  dashboard y se verifican en `Man-3.4`, que es su única copia. Los watch paths excluyen
+  `frontend/`, `wiki/`, `e2e/`, `.plans/` y `.roo/`.
 
 ---
 

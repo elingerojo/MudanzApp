@@ -3,7 +3,7 @@
 > **Naturaleza:** registro de decisiones de alto costo de reversión. El registro operativo de
 > dependencias vive en `.plans/stack-tecnologico-app-mudanzapp.md` §12; la regla
 > [`05-deps.md`](../.roo/rules/05-deps.md:1) apunta allí.
-> **Dueño:** Architect. **Última revisión:** 2026-10-21. **Disparador de revisión:** nueva
+> **Dueño:** Architect. **Última revisión:** 2026-10-24. **Disparador de revisión:** nueva
 > dependencia de runtime, cambio de plataforma o decisión que cueste revertir.
 > **Evidencia normativa:** los lineamientos `.guidelines/00`–`07` prevalecen; las reglas son el
 > detalle operativo.
@@ -184,3 +184,21 @@ artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
   otro), se rota **antes** de moverla; al provisionar la base remota se genera una credencial nueva.
 - **Registro:** la recomendación de rotación sigue en pie; esta sección documenta la aceptación, no
   la anula.
+
+## 16. Sin Config as Code: el contrato de despliegue vive en el dashboard (2026-10-24)
+
+- **Decisión:** no se versiona `railway.json` ni `railway.toml`. El contrato del backend —builder,
+  build, start, healthcheck y watch paths— se captura en el dashboard de Railway y se registra en
+  `Man-3.4` del manual, que es su única copia.
+- **Motivo:** Railway declaró Config as Code deprecado; un **servicio nuevo no puede optar** por él
+  y los archivos existentes dejarán de leerse el 2026-12-01. Como `Man-3.4` no se ha ejecutado, el
+  servicio sería nuevo: el archivo no gobernaría nada y afirmar lo contrario sería un contrato falso
+  ([`02-verdad-y-contratos`](../.guidelines/02-verdad-y-contratos.md:1)).
+- **Alternativa descartada:** adoptar Infrastructure as Code (`.railway/railway.ts`) ahora. Es el
+  reemplazo declarado, pero exige la dependencia `railway`, el CLI autenticado y llevar secretos a
+  `preserve()` o a variables compartidas; se reevalúa al cerrar el bootstrap, con el servicio ya
+  provisionado y `railway config pull` disponible para el diff.
+- **Consecuencia aceptada:** el repo deja de probar el despliegue. Recrear el servicio pierde los
+  ajustes, por eso el checklist de `Man-4` los afirma como evidencia.
+- **Disparador de revisión:** cierre del bootstrap, cambio de host del backend o cualquier intento
+  de reintroducir un archivo de configuración de Railway en la raíz.
