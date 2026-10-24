@@ -293,6 +293,8 @@ de ciclo.
   **no** lo lee, así que no se crea `railway.json` ni `railway.toml`: los valores se capturan en el
   dashboard y se verifican en `Man-3.4`, que es su única copia. Los watch paths excluyen
   `frontend/`, `wiki/`, `e2e/`, `.plans/` y `.roo/`.
+- El despliegue invoca los scripts **de la raíz**, no la variante por workspace: `build` compila
+  `shared` antes del backend y el backend resuelve sus tipos desde `shared/dist`.
 
 ---
 

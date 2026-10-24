@@ -202,3 +202,23 @@ artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
   ajustes, por eso el checklist de `Man-4` los afirma como evidencia.
 - **Disparador de revisión:** cierre del bootstrap, cambio de host del backend o cualquier intento
   de reintroducir un archivo de configuración de Railway en la raíz.
+
+## 17. Comandos de build y start: los de la raíz, no los del workspace (2026-10-24)
+
+- **Decisión:** el despliegue usa `npm run build` y `npm run start` de la raíz, y el filtro sigue
+  cubriendo `backend/**`, `shared/**`, `package.json`, `package-lock.json` y `tsconfig.base.json`. Si
+  el panel autorrellena la variante por workspace, se sobrescribe.
+- **Motivo:** el `build` raíz compila `shared` **antes** del backend, y el backend resuelve sus tipos
+  desde `shared/dist/index.d.ts`. La variante por workspace solo ejecuta `tsc` del backend y depende
+  de que el `prepare` de `shared` haya corrido durante el install con devDependencies disponibles: un
+  supuesto implícito donde el repo puede escribir el orden.
+- **Alternativa descartada:** estrechar los watch paths a `/backend/**`. El artefacto se construye
+  con el lockfile, `shared`, `tsconfig.base.json` y el `package.json` raíz; con el filtro estrecho, un
+  parche de dependencia o un cambio de tipos llegaría a producción solo cuando alguien tocara
+  backend.
+- **Alternativa viable en otro ciclo:** adoptar la variante por workspace y encadenar `shared` dentro
+  del `build` de `backend`, de modo que el comando detectado sea verdadero sin perder el orden.
+- **Consecuencia aceptada:** el dashboard muestra un override respecto a lo detectado. Es explícito y
+  está en la tabla de `Man-3.4`.
+- **Disparador de revisión:** que `shared` pase a exportar valores de runtime —hoy sus imports son
+  solo de tipo— o que aparezca un segundo servicio de Railway en el mismo repositorio.
