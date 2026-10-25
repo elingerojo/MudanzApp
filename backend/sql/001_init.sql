@@ -1,4 +1,4 @@
--- 001_init.sql — marcador idempotente de la capa de datos (pre-decisión §14.2).
+-- 001_init.sql — marcador idempotente de la capa de datos (artefacto de `decisiones` §14.2).
 -- No define tablas de negocio: el modelo de datos se fija con el primer ciclo.
 -- Solo hacia adelante e idempotente: se puede aplicar a las cuatro bases locales.
 

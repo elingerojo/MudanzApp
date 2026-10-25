@@ -6,8 +6,9 @@ import { fileURLToPath } from 'node:url';
  *
  * El envoltorio ([`run-e2e.ts`](../run-e2e.ts)) carga `backend/.env.local` con el parser nativo de
  * Node, **deriva** la URL de pruebas y la inyecta en este proceso. Aquí solo se compone
- * `BACKEND_ENV`, que la config de Playwright aplica sobre cada `webServer` (plantilla §2.1 y `07`
- * §4). Ningún valor se imprime: la base de pruebas nunca viaja por la salida.
+ * `backendEnv()` —una función, no una constante— cuyo resultado la config de Playwright aplica sobre
+ * cada `webServer` (plantilla §2.1 y `07` §4). Ningún valor se imprime: la base de pruebas nunca
+ * viaja por la salida.
  *
  * Las integraciones se declaran en `fake`; el modo de una integración se lee solo cuando su
  * capacidad existe (`00-stack`), así que hoy son marcas deterministas para el ciclo que la cree.

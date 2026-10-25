@@ -46,7 +46,7 @@ export default defineConfig({
       stdout: 'pipe',
       stderr: 'pipe',
     },
-    // Los frontends **no** heredan `BACKEND_ENV`: `ng serve` lee `PORT` y se quedaría con el
+    // Los frontends **no** heredan `backendEnv()`: `ng serve` lee `PORT` y se quedaría con el
     // puerto del backend. Su puerto va en el comando y su configuración se compila.
     ...FRONTENDS.map((frontend) => ({
       command: frontend.command,

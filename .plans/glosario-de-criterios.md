@@ -1,7 +1,7 @@
 # Glosario de criterios — MudanzApp
 
 > **Autoridad:** `.guidelines/00`–`07` sobre reglas, planes y documentos de trabajo. Este glosario no crea ni deroga lineamientos: fija el vocabulario con el que se audita su cumplimiento.
-> **Fuente única:** este archivo es la fuente única del **criterio de excepción razonable** (§1.3), de la **definición de pre-decisión** (§1.4) y de la **plantilla de nota de excepción** (§1.5) que exigen `.roo/rules/01-scope.md` §Alcance y `.roo/rules-architect/00-planning-context.md` §Contexto de planificación.
+> **Fuente única:** este archivo es la fuente única del **criterio de excepción razonable** (§1.3), de la **definición de pre-decisión** (§1.4) y de la **plantilla de nota de excepción** (§1.5) que exige `.roo/rules/01-scope.md` §Alcance. La regla de modo `.roo/rules-architect/00-planning-context.md` §Contexto de planificación repite el requisito dentro de la máquina, pero **no se versiona ni viaja** (no está en `.gitignore` como excepción y ningún inventario la copia): la fuente del requisito es `01-scope`.
 > **Convención de referencias:** archivo y sección, sin anclas de línea.
 
 ## 1. Jerarquía y criterios

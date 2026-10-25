@@ -120,7 +120,7 @@
 | Gate de verificación | Architect | `.guidelines/06-entrega-y-evidencia.md`; detalle operativo en `.roo/rules/04-verificacion.md` | Cambio de runner o de script raíz |
 | Secretos y entornos | Architect | `.guidelines/04-datos-y-seguridad.md`; detalle en `.roo/rules/07-secretos.md` | Incidente, fuga o cambio de plataforma |
 | Puerto del backend | Architect | este documento §6 y `decisiones-tecnicas-app-mudanzapp.md` §18 | Cambio de plataforma o de puerto |
-| Códigos de error y evidencia de fallos | Backend | `decisiones-tecnicas-app-mudanzapp.md` §14.1 (pre-decisión de errores) y `.guidelines/05-semantica-de-fallos.md` | Nueva capacidad o cambio de contrato |
+| Códigos de error y evidencia de fallos | Backend | `decisiones-tecnicas-app-mudanzapp.md` §14.1 (puntero a `backend/src/errors.ts`) y `.guidelines/05-semantica-de-fallos.md` | Nueva capacidad o cambio de contrato |
 
 ## 12. Registro de dependencias
 
