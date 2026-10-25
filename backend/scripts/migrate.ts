@@ -21,6 +21,15 @@ function stableCode(error: unknown): string {
   return 'unknown';
 }
 
+/** El archivo trae control de transacción propio: el runner ya abre la suya y anidarla falla. */
+function hasTransactionControl(sql: string): boolean {
+  const [firstStatement = ''] = sql
+    .split('\n')
+    .filter((line) => line.trim() !== '' && !line.trim().startsWith('--'));
+
+  return /^\s*(?:BEGIN|COMMIT|ROLLBACK|START\s+TRANSACTION)\b/i.test(firstStatement);
+}
+
 async function main(): Promise<number> {
   const connection = resolveConnectionFromEnvironment(process.argv.slice(2));
   if (connection === null) {
@@ -41,7 +50,19 @@ async function main(): Promise<number> {
     await client.connect();
     for (const file of files) {
       const sql = await readFile(join(sqlDirectory, file), 'utf8');
-      await client.query(sql);
+      if (hasTransactionControl(sql)) {
+        console.error(`migration-transaction-control: ${file}`);
+        return 1;
+      }
+
+      await client.query('BEGIN');
+      try {
+        await client.query(sql);
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => undefined);
+        throw error;
+      }
     }
 
     console.log(`ok: applied ${String(files.length)} migration(s) to ${connection.target}`);
