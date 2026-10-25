@@ -5,6 +5,16 @@ nunca el valor**.
 
 - **Prohibido imprimir valores** de `backend/.env`, `backend/.env.local` o cualquier `.env*`:
   ni `read_file`, ni `type`, ni `git grep`, ni un `echo`, ni un script de diagnóstico.
+- **Excepción: `backend/.env.example` es público.** Es la referencia versionada y solo lleva
+  nombres, así que leerlo y escribirlo es normal: sin ceremonia y sin aprobación previa. La
+  condición se verifica, no se supone: `git check-ignore -v backend/.env.example` no debe devolver
+  nada y `git ls-files backend/.env.example` debe listarlo (`.gitignore` lo des-ignora con
+  `!.env.example`). Si el archivo deja de estar versionado, o si aparece un valor real en él, la
+  excepción **no** aplica: se detiene y se trata como cualquier `.env*`. Cualquier otro
+  `*.env.example` futuro queda cubierto por la misma excepción, con las mismas dos comprobaciones.
+- **El `.env.example` es contrato de nombres, no de valores.** Su trabajo es decir qué variables
+  existen, cuáles se leen hoy y cuáles están reservadas; si una línea necesita un valor real para
+  entenderse, el problema es la documentación y no el archivo.
 - **Prohibido `search_files` con comodín** (`*`) desde la raíz: indexa archivos ignorados por git
   y vuelca valores. Buscar con patrón acotado y en un subdirectorio.
 - El único tipo de camino autorizado para **usar** esos valores es un script del repo que los cargue
