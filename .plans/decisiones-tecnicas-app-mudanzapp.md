@@ -250,3 +250,39 @@ artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
   `process.env.PORT` en configuración tipada.
 - **Disparador de revisión:** cambio de plataforma de despliegue, cambio del puerto acordado o un
   segundo servicio de Railway en el mismo repositorio que necesite otro puerto.
+
+## 19. CORS en producción: `APP_BASE_URL` después de los Workers, no antes (2026-10-25)
+
+- **Decisión:** `APP_BASE_URL` se completa con los orígenes de **todos** los Workers y el backend se
+  redespliega **después** del primer deploy de cada uno. Mientras la variable esté vacía o ausente, el
+  Worker publica la shell y el navegador bloquea `GET /health`: es el estado intermedio esperado del
+  bring-up, no un defecto del código ni del despliegue.
+- **Motivo:** la allowlist se construye **al arrancar**, desde la configuración tipada
+  ([`config.ts`](../backend/src/config.ts:58) lee `process.env` una sola vez y
+  [`parseAllowedOrigins`](../backend/src/cors.ts:18) devuelve un conjunto **vacío** para `''`). Sin
+  coincidencia, [`createCors`](../backend/src/cors.ts:32) no emite `Access-Control-Allow-Origin` y el
+  navegador aborta la lectura. Ausente y vacía producen el mismo conjunto vacío.
+- **Evidencia (2026-10-25):** con el Worker `mudanzapp` desplegado en
+  `https://mudanzapp.elingerojo.workers.dev`, el shell renderizaba y `GET /health` fallaba con «No
+  'Access-Control-Allow-Origin' header is present on the requested resource». Un `curl` **sin**
+  `Origin` devolvía `200` con `status: ok`: backend y base sanos, allowlist vacía. Tras fijar
+  `APP_BASE_URL` con los dos orígenes y redesplegar, el estado end-to-end quedó en verde.
+- **Diagnóstico:** ese mensaje significa «el origen no está en la allowlist», no «el backend está
+  caído». La comparación es exacta sobre esquema y host: una barra final, `http` en lugar de `https`
+  o un espacio tras la coma rompen la coincidencia. Un `Vary: Origin` presente confirma que la rama de
+  coincidencia se tomó.
+- **Alternativa descartada — `Access-Control-Allow-Origin: *`:** anula la allowlist por frontend que
+  la decisión de CORS aditiva ya fija y deja de ser válida en cuanto haya credenciales o cookies.
+- **Alternativa descartada — completar `APP_BASE_URL` tras el primer Worker y volver a completarla
+  tras el segundo:** exige dos redeploys del backend y deja un estado a medias entre ambos, sin
+  ganancia: la comprobación end-to-end solo es concluyente con los orígenes definitivos.
+- **Alternativa descartada — reordenar `Man-3.5` y `Man-3.6`:** `APP_BASE_URL` depende de las URLs que
+  **produce** `Man-3.5`; invertirlos crea una dependencia circular. Faltaba declarar el síntoma, no
+  cambiar el orden.
+- **Alternativa descartada — leer `process.env` en el middleware o cablear el origen:** la
+  configuración se lee una sola vez (decisión 6) y el middleware no conoce el entorno.
+- **Consecuencia aceptada:** el bring-up tiene un punto donde la app «se ve» pero no «responde». Se
+  verifica en dos momentos, shell en `Man-3.5` y estado en `Man-3.6`; la tabla de verificación de la
+  Fase 8 describe el estado final, no el de ese punto intermedio.
+- **Disparador de revisión:** dominio propio para un frontend, un tercer frontend, o CORS con
+  credenciales (donde `*` deja de ser una alternativa discutible).

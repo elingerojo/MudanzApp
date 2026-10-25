@@ -21,7 +21,7 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | Cerrar el ciclo | `06`, `02-commits`, `04-verificacion` | plantilla |
 | Duda sobre jerarquía o excepción | glosario-de-criterios | el resto |
 | Decisión técnica ya tomada | decisiones-tecnicas (biblioteca de patrones) | — |
-| Llevar un hecho a remoto | manual `Man-3` y la lista de disparadores de `07` §5 | plantilla |
+| Llevar un hecho a remoto | manual `Man-3`, la lista de disparadores de `07` §5 y el registro de `.scripts/workspace-env.md` §5 | plantilla |
 
 ## Documentos y su rol
 
@@ -39,6 +39,7 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | `manual-setup-workspace-local-y-remoto.md` | consolas | no | arranque y hechos remotos |
 | `snippets-bootstrap.md` | código de humo de referencia | no | solo arranque |
 | `.scripts/workspace-params.md` | nombres del workspace ya derivados, pendientes y mapa de renombrado | sí | solo arranque |
+| `.scripts/workspace-env.md` | versiones de la Fase 1 y hechos remotos observados (§5) | sí | arranque y hechos remotos |
 
 ## Presupuesto de contexto por ciclo
 

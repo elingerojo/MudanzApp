@@ -70,3 +70,9 @@ ambiguos.
 Evidencia versionada de la Fase 1: versiones de `Man-2.1`, veredicto de compatibilidad con el stack
 y colisiones que solo se confirman en remoto. No lo produce el generador y no contiene credenciales
 ni valores de `.env*`.
+
+Su §5 es el **registro de los hechos remotos ya observados** (owner y repositorio, `BACKEND_HOST`,
+subdominio `workers.dev`, URL de cada Worker y `APP_BASE_URL`). Esa sección existe porque
+[`workspace-params.md`](workspace-params.md) deja esos hechos como `pending` por diseño: registra
+nombres derivados del nombre público y no puede conocer hechos de plataforma. Al obtener un valor
+nuevo se anota en §5, no en el snapshot generado.
