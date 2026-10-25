@@ -13,7 +13,7 @@
 - Nombre interno fijo: `mudanzapp`.
 - Nombre público configurable: `MudanzApp`.
 - Fuente única del nombre público: `shared/src/brand.json` con acceso tipado en
-  `shared/src/brand.ts` (pre-decisión §14.3; se crea en la Fase 2/3).
+  `shared/src/brand.ts` (§14.3).
 - Inventario de superficies del nombre público: título, metadatos, manifest, copy, correos,
   legales, dominio y handles; plan de redirecciones al lanzamiento.
 - Motivo: separar la estabilidad técnica de la marca; el renombrado público se presupuesta.
@@ -99,25 +99,33 @@
   secretos.
 - Motivo: [`07-secretos.md`](../.roo/rules/07-secretos.md:16).
 
-## 11. Invitación como capacidad core
+## 11. Invitación como intención de futuro alcance
 
-- `invite` se declara como capacidad core en el resumen funcional.
-- No forma parte del código de arranque: su script y su camino canónico (autorizado) llegan con su propio
-  ciclo.
-- Motivo: el bootstrap se mantiene cero-features y la capacidad pertenece al producto.
-- Evidencia: `resumen-funcional-app-mudanzapp.md` y decisión del usuario.
+- `invite` se registra como **intención de futuro alcance**, no como capacidad core comprometida: no
+  declara alcance, garantía, fecha ni corte.
+- Su función es servir de criterio al evaluar caminos de implementación cuando esa capacidad se
+  evalúe; no autoriza construir nada por sí sola.
+- No forma parte del código de arranque: su script y su camino canónico (autorizado) llegan con su
+  propio ciclo.
+- Motivo: el bootstrap se mantiene cero-features y un criterio de evaluación no es una capacidad.
+- Evidencia: `resumen-funcional-app-mudanzapp.md` §4 y decisión del usuario (auditoría `C3`).
 
 ## 12. MCP: muestra genérica y regla del workspace
 
 - `03-mcp-sample.md` es la plantilla genérica reutilizable.
-- `03-mcp.md` es la regla específica del workspace y nombra `cloudflare-docs` y `napkin-ai`.
+- `03-mcp.md` es la regla específica del workspace y nombra los tres servidores declarados:
+  `cloudflare-docs`, `napkin-ai` y `railway`. `railway` es **solo lectura** y se consulta solo
+  cuando la tarea lo pide de forma explícita.
+- `.roo/mcp.example.json` es el inventario público de esos tres servidores, con nombres, URL y
+  variables de entorno con placeholders no secretos; `.roo/mcp.json` no se versiona porque lleva
+  credenciales.
 - Motivo: separar el patrón reutilizable del inventario real sin inventar servidores.
 
 ## 13. Dueños y disparadores de revisión
 
 | Hecho | Dueño | Fuente | Disparador de revisión |
 | --- | --- | --- | --- |
-| Identidad | Architect | este documento (decisión); §14.3 (pre-decisión de marca) | Cambio de marca o de plataforma |
+| Identidad | Architect | este documento (decisión); §14.3 (decisión de marca y su criterio de crecimiento) | Cambio de marca, de plataforma o superficie pública nueva |
 | Stack | Architect | `stack-tecnologico-app-mudanzapp.md` | Nueva dependencia de runtime |
 | Frontends | Architect | `stack-tecnologico-app-mudanzapp.md` | Cambio de topología |
 | Integraciones y modos | Architect | `stack-tecnologico-app-mudanzapp.md` | Nueva integración o credenciales |
@@ -134,41 +142,79 @@
 
 Una pre-decisión no es una fuente normativa: declara un hecho ya decidido cuya implementación
 está pendiente. Cuando el artefacto exista, la pre-decisión se reemplaza por un puntero al
-artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
+artefacto. En esta revisión las tres tienen el artefacto construido: §14.1 y §14.2 pasan a puntero
+y §14.3 ya se aplicó en el ciclo de `C5`. Ninguna fuente puede citar una ruta de esta sección como
+si **no** existiera; la forma vigente de citarlas es el puntero al artefacto.
 
 ### 14.1 Errores de la API (`backend/src/errors.ts`)
 
-- **Estado:** pendiente de crear en la Fase 4.
+- **Estado:** aplicada. El artefacto existe en `backend/src/errors.ts`.
 - **Dueño:** Backend.
 - **Evidencia normativa:** `.guidelines/05` §5 y `.roo/rules/00-stack.md` §Fallos.
-- **Lugar de construcción:** `backend/src/errors.ts`, Fase 4.
+- **Puntero:** `backend/src/errors.ts`. Sin payload: expone `ERROR_CATALOG`, `INTERNAL_ERROR`,
+  `VALIDATION_FAILED`, `AppError` e `isAppError`, consumidos por `error-handler.ts`.
+- **Contrato mínimo acordado (auditoría `C10`):** los códigos de esta sección se conservan como
+  contrato mínimo del humo, no como superficie huérfana a podar. `not_found` y `validation_failed`
+  ya están en el catálogo y su consumidor es la primera ruta con payload y la primera frontera
+  validada por `backend/src/validation.ts`; los códigos concretos de cada capacidad se añaden al
+  catálogo cuando esa capacidad los necesite.
 - **Disparador de revisión:** la primera capacidad que cruce un error por la frontera HTTP.
-- **Contenido:** sin payload. Debe exponer `ERROR_CATALOG`, `INTERNAL_ERROR`, `VALIDATION_FAILED`
-  e `isAppError`, consumidos por `error-handler.ts`; los códigos concretos se fijan con la
-  capacidad que los necesite.
 
 ### 14.2 DDL inicial (`backend/sql/001_init.sql`)
 
-- **Estado:** pendiente de crear en la Fase 4.
+- **Estado:** aplicada. El artefacto existe en `backend/sql/001_init.sql`.
 - **Dueño:** Architect / Backend.
 - **Evidencia normativa:** `.guidelines/04` §3 y nota E5; `.plans/modelo-datos-app-mudanzapp.md` §1
-  y §9.
-- **Lugar de construcción:** `backend/sql/001_init.sql`, Fase 4.
+  y §7.
+- **Puntero:** `backend/sql/001_init.sql` contiene el marcador idempotente `CREATE SCHEMA IF NOT
+  EXISTS app`, sin tablas de negocio, y coincide con `modelo-datos` §7.
 - **Disparador de revisión:** la primera tabla de negocio del modelo.
-- **Contenido:** sin payload. Marcador idempotente, sin tablas de negocio, con la forma
-  idempotente que permita el DDL.
 
 ### 14.3 Marca pública (`shared/src/brand.json` + `shared/src/brand.ts`)
 
-- **Estado:** pendiente de crear en la Fase 2/3. Sin payload en esta pre-decisión: los valores se
-  fijan al construir el archivo, con la marca aprobada.
+- **Estado:** aplicada. Los artefactos existen: los datos en `shared/src/brand.json`, el acceso
+  tipado en `shared/src/brand.ts` y la inyección en build en `.scripts/generate-brand-index.mjs`.
 - **Dueño:** Architect.
-- **Evidencia normativa:** `.guidelines/01` §3 y §Presupuesto de renombrado.
-- **Lugar de construcción:** `shared/src/brand.json` para los datos y `shared/src/brand.ts` para
-  el acceso tipado, Fase 2/3.
-- **Disparador de revisión:** cambio de marca o de plataforma.
-- **Consumo:** `index.html`, el manifest y el copy se generan o consumen desde ahí; el nombre
-  público no se cablea en el código.
+- **Evidencia normativa:** `.guidelines/01` §3 y §Presupuesto de renombrado; auditoría `C5`.
+- **Objetivo:** `brand.json` es la fuente única de la **identidad pública**: todo hecho visible hacia
+  afuera que no varía por despliegue ni por ruta.
+- **Consumo:** el nombre público no se cablea en el código. El `index.html` de cada frontend conserva
+  un elemento de título vacío y `.scripts/generate-brand-index.mjs` lo escribe en el artefacto
+  construido desde `brand.json`; además, la app fija el título en runtime desde la misma fuente.
+  El paso corre sobre la **salida** porque el builder de Angular rechaza un `index.input` fuera de
+  `src/` (`link.parentNode?.insertBefore is not a function`, medido en esta versión); en `ng serve`
+  no se ejecuta y el título lo fija la app.
+- **Disparador de revisión:** cambio de marca o de plataforma, y cada superficie nueva de §14.3.1.
+
+#### 14.3.1 Criterio de crecimiento
+
+El archivo crece **campo por campo, con el ciclo que necesita el campo** (`.guidelines/01` §1 y
+`.guidelines/03` §1): no se agregan campos por anticipado. Cada campo declara superficie, etapa y qué
+pasa si falta.
+
+| Superficie (`.guidelines/01` §3) | Campo | Etapa | Consumo |
+| --- | --- | --- | --- |
+| Título | `publicName` — **existe** | build + runtime | artefacto `index.html` y `Title` de Angular |
+| Descripción | `description` | build | `meta description` y `og:description` |
+| Imagen social | `assets.ogImage` (ruta dentro del `public/` de cada frontend) | build | `og:image`, compuesta con el origen del entorno |
+| Iconos | `assets.icon`, `assets.appleTouchIcon` | build | `link rel` y manifest |
+| Manifest | `shortName`, `themeColor` | build | `manifest.webmanifest` generado |
+| Locale | `locale` | build | `html lang` y `og:locale` |
+| Razón social y contacto | `legalName`, `contactEmail` | build o backend | correos y pie de UI |
+| Handles | `social.*` | build | `twitter:site` |
+
+Reglas del crecimiento:
+
+1. Solo hechos públicos e invariantes por despliegue y por ruta. El origen de cada Worker y la URL
+   del backend viven en `environments/*`, que es su fuente.
+2. Los binarios no entran: las imágenes viven en el `public/` de cada frontend (`.guidelines/07` §6)
+   y `brand.json` guarda rutas.
+3. Nada secreto: el archivo se compila dentro del bundle y es público por definición.
+4. Si falta un campo que una superficie ya cableada necesita, el build falla con un código estable
+   (`.guidelines/05` §2); nunca se emite una etiqueta vacía.
+5. El copy largo de UI no entra: es producto, no identidad. Si la marca pasa a editarse desde una
+   plataforma, el archivo deja de ser fuente de repo y su lectura se valida en la frontera
+   (`.guidelines/02` §3).
 
 ## 15. Incidente de secretos: contraseña local en el transcript (2026-10-24)
 

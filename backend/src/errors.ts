@@ -1,9 +1,13 @@
 /**
  * Catálogo de errores del borde HTTP.
  *
- * Es la pre-decisión §14.1 de `.plans/decisiones-tecnicas-app-mudanzapp.md`: códigos estables, sin
- * payload y sin detalles internos. Los códigos concretos de cada capacidad se añaden al catálogo
- * cuando esa capacidad los necesite; aquí solo viven los del humo.
+ * Es el artefacto de la decisión §14.1 de `.plans/decisiones-tecnicas-app-mudanzapp.md`: códigos
+ * estables, sin payload y sin detalles internos. Los códigos concretos de cada capacidad se añaden
+ * al catálogo cuando esa capacidad los necesite; aquí solo viven los del humo.
+ *
+ * Superficie declarada como **contrato mínimo acordado** (auditoría `C10`), no como resto huérfano:
+ * el borde consume `internal_error`; `validation_failed` y `not_found` los consumen la primera
+ * frontera validada por `validation.ts` y la primera ruta con recurso que buscar.
  */
 
 export interface ErrorDefinition {

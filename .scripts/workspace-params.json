@@ -359,7 +359,7 @@
     {
       "surface": "Título y metadatos",
       "consumer": "shared/src/brand.json -> brand.ts -> index.html",
-      "status": "pendiente de crear en Fase 2/3"
+      "status": "existe `publicName`; `.scripts/generate-brand-index.mjs` lo escribe en el artefacto"
     },
     {
       "surface": "Manifest",

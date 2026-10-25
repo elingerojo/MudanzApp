@@ -12,6 +12,10 @@ Comandos por tipo de corte (solo los que apliquen):
 - Backend **con dev branch**: `npm run test:api:db:branch`. Deriva `_branch_test` con `_branch` y
   el sufijo `_test`; es el gate cuando el corte toca la dev branch. Es una corrida local-only.
 - Frontend: `npm run test:web:<FE>`.
+- Arnés e2e tocado: `npm run typecheck:e2e` (`e2e/tsconfig.json`).
+- Frontend **o `shared/` tocado**: `npm run build:web:<FE>` por cada frontend afectado; compila
+  `shared` antes, así que es la única forma de verificar el contrato compilado.
+- Backend tocado en su build: `npm run build`, que emite `backend/dist/index.js`.
 - Conexión a base: `npm run db:ping` (`main`), `npm run db:ping:test`, `npm run db:ping:branch` y
   `npm run db:ping:branch:test`; en remoto `npm run db:ping:remote` (`main`) y
   `npm run db:ping:remote:branch` (`branch`). Emiten solo `ok` o un error estable y nunca imprimen
@@ -26,6 +30,8 @@ Comandos por tipo de corte (solo los que apliquen):
   `db:migrate:branch:test` para `test:e2e:branch`, ejecutados a mano antes de correr; si el esquema
   falta, falla ruidosamente.
 - Cierre del ciclo: la evidencia del corte, no el gate completo si el corte no lo exige.
+- `Man-2.6` del manual reúne estas filas y las del arranque como **checklist completo**: su tabla no
+  amplía este gate ni lo sustituye. Si discrepan, manda esta regla.
 
 Reglas de corrida:
 - Un comando por invocación.

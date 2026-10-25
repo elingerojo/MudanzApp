@@ -30,9 +30,11 @@ stack o en el código de referencia.
 | Capacidad | Estado | Nota |
 | --- | --- | --- |
 | — | Pendiente de declaración | Ninguna capacidad de negocio se hereda del workspace de origen. El Architect con el usuario las declara en el primer ciclo. |
+| `invite` | Intención de futuro alcance | No es capacidad core comprometida ni alcance aprobado: no declara garantía, fecha ni corte. Existe como criterio para evaluar caminos de implementación cuando la capacidad se evalúe. |
 
 - El arranque permanece cero-features: solo contiene el humo necesario para verificar el stack.
-- Una capacidad core no se implementa hasta que su ciclo defina alcance y evidencia.
+- Una capacidad core no se implementa hasta que su ciclo defina alcance y evidencia; una intención de
+  futuro alcance no autoriza construir nada.
 - `frontend` y `wiki` son la topología técnica de frontends fijada en el stack, no capacidades de negocio.
 
 ## 5. Hechos pendientes de dueño

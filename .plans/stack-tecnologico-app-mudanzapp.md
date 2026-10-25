@@ -16,10 +16,11 @@
   nombre interno.
 - El nombre público no se cablea en el código; se resuelve en la capa de presentación o con un
   dominio propio.
-- La fuente única del nombre público será `shared/src/brand.json` con acceso tipado en
-  `shared/src/brand.ts` (pre-decisión §14.3 de `decisiones-tecnicas-app-mudanzapp.md`; se crea en la
-  Fase 2/3). `index.html`, el manifest y el copy se generan o consumen desde ahí. Hasta que exista,
-  `MudanzApp` es un valor de trabajo.
+- La fuente única del nombre público es `shared/src/brand.json` con acceso tipado en
+  `shared/src/brand.ts` (decisión §14.3 de `decisiones-tecnicas-app-mudanzapp.md`, con su criterio de
+  crecimiento §14.3.1). El `index.html` de cada frontend no cablea la marca: el `build` de cada
+  frontend ejecuta `brand:index` y `.scripts/generate-brand-index.mjs` la escribe en el artefacto
+  construido, mientras la app fija el título en runtime desde la misma fuente.
 - Frontends: `frontend` y `wiki`, ambos desde el inicio. `wiki` es una SPA Angular mínima de una
   ruta y una página estática; comparte la forma técnica de `frontend`.
 
@@ -51,7 +52,8 @@
 - Prohibido cualquier ORM o query builder que oculte el SQL.
 - Migraciones solo hacia adelante e idempotentes: `IF NOT EXISTS` cuando el DDL lo permite; si no,
   una forma idempotente equivalente, sin `DROP` y sin tabla de seguimiento (nota E5 en
-  `.guidelines/04` §3).
+  `.guidelines/04` §3). La prohibición de `DROP` aplica solo a las migraciones; los helpers locales de
+  consola pueden usarlo.
 - La experimentación vive en una sola dev branch estable, local y remota; la rama principal se
   protege.
 
@@ -110,7 +112,7 @@
 
 | Hecho | Dueño | Fuente | Disparador de revisión |
 | --- | --- | --- | --- |
-| Identidad y nombres | Architect | este documento (decisión); `decisiones-tecnicas-app-mudanzapp.md` §14.3 (pre-decisión de marca) | Cambio de marca o de plataforma |
+| Identidad y nombres | Architect | este documento (decisión); `decisiones-tecnicas-app-mudanzapp.md` §14.3 (decisión de marca y criterio de crecimiento) | Cambio de marca, de plataforma o superficie pública nueva |
 | Stack y dependencias | Architect | este documento | Nueva dependencia de runtime o integración |
 | Alcance funcional | Architect con el usuario | `resumen-funcional-app-mudanzapp.md` | Cierre de ciclo o cambio de hipótesis |
 | Modelo de datos | Architect / Backend | `modelo-datos-app-mudanzapp.md` | Nueva tabla o migración |

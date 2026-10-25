@@ -8,8 +8,9 @@
 ## 1. Estado
 
 Pendiente de definir con el primer ciclo. Mientras no exista una tabla aquí, el único DDL válido es
-el marcador idempotente de `backend/sql/001_init.sql`, cuya creación es la pre-decisión §14.2 de
-`decisiones-tecnicas-app-mudanzapp.md`.
+el marcador idempotente que **ya existe** en `backend/sql/001_init.sql` —`CREATE SCHEMA IF NOT
+EXISTS app`, sin tablas de negocio—, construido por la pre-decisión §14.2 de
+`decisiones-tecnicas-app-mudanzapp.md` y coincidente con §7 de este documento.
 
 ## 2. Motor
 
@@ -66,7 +67,8 @@ el marcador idempotente de `backend/sql/001_init.sql`, cuya creación es la pre-
 
 - Solo hacia adelante e idempotentes.
 - Cada cambio usa `IF NOT EXISTS` cuando el DDL lo permite; si no, una forma idempotente
-  equivalente (nota E5 en `.guidelines/04` §3). No hay `DROP`.
+  equivalente (nota E5 en `.guidelines/04` §3). No hay `DROP` en una migración; fuera de ellas, los
+  helpers locales de consola pueden usarlo (`.roo/rules/06-datos.md`).
 - No hay tabla de seguimiento de migraciones.
 - Un archivo aplicado no se edita.
 - La rama principal conserva estas reglas; la experimentación vive en la dev branch.
@@ -83,7 +85,8 @@ el marcador idempotente de `backend/sql/001_init.sql`, cuya creación es la pre-
 1. Un archivo por cambio, con nombre `NNN_descripcion.sql`, tres dígitos crecientes.
 2. Cada cambio usa `IF NOT EXISTS` cuando el DDL lo permite; si no, se implementa de forma
    idempotente equivalente.
-3. Nunca se usa `DROP`.
+3. Nunca se usa `DROP` en una migración. Fuera de las migraciones, un helper local de consola sí
+   puede usarlo; no es una migración y no se versiona como tal.
 4. No se crea tabla de seguimiento de migraciones.
 5. Un archivo aplicado no se edita; un cambio nuevo se añade con otro archivo.
 6. El runner ejecuta cada archivo en orden dentro de su propia transacción.

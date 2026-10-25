@@ -2,13 +2,13 @@
 
 Monorepo TypeScript de MudanzApp: contrato compartido, API y **un workspace Angular por frontend**.
 
-| Directorio  | Qué es                                                | Paquete               |
-| ----------- | ----------------------------------------------------- | --------------------- |
-| `shared/`   | Tipos, esquemas `zod` y helpers del contrato          | `@mudanzapp/shared`   |
-| `backend/`  | API Express en ESM sobre Postgres, SQL crudo con `pg` | `@mudanzapp/backend`  |
-| `frontend/` | SPA principal (Angular v22 standalone, zoneless)      | `@mudanzapp/frontend` |
-| `wiki/`     | Segundo frontend: SPA mínima de una ruta              | `@mudanzapp/wiki`     |
-| `e2e/`      | Arnés Playwright; **no** es un workspace              | —                     |
+| Directorio  | Qué es                                                                                   | Paquete               |
+| ----------- | ---------------------------------------------------------------------------------------- | --------------------- |
+| `shared/`   | Tipos y valores de runtime del contrato; los esquemas `zod` llegan con el primer payload | `@mudanzapp/shared`   |
+| `backend/`  | API Express en ESM sobre Postgres, SQL crudo con `pg`                                    | `@mudanzapp/backend`  |
+| `frontend/` | SPA principal (Angular v22 standalone, zoneless)                                         | `@mudanzapp/frontend` |
+| `wiki/`     | Segundo frontend: SPA mínima de una ruta                                                 | `@mudanzapp/wiki`     |
+| `e2e/`      | Arnés Playwright; **no** es un workspace                                                 | —                     |
 
 El arranque **no** contiene funcionalidades: solo el humo (healthcheck del backend y componente de
 estado en cada frontend). Cada capacidad entra con su ciclo, según `.guidelines/00`–`07`.
@@ -34,6 +34,8 @@ versiona**.
 
 No hacen falta en local: `APP_BASE_URL`, `BACKEND_PUBLIC_URL`, `ADMIN_TOKEN` ni credenciales de
 integración. En desarrollo el frontend consume el backend por **proxy** (`/api`) y no hay CORS.
+`BACKEND_PUBLIC_URL` y `ADMIN_TOKEN` figuran en `backend/.env.example` como **inventario de nombres
+reservados** (decisión `C8` de la auditoría): ninguna capacidad las lee todavía (§4).
 
 ---
 
@@ -103,8 +105,8 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 | `backend/.env.local`           | `PORT`               | Opcional; default `3000`                                                                      |
 | `backend/.env.local`           | `NODE_ENV`           | Opcional; default `development`                                                               |
 | `backend/.env.local`           | `APP_BASE_URL`       | Allowlist de CORS, un origen por frontend separados por comas; se usa en remoto y en el arnés |
-| `backend/.env.local`           | `BACKEND_PUBLIC_URL` | Origen público del backend; solo remoto                                                       |
-| `backend/.env.local`           | `ADMIN_TOKEN`        | Solo si existe la capacidad de administración; no en el bootstrap                             |
+| `backend/.env.local`           | `BACKEND_PUBLIC_URL` | **Reservada, sin lector hoy**: origen público del backend; solo remoto                        |
+| `backend/.env.local`           | `ADMIN_TOKEN`        | **Reservada, sin lector hoy**: solo cuando exista la capacidad de administración              |
 | `backend/.env.migration.local` | `DATABASE_URL`       | Cadena **directa** de Neon; solo comandos `db:migrate:remote*` y `db:ping:remote*`            |
 
 - `process.env` se lee **una sola vez**, en [`backend/src/config.ts`](backend/src/config.ts:1). El
@@ -116,10 +118,14 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
   escribe `PORT=3000`.
 - Las integraciones (`APP_MODE`, `R2_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales se añaden
   **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`.
-- La configuración del navegador se **compila**: el frontend no lee `process.env`. Ver
-  [`environment.ts`](frontend/src/environments/environment.ts:1) y
-  [`environment.production.ts`](frontend/src/environments/environment.production.ts:1), donde
-  `⟨BACKEND_HOST⟩` queda pendiente hasta el bring-up remoto.
+- `BACKEND_PUBLIC_URL` y `ADMIN_TOKEN` son **nombres reservados**, no requisitos: se conservan para
+  que el ciclo que cree su capacidad no invente el nombre (decisión `C8`). Ningún módulo las lee y
+  una instalación que las omita funciona igual.
+- La configuración del navegador se **compila**: el frontend no lee `process.env`. El origen del
+  backend vive en [`environment.ts`](frontend/src/environments/environment.ts:1) y en
+  [`environment.production.ts`](frontend/src/environments/environment.production.ts:1) de cada
+  frontend, ya fijado con `⟨BACKEND_HOST⟩` en el bring-up remoto y compilado dentro del bundle: si
+  el host cambia, se reconstruye y se redespliega ese Worker.
 
 ---
 
@@ -163,6 +169,8 @@ Reglas del contrato:
 - `shared` **no** declara runner unitario mientras no tenga suites: `vitest run` sin archivos sale
   `1` y tumbaría el alias raíz. El alias `test` usa `--if-present`, así que el runner solo existe
   donde hay specs.
+- El `build` de cada frontend ejecuta `brand:index` **después** de `ng build`: la marca entra al
+  artefacto, no al fuente. `ng serve` no lo ejecuta y el título lo fija la app al arrancar.
 - Nada de bundlers ni alias de código fuente en runtime.
 - `npm test` es **unit-only**: el arnés levanta backend y frontends.
 - El arnés **no** migra: exige `db:migrate:test` o `db:migrate:branch:test` ejecutados antes.
@@ -172,8 +180,10 @@ Reglas del contrato:
 
 ## 7. Migraciones
 
-Scripts **hacia adelante e idempotentes**, sin `DROP` y sin tabla de seguimiento de migraciones. Se
-aplican **a mano**; nunca en el arranque.
+Scripts **hacia adelante e idempotentes**, sin `DROP` **dentro de las migraciones** y sin tabla de
+seguimiento. Se aplican **a mano**; nunca en el arranque. Fuera de una migración, un helper local de
+consola sí puede usar `DROP`: la prohibición protege la reejecución del esquema, no el saneamiento de
+una base local desechable.
 
 ```bash
 npm run db:migrate
@@ -222,6 +232,9 @@ npm run db:migrate:branch:test
   como único PostCSS plugin.
 - `environments` + `fileReplacements` **solo** en la configuración `production`; el origen del
   backend entra por el token `API_BASE_URL`.
+- La marca vive en `shared/src/brand.json`; el `index.html` de cada frontend deja su título **vacío**
+  y `.scripts/generate-brand-index.mjs` lo escribe en el artefacto construido. El fuente no cablea el
+  nombre público (`decisiones` §14.3 y su criterio de crecimiento).
 - Rutas `''` y `**` (redirigida a `''`); el fallback de SPA en el Worker lo da
   `not_found_handling`.
 - Unitarios con Vitest (`globals`, pool `threads`) enganchado por `runnerConfig`. El e2e es
@@ -247,6 +260,11 @@ npm run db:migrate:branch:test
 ---
 
 ## 11. Matriz de verificación (local, un comando por invocación)
+
+**Checklist completo, no la definición del gate.** El gate lo define
+[`.roo/rules/04-verificacion.md`](.roo/rules/04-verificacion.md:1) —mínimo «siempre» y filas
+condicionales por tipo de corte—; esta matriz reúne además lo que el arranque verifica de una sola
+pasada. Si discrepan, manda la regla.
 
 | Verificación                 | Comando                                                  | Resultado esperado                      | Requiere antes                           |
 | ---------------------------- | -------------------------------------------------------- | --------------------------------------- | ---------------------------------------- |

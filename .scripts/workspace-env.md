@@ -14,7 +14,8 @@
 | npx         | `11.12.1`          | —                                                         | pasa      |
 | git         | `2.38.1.windows.1` | —                                                         | pasa      |
 
-- `NODE_VERSION` para Railway y Workers Builds (`Man-3.4` y `Man-3.5`): `24.15.0`.
+- `NODE_VERSION` para Workers Builds (`Man-3.5`): `24.15.0`. En **Railway no se define**: no es una
+  variable documentada por Railway y la fijación del repo vive en `engines` (`Man-3.4` paso 3).
 - No se crea `.nvmrc`: la fijación vive en `engines`.
 
 ## 2. Compatibilidad comprobada

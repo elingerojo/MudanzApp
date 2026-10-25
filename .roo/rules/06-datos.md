@@ -3,9 +3,12 @@
 Convención completa en `.plans/modelo-datos-app-mudanzapp.md` §9 y en `.guidelines/04`.
 
 - SQL crudo y parametrizado con `pg`. Sin ORM ni query builder.
-- Scripts solo hacia adelante e idempotentes: `IF NOT EXISTS` cuando el DDL lo permite; si no, una
-  forma idempotente equivalente, sin `DROP` y sin tabla de seguimiento de migraciones
-  (nota de excepción E5 en `.guidelines/04` §3). La rama principal conserva esta regla.
+- **Migraciones** solo hacia adelante e idempotentes: `IF NOT EXISTS` cuando el DDL lo permite; si no,
+  una forma idempotente equivalente, sin `DROP` y sin tabla de seguimiento de migraciones (nota de
+  excepción E5 en `.guidelines/04` §3). La rama principal conserva esta regla.
+- `DROP` está prohibido **dentro** de una migración y permitido fuera de ellas: los helpers locales de
+  consola pueden destruir y recrear una base local desechable. Un helper destructivo nunca se versiona
+  como migración ni se aplica contra el remoto.
 - La **matriz de entornos** es: local con cuatro objetivos (`main`, `test`, `branch`, `branch-test`);
   remoto con dos (`main`, `branch`). Las bases `_test` son **local-only**; los objetivos de prueba
   remotos se rechazan con error estable.

@@ -16,6 +16,10 @@
  * Nunca lee `.env*`, nunca imprime credenciales y nunca inventa un valor que solo existe en
  * remoto (esos quedan como `pending` con la sección del manual que los produce).
  *
+ * Se corre en la Fase 1, antes del primer bring-up. Desde la primera fila observada en
+ * `.scripts/workspace-env.md` §5 los dos artefactos son un snapshot congelado: la evidencia de
+ * cómo se inició la implementación, no una fuente viva de hechos de plataforma.
+ *
  * Contrato de códigos de salida:
  *   0  archivos escritos (o `--dry-run` validado)
  *   1  invariante interna rota (defecto del generador, no del argumento)
@@ -61,6 +65,11 @@ Argumento:
   <APP_NAME>            Nombre público configurable (por ejemplo MudanzApp).
                         El slug interno se deriva en minúsculas y solo [a-z0-9].
                         No se renombra después: elige una vez, con colisión verificada.
+
+Cuándo se corre:
+  En la Fase 1, antes del primer bring-up. Desde la primera fila observada en
+  .scripts/workspace-env.md §5 el snapshot queda congelado: regenerarlo después es una
+  desviación registrada con --force, no una rutina.
 
 Opciones:
   --slug <slug>         Fija el nombre interno a mano. Existe porque .guidelines/01 pide un
@@ -566,7 +575,7 @@ function buildModel(args) {
     {
       surface: 'Título y metadatos',
       consumer: 'shared/src/brand.json -> brand.ts -> index.html',
-      status: 'pendiente de crear en Fase 2/3',
+      status: 'existe `publicName`; `.scripts/generate-brand-index.mjs` lo escribe en el artefacto',
     },
     {
       surface: 'Manifest',
@@ -719,6 +728,12 @@ function renderMarkdown(model) {
     '> de `.env*`, ni cadenas de conexión, ni tokens. Los hechos que solo existen en remoto figuran',
     '> como `pending` con la sección del manual que los produce; no se inventan.',
     '',
+    '> **Snapshot del punto de arranque.** Se corre en la Fase 1, antes del primer bring-up. Desde la',
+    '> primera fila observada en [`workspace-env.md`](workspace-env.md) §5 este par de artefactos queda',
+    '> **congelado**: es la evidencia de cómo se inició la implementación, no una fuente viva de hechos',
+    '> de plataforma. Regenerarlo después de ese punto es una desviación registrada con `--force`, no',
+    '> una rutina.',
+    '',
     `> **Identidad fijada:** nombre público \`${publicName}\` (configurable) y nombre interno`,
     `> \`${slug}\` (${slugSource === 'derived' ? 'derivado del público' : 'fijado con --slug'}); se elige una vez y no se renombra.`,
     '',
@@ -762,7 +777,8 @@ function renderMarkdown(model) {
   add(
     'Tabla lista para pegar en [`plantilla-inicializacion-workspace.md`](../.plans/plantilla-inicializacion-workspace.md) §0 y en el',
     '[`manual`](../.plans/manual-setup-workspace-local-y-remoto.md) §0.1. La fuente sigue siendo la plantilla; esta tabla es',
-    'la instantánea que evita teclear marcadores ambiguos.',
+    'la instantánea que evita teclear marcadores ambiguos, y el `Estado` de cada fila es el del',
+    'momento del snapshot: `pendiente` no afirma que el hecho siga sin conocerse.',
     '',
     '| Marcador | Valor | Naturaleza | Estado | Derivación |',
     '| --- | --- | --- | --- | --- |',
@@ -779,11 +795,13 @@ function renderMarkdown(model) {
   }
   add('');
 
-  add('## 4. Valores pendientes: no se inventan', '');
+  add('## 4. Valores pendientes al momento del snapshot', '');
   add(
     'Se obtienen en remoto y se confirman a mano, siguiendo el',
-    '[`manual`](../.plans/manual-setup-workspace-local-y-remoto.md) §3. Mientras estén pendientes, ningún',
-    'artefacto puede darlos por conocidos ni puede suponer su forma.',
+    '[`manual`](../.plans/manual-setup-workspace-local-y-remoto.md) §3. `pending` describe lo que este',
+    'generador **no puede derivar** del nombre público; no afirma que el hecho siga sin conocerse. La',
+    'fuente viva de los hechos observados es [`workspace-env.md`](workspace-env.md) §5, que este',
+    'snapshot no duplica.',
     '',
   );
   add('| Marcador | Se obtiene en | Nota |', '| --- | --- | --- |');
@@ -821,6 +839,8 @@ function renderMarkdown(model) {
   }
   add('');
   add(
+    '- La URL de cada Worker fue un hecho de plataforma: el snapshot la deja `pending` porque no',
+    '  puede derivarla, y el valor observado vive en [`workspace-env.md`](workspace-env.md) §5.',
     '- El `name` del dashboard **debe coincidir** con el de su `wrangler.jsonc` o el build falla.',
     '- El primer frontend toma el slug; los demás, `<slug>-<fe>`.',
     '',
@@ -882,6 +902,9 @@ function renderMarkdown(model) {
   add('## 9. Superficies del nombre público (`.guidelines/01` §3)', '');
   add(
     'Inventario del renombrado público; la marca vive solo en la primera columna de consumo.',
+    'El `Estado` es el del momento del snapshot; la evidencia viva son `shared/src/brand.json`,',
+    '`shared/src/brand.ts` y `.scripts/generate-brand-index.mjs`',
+    '([`decisiones`](../.plans/decisiones-tecnicas-app-mudanzapp.md) §14.3).',
     '',
   );
   add('| Superficie | Se consume en | Estado |', '| --- | --- | --- |');

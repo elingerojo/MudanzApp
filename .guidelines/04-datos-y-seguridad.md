@@ -19,8 +19,13 @@ En 0 → 1, la velocidad de aprendizaje no justifica exponer datos ni secretos.
 
 ## 3. Migraciones solo hacia adelante e idempotentes
 
-- Cada cambio usa `IF NOT EXISTS` cuando el DDL lo permite; si no, una forma idempotente
-  equivalente. No hay `DROP` ni tabla de seguimiento.
+- Cada **migración** (`backend/sql/*.sql`, aplicada por el runner) usa `IF NOT EXISTS` cuando el DDL
+  lo permite; si no, una forma idempotente equivalente. No hay `DROP` ni tabla de seguimiento dentro
+  de una migración.
+- **Alcance de la prohibición de `DROP`.** Se prohíbe en las migraciones porque la garantía es que el
+  esquema se pueda reejecutar sin destruir datos. Fuera de ellas —helpers locales de consola, pasos
+  manuales sobre una base local desechable— está permitido: sanear no es migrar. Un helper destructivo
+  nunca se versiona como migración ni se aplica contra el remoto, donde sigue mandando §6.
 - El runner se aplica a mano a las cuatro bases locales (principal, pruebas, dev branch y prueba de
   la dev branch) y, en remoto, solo a `main` y `branch`; nunca en el arranque. Las bases `_test` son
   local-only.
