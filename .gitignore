@@ -22,6 +22,9 @@ build/
 # Angular cache
 .angular/
 
+# Wrangler local state: `npx wrangler dev` y `npx wrangler deploy` lo generan en cada máquina
+.wrangler/
+
 # Test outputs
 coverage/
 playwright-report/
