@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "ng": "ng",
+    "brand:index": "node ../.scripts/generate-brand-index.mjs --frontend wiki",
     "dev": "ng serve",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "ng build && npm run brand:index",
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit",

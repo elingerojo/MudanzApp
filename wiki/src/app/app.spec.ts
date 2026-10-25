@@ -22,4 +22,10 @@ describe('App', () => {
 
     expect(title?.textContent).toContain(brand.publicName);
   });
+
+  it('uses the single brand source as the document title', () => {
+    TestBed.createComponent(App);
+
+    expect(document.title).toBe(brand.publicName);
+  });
 });
