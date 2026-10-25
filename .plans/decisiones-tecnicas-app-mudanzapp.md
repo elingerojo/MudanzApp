@@ -267,6 +267,11 @@ artefacto. Ninguna fuente puede citar estas rutas como si ya existieran.
   'Access-Control-Allow-Origin' header is present on the requested resource». Un `curl` **sin**
   `Origin` devolvía `200` con `status: ok`: backend y base sanos, allowlist vacía. Tras fijar
   `APP_BASE_URL` con los dos orígenes y redesplegar, el estado end-to-end quedó en verde.
+- **Cierre de los dos orígenes (2026-10-25):** el Worker `mudanzapp-wiki` se confirmó en su propia
+  URL con `proceso: ok` y `base: ok` en el componente de estado y sin error de CORS en la consola.
+  El cierre cubre ambos orígenes y el estado intermedio no reaparece con la allowlist completa. El
+  registro versionado del hecho vive en
+  [`workspace-env.md`](../.scripts/workspace-env.md:44) §5.
 - **Diagnóstico:** ese mensaje significa «el origen no está en la allowlist», no «el backend está
   caído». La comparación es exacta sobre esquema y host: una barra final, `http` en lugar de `https`
   o un espacio tras la coma rompen la coincidencia. Un `Vary: Origin` presente confirma que la rama de

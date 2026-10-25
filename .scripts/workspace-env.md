@@ -1,8 +1,9 @@
 # Entorno verificado — MudanzApp (Fase 1)
 
-> **Evidencia de la Fase 1.** Registra las versiones de `Man-2.1` y el veredicto de compatibilidad
-> con el stack. No contiene credenciales ni valores de `.env*`.
-> **Fecha:** 2026-10-23 (UTC).
+> **Registro versionado del arranque.** §1 y §2 registran las versiones de `Man-2.1` y el veredicto
+> de compatibilidad con el stack (2026-10-23); §5 acumula los hechos remotos observados en el
+> bring-up. No contiene credenciales ni valores de `.env*`.
+> **Fecha:** 2026-10-23 (UTC). **Última revisión:** 2026-10-25 (UTC).
 
 ## 1. Versiones observadas
 
@@ -26,12 +27,12 @@
 
 ## 3. Colisiones: lo que queda manual
 
-| Superficie                             | Comprobación                                                 | Estado                                                                   |
-| -------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Paquete npm                            | `npm view @mudanzapp/shared version` → `E404` (no publicado) | sin paquete; la existencia del scope u owner se confirma a mano          |
-| Workers `mudanzapp` y `mudanzapp-wiki` | dashboard de Cloudflare                                      | `mudanzapp` desplegado; `mudanzapp-wiki` pendiente de confirmar (ver §5) |
-| Repositorio `MudanzApp`                | cuenta de GitHub                                             | `elingerojo/MudanzApp` (ver §5)                                          |
-| Rol `mudanzapp` y las cuatro bases     | Postgres local                                               | verificado (2026-10-23)                                                  |
+| Superficie                             | Comprobación                                                 | Estado                                                          |
+| -------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| Paquete npm                            | `npm view @mudanzapp/shared version` → `E404` (no publicado) | sin paquete; la existencia del scope u owner se confirma a mano |
+| Workers `mudanzapp` y `mudanzapp-wiki` | dashboard de Cloudflare                                      | ambos desplegados; URLs observadas (ver §5)                     |
+| Repositorio `MudanzApp`                | cuenta de GitHub                                             | `elingerojo/MudanzApp` (ver §5)                                 |
+| Rol `mudanzapp` y las cuatro bases     | Postgres local                                               | verificado (2026-10-23)                                         |
 
 ## 4. Decisiones de la fase
 
@@ -47,20 +48,25 @@ Primer bring-up. Se anotan aquí porque el snapshot generado
 ([`workspace-params.md`](workspace-params.md)) los deja como `pending` **por diseño**: registra nombres
 derivados, no hechos de plataforma. Ningún valor de esta tabla es una credencial.
 
-| Hecho                              | Valor                                                | Se obtuvo en        | Estado                     |
-| ---------------------------------- | ---------------------------------------------------- | ------------------- | -------------------------- |
-| Owner del repositorio              | `elingerojo`                                         | manual `Man-3.1`    | observado                  |
-| Repositorio                        | `elingerojo/MudanzApp`                               | manual `Man-3.1`    | observado                  |
-| `BACKEND_HOST`                     | `https://mudanzappbackend-production.up.railway.app` | manual `Man-3.4` §5 | observado                  |
-| Subdominio `workers.dev` de cuenta | `elingerojo`                                         | manual `Man-3.5`    | observado                  |
-| URL del Worker `mudanzapp`         | `https://mudanzapp.elingerojo.workers.dev`           | manual `Man-3.5`    | observado                  |
-| URL del Worker `mudanzapp-wiki`    | `https://mudanzapp-wiki.elingerojo.workers.dev`      | manual `Man-3.5`    | derivado; deploy pendiente |
-| `APP_BASE_URL`                     | los dos orígenes de arriba, separados por comas      | manual `Man-3.6` §1 | observado tras el redeploy |
-| `COMPAT_DATE`                      | `2026-10-06`                                         | `wrangler.jsonc`    | confirmado en ambos        |
-| `NODE_VERSION`                     | `24.15.0`                                            | manual `Man-2.1` §1 | confirmado                 |
+| Hecho                              | Valor                                                       | Se obtuvo en        | Estado                      |
+| ---------------------------------- | ----------------------------------------------------------- | ------------------- | --------------------------- |
+| Owner del repositorio              | `elingerojo`                                                | manual `Man-3.1`    | observado                   |
+| Repositorio                        | `elingerojo/MudanzApp`                                      | manual `Man-3.1`    | observado                   |
+| `BACKEND_HOST`                     | `https://mudanzappbackend-production.up.railway.app`        | manual `Man-3.4` §5 | observado                   |
+| Subdominio `workers.dev` de cuenta | `elingerojo`                                                | manual `Man-3.5`    | observado                   |
+| URL del Worker `mudanzapp`         | `https://mudanzapp.elingerojo.workers.dev`                  | manual `Man-3.5`    | observado                   |
+| URL del Worker `mudanzapp-wiki`    | `https://mudanzapp-wiki.elingerojo.workers.dev`             | manual `Man-3.5`    | observado (2026-10-25)      |
+| `APP_BASE_URL`                     | los dos orígenes de arriba, separados por comas             | manual `Man-3.6` §1 | observado tras el redeploy  |
+| Estado end-to-end de los Workers   | proceso `ok` y base `ok` en el navegador, sin error de CORS | manual `Man-3.6`    | observado en ambos orígenes |
+| `COMPAT_DATE`                      | `2026-10-06`                                                | `wrangler.jsonc`    | confirmado en ambos         |
+| `NODE_VERSION`                     | `24.15.0`                                                   | manual `Man-2.1` §1 | confirmado                  |
 
 - El subdominio `workers.dev` es **uno solo por cuenta** y lo comparten todos los Workers: cambiar el
   label cambia las dos URLs, obliga a rehacer `APP_BASE_URL` y a redesplegar el backend.
+- **Cierre del bring-up (2026-10-25):** los dos Workers abren desde su URL con `proceso: ok` y
+  `base: ok` en el componente de estado, sin error de CORS en la consola. Con `APP_BASE_URL` ya
+  completa, el estado intermedio de abajo no reaparece
+  ([`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md) §19).
 - **Estado intermedio registrado:** con `APP_BASE_URL` vacía o ausente el Worker sirve la shell y el
   navegador bloquea `GET /health` con «No 'Access-Control-Allow-Origin' header is present». Se
   resuelve al fijar la variable y redesplegar; el orden del manual no cambia
