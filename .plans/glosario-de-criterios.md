@@ -27,7 +27,7 @@ Si un documento inferior contradice un lineamiento, se corrige el documento infe
 
 Una práctica inferior puede conservarse aunque se aparte de un lineamiento si cumple las cinco condiciones:
 
-1. **No debilita una garantía de seguridad:** nada de secretos expuestos, datos sensibles en logs, migraciones destructivas, fallos silenciosos ni pérdida de aislamiento.
+1. **No debilita una garantía de seguridad:** nada de secretos expuestos, datos sensibles en logs, destrucción de esquema en la ruta automática, fallos silenciosos ni pérdida de aislamiento.
 2. **La ventaja es concreta y demostrable:** determinismo, menos duplicación, mejor aprendizaje, menos riesgo operativo o menos pasos manuales propensos a error.
 3. **Es mínima y reversible:** afecta solo el caso que la justifica y puede retirarse sin rehacer el diseño.
 4. **Queda documentada en la fuente autoritativa del hecho afectado:** la nota dice qué se aparta, por qué, qué ventaja produce y cuándo se revisa.

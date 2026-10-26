@@ -33,19 +33,21 @@
 
 ## 2. Línea base heredada
 
-Hay dos notas de excepción aprobadas en sus fuentes autoritativas. Esta revisión no las renumera, no
-las reaudita y no las modifica.
+Hay dos notas de excepción heredadas y una tercera asignada **después** de esta revisión. Las tres
+viven en sus fuentes autoritativas; esta revisión no renumera, ni reaudita, ni modifica las dos
+heredadas.
 
 | Etiqueta | Qué es | Fuente autoritativa | Se cita desde |
 | --- | --- | --- | --- |
 | E3 | Una dependencia puede aterrizar en el mismo commit que el scaffold durante el bootstrap; desde el primer ciclo de producto va en su propio commit | [`.roo/rules/05-deps.md`](../.roo/rules/05-deps.md) §Dependencias | esa misma regla |
 | E5 | `IF NOT EXISTS` cuando el DDL lo permite; si no, forma idempotente equivalente | [`.guidelines/04-datos-y-seguridad.md`](../.guidelines/04-datos-y-seguridad.md) §3 | [`.roo/rules/06-datos.md`](../.roo/rules/06-datos.md) §Datos y migraciones, [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md) §5, [`modelo-datos-app-mudanzapp.md`](modelo-datos-app-mudanzapp.md) §7, [`decisiones-tecnicas-app-mudanzapp.md`](decisiones-tecnicas-app-mudanzapp.md) §14.1 y [`plantilla-inicializacion-workspace.md`](plantilla-inicializacion-workspace.md) Fase 4 |
+| E6 | La ruta automática no destruye; la contracción vive en `backend/sql/contract/` y `_test` y `_branch` son sandboxes desechables | [`.guidelines/04-datos-y-seguridad.md`](../.guidelines/04-datos-y-seguridad.md) §3 | [`.roo/rules/06-datos.md`](../.roo/rules/06-datos.md) §Datos, [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md) §Migraciones, [`modelo-datos-app-mudanzapp.md`](modelo-datos-app-mudanzapp.md) §7 y §9, y [`README.md`](../README.md) §7 |
 
 ## 3. Espacios de IDs
 
 | Prefijo | Uso | Siguiente libre | Reservados |
 | --- | --- | --- | --- |
-| E | Excepciones aprobadas con nota en su fuente | E6 | `E3` y `E5`, heredados; no se reutilizan |
+| E | Excepciones aprobadas con nota en su fuente | E7 | `E3` y `E5`, heredados; `E6`, asignada después de esta revisión; no se reutilizan |
 | G | Hallazgos que el ciclo corrige | G40 | `G12`–`G26` (rev. 9, aplicados), `G27`–`G39` (esta revisión; `G34` queda **retirada**) |
 | C | Preguntas abiertas | C16 | `C3`–`C10` (rev. 9, resueltas) y `C11`–`C15` (rev. 10, **resueltas por el estado del workspace** en §7.1) |
 | N | Retirado | no se usa | el espacio no se reabre |

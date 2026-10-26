@@ -65,12 +65,17 @@ EXISTS app`, sin tablas de negocio—, construido por la pre-decisión §14.2 de
 
 ## 7. Reglas de migración
 
-- Solo hacia adelante e idempotentes.
+- Solo hacia adelante e idempotentes en la ruta automática (`backend/sql/*.sql`).
 - Cada cambio usa `IF NOT EXISTS` cuando el DDL lo permite; si no, una forma idempotente
-  equivalente (nota E5 en `.guidelines/04` §3). No hay `DROP` en una migración; fuera de ellas, los
-  helpers locales de consola pueden usarlo (`.roo/rules/06-datos.md`).
+  equivalente (nota E5 en `.guidelines/04` §3).
+- La ruta automática no destruye: ningún archivo de `backend/sql/*.sql` usa `DROP`, porque el runner
+  los ejecuta todos en cada invocación y destruirían datos por corrida.
+- La contracción vive en `backend/sql/contract/`, que el runner no enumera: versionada, revisada e
+  idempotente (`IF EXISTS`), aplicada a mano después de la corrida aditiva (nota E6).
 - No hay tabla de seguimiento de migraciones.
 - Un archivo aplicado no se edita.
+- Los destinos protegidos son `mudanzapp` local y remota; `_test` y `_branch` son sandboxes que se
+  destruyen y se reconstruyen con el runner.
 - La rama principal conserva estas reglas; la experimentación vive en la dev branch.
 
 ## 8. Contratos de datos
@@ -85,12 +90,14 @@ EXISTS app`, sin tablas de negocio—, construido por la pre-decisión §14.2 de
 1. Un archivo por cambio, con nombre `NNN_descripcion.sql`, tres dígitos crecientes.
 2. Cada cambio usa `IF NOT EXISTS` cuando el DDL lo permite; si no, se implementa de forma
    idempotente equivalente.
-3. Nunca se usa `DROP` en una migración. Fuera de las migraciones, un helper local de consola sí
-   puede usarlo; no es una migración y no se versiona como tal.
-4. No se crea tabla de seguimiento de migraciones.
-5. Un archivo aplicado no se edita; un cambio nuevo se añade con otro archivo.
-6. El runner ejecuta cada archivo en orden dentro de su propia transacción.
-7. El DDL debe coincidir con este documento; si discrepan, uno está mal y debe corregirse.
+3. Ningún archivo de `backend/sql/*.sql` usa `DROP`: la ruta automática no destruye.
+4. La contracción va en `backend/sql/contract/NNN_descripcion.sql`, con su propia secuencia, exige
+   `IF EXISTS` y nunca mezcla DDL aditivo con destructivo. Se aplica a mano, después de la corrida
+   aditiva del mismo destino.
+5. No se crea tabla de seguimiento de migraciones.
+6. Un archivo aplicado no se edita; un cambio nuevo se añade con otro archivo.
+7. El runner ejecuta cada archivo en orden dentro de su propia transacción.
+8. El DDL debe coincidir con este documento; si discrepan, uno está mal y debe corregirse.
 
 ## 10. Dueños y disparadores de revisión
 

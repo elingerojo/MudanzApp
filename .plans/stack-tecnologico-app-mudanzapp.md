@@ -52,8 +52,8 @@
 - Prohibido cualquier ORM o query builder que oculte el SQL.
 - Migraciones solo hacia adelante e idempotentes: `IF NOT EXISTS` cuando el DDL lo permite; si no,
   una forma idempotente equivalente, sin `DROP` y sin tabla de seguimiento (nota E5 en
-  `.guidelines/04` §3). La prohibición de `DROP` aplica solo a las migraciones; los helpers locales de
-  consola pueden usarlo.
+  `.guidelines/04` §3). La ruta automática no destruye; la contracción vive en `backend/sql/contract/`,
+  versionada y aplicada a mano, y las bases `_test` y `_branch` son sandboxes desechables (nota E6).
 - La experimentación vive en una sola dev branch estable, local y remota; la rama principal se
   protege.
 

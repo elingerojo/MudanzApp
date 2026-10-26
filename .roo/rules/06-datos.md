@@ -6,9 +6,13 @@ Convención completa en `.plans/modelo-datos-app-mudanzapp.md` §9 y en `.guidel
 - **Migraciones** solo hacia adelante e idempotentes: `IF NOT EXISTS` cuando el DDL lo permite; si no,
   una forma idempotente equivalente, sin `DROP` y sin tabla de seguimiento de migraciones (nota de
   excepción E5 en `.guidelines/04` §3). La rama principal conserva esta regla.
-- `DROP` está prohibido **dentro** de una migración y permitido fuera de ellas: los helpers locales de
-  consola pueden destruir y recrear una base local desechable. Un helper destructivo nunca se versiona
-  como migración ni se aplica contra el remoto.
+- La **ruta automática no destruye**: el runner ejecuta todos los `backend/sql/*.sql` en cada
+  invocación, así que un `DROP` ahí destruiría datos por corrida y no por despliegue.
+- **Contracción:** quitar tablas o columnas vive en `backend/sql/contract/`, que el runner no enumera.
+  Es versionado, revisado e idempotente (`IF EXISTS`), y se aplica a mano después de la corrida
+  aditiva del mismo destino. Un archivo aplicado no se edita.
+- **Destinos protegidos:** solo `mudanzapp` local y remota. Las bases `_test` y `_branch` son sandboxes
+  desechables que se destruyen y reconstruyen enteros con el runner (nota E6 en `.guidelines/04` §3).
 - La **matriz de entornos** es: local con cuatro objetivos (`main`, `test`, `branch`, `branch-test`);
   remoto con dos (`main`, `branch`). Las bases `_test` son **local-only**; los objetivos de prueba
   remotos se rechazan con error estable.

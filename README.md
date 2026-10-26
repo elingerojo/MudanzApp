@@ -180,10 +180,17 @@ Reglas del contrato:
 
 ## 7. Migraciones
 
-Scripts **hacia adelante e idempotentes**, sin `DROP` **dentro de las migraciones** y sin tabla de
-seguimiento. Se aplican **a mano**; nunca en el arranque. Fuera de una migración, un helper local de
-consola sí puede usar `DROP`: la prohibición protege la reejecución del esquema, no el saneamiento de
-una base local desechable.
+La ruta automática —`backend/sql/*.sql`, aplicada por el runner— es **hacia adelante e idempotente**,
+sin `DROP` y sin tabla de seguimiento. El runner ejecuta **todos** los archivos en cada invocación,
+así que un `DROP` ahí destruiría datos por corrida y no por despliegue: esa mecánica es la razón de la
+prohibición y de que no exista tabla de seguimiento.
+
+La contracción tiene su propio camino: `backend/sql/contract/`, que el runner no enumera. Es un
+archivo versionado, revisado e idempotente (`IF EXISTS`) que se aplica a mano después de la corrida
+aditiva del mismo destino. Y el sandbox —`_test` y `_branch`— es desechable entero: se destruye y se
+reconstruye con el runner. Los destinos protegidos son dos y solo dos: `mudanzapp` local y remota.
+
+Todo se aplica **a mano**; nunca en el arranque.
 
 ```bash
 npm run db:migrate
