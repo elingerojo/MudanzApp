@@ -9,8 +9,10 @@ integraciones concretas viven en la fuente del stack.
 - TypeScript estricto en todo el monorepo (npm workspaces: `shared`, `backend` y cada frontend de
   `⟨FRONTENDS⟩`; en MudanzApp: `frontend` y `wiki`).
 - Frontends: Angular v22 standalone, Signals-first, zoneless, NgOptimizedImage, httpResource,
-  Tailwind v4. Plantillas en archivos `.html` separados (nunca inline). `wiki` es una SPA mínima de
-  una ruta y una página estática.
+  Tailwind v4. Plantillas en archivos `.html` separados (nunca inline). `wiki` es una SPA propia con
+  su mapa de rutas, igual que la app principal: crece una ruta por ciclo, puede consumir el backend
+  con sus propios contratos y no conserva el alcance del arranque. El mapa vigente vive en
+  `wiki/README.md`.
 - Backend: Node.js + TypeScript (ESM) con Express.
 - Datos: Postgres (Neon) con SQL crudo parametrizado vía `pg`. Prohibido cualquier ORM o query
   builder que oculte el SQL. Una sola dev branch de base de datos, local y remota; la rama

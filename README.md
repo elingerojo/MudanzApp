@@ -7,7 +7,7 @@ Monorepo TypeScript de MudanzApp: contrato compartido, API y **un workspace Angu
 | `shared/`   | Tipos y valores de runtime del contrato; los esquemas `zod` llegan con el primer payload | `@mudanzapp/shared`   |
 | `backend/`  | API Express en ESM sobre Postgres, SQL crudo con `pg`                                    | `@mudanzapp/backend`  |
 | `frontend/` | SPA principal (Angular v22 standalone, zoneless)                                         | `@mudanzapp/frontend` |
-| `wiki/`     | Segundo frontend: SPA mínima de una ruta                                                 | `@mudanzapp/wiki`     |
+| `wiki/`     | Segundo frontend: wiki del proyecto con su propio mapa de rutas                          | `@mudanzapp/wiki`     |
 | `e2e/`      | Arnés Playwright; **no** es un workspace                                                 | —                     |
 
 El arranque **no** contiene funcionalidades: solo el humo (healthcheck del backend y componente de

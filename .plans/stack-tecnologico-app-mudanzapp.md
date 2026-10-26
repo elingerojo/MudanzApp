@@ -21,8 +21,9 @@
   crecimiento §14.3.1). El `index.html` de cada frontend no cablea la marca: el `build` de cada
   frontend ejecuta `brand:index` y `.scripts/generate-brand-index.mjs` la escribe en el artefacto
   construido, mientras la app fija el título en runtime desde la misma fuente.
-- Frontends: `frontend` y `wiki`, ambos desde el inicio. `wiki` es una SPA Angular mínima de una
-  ruta y una página estática; comparte la forma técnica de `frontend`.
+- Frontends: `frontend` y `wiki`, ambos desde el inicio. `wiki` es una SPA Angular con su propio
+  mapa de rutas que crece una ruta por ciclo; comparte la forma técnica de `frontend`, y el mapa
+  vigente vive en `wiki/README.md`.
 
 ## 2. Monorepo y TypeScript
 
@@ -35,8 +36,9 @@
 - Angular v22 standalone, Signals-first, zoneless.
 - `NgOptimizedImage`, `httpResource` y Tailwind v4.
 - Plantillas en archivos `.html` separados; nunca inline.
-- `frontend` es la SPA principal; `wiki` es la SPA mínima de una ruta y una página estática.
-  Cualquier crecimiento se declara en el resumen funcional cuando su ciclo se abra.
+- `frontend` es la SPA principal; `wiki` es la SPA del proyecto, con su propio mapa de rutas y su
+  propio alcance. Cualquier crecimiento se declara en el resumen funcional y en `wiki/README.md`
+  cuando su ciclo se abra.
 - La URL base del backend se compila por entorno; el navegador no lee secretos en runtime.
 - Un Worker de Cloudflare por frontend, solo de assets.
 

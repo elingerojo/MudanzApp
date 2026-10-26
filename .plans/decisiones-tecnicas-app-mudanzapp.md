@@ -21,8 +21,8 @@
 
 ## 2. Dos frontends desde el inicio
 
-- `frontend` es la SPA principal; `wiki` es una SPA Angular mínima de una ruta y una página
-  estática.
+- `frontend` es la SPA principal; `wiki` es una SPA Angular propia con su mapa de rutas, que crece
+  una ruta por ciclo y puede consumir el backend con sus propios contratos.
 - Motivo: ambos existen desde el inicio y comparten la misma forma técnica; el contrato del
   monorepo queda simétrico.
 - Evidencia: decisión del usuario y

@@ -1,7 +1,14 @@
 # @mudanzapp/wiki
 
-SPA mínima de una ruta (Angular v22 standalone, zoneless, Tailwind v4, plantillas `.html`
-separadas) del monorepo MudanzApp.
+SPA del proyecto (Angular v22 standalone, zoneless, Tailwind v4, plantillas `.html` separadas) del
+monorepo MudanzApp. No es un apéndice del arranque: es un frontend con su propio mapa de rutas y
+crece una ruta por ciclo.
+
+## Rutas
+
+| Ruta | Página            | Qué es                                            |
+| ---- | ----------------- | ------------------------------------------------- |
+| `/`  | `StatusComponent` | Humo del arranque: proceso y base desde `/health` |
 
 - **Dev**: `npm run dev -w wiki -- --port 4201` desde la raíz. El puerto `4200` lo usa
   `frontend`; el segundo frontend queda en `4201`. El proxy `/api` apunta al backend local en
