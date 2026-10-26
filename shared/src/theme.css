@@ -1,0 +1,52 @@
+/**
+ * Tema visual compartido de MudanzApp (bloque `@theme` de Tailwind v4).
+ *
+ * Fuente única de tokens visuales del monorepo: los dos frontends lo importan desde su
+ * `src/styles.css` y no declaran tokens propios. Los nombres son internos y semánticos; la marca
+ * pública vive en `brand.json` y no se duplica aquí.
+ *
+ * La dirección es deliberada y escasa: lienzo claro, superficie blanca, un solo acento para avanzar
+ * y un verde reservado al estado que la IA ya validó. Sin webfonts: la tipografía es la del sistema,
+ * así que el build no depende de la red ni de un archivo binario.
+ */
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-line: #cbd5e1;
+
+  --color-brand: #2563eb;
+  --color-brand-strong: #1d4ed8;
+  --color-brand-soft: #2563eb14;
+
+  --color-success: #16a34a;
+  --color-success-soft: #16a34a0d;
+
+  --radius-card: 0.75rem;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 10px 24px -16px rgb(15 23 42 / 0.3);
+
+  --animate-scan: scan 2s ease-in-out infinite;
+
+  @keyframes scan {
+    0% {
+      transform: translateY(-4%);
+      opacity: 0.35;
+    }
+
+    50% {
+      transform: translateY(104%);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(-4%);
+      opacity: 0.35;
+    }
+  }
+}
