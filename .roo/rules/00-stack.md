@@ -7,12 +7,14 @@ Este archivo solo fija las restricciones no negociables. El detalle, la identida
 integraciones concretas viven en la fuente del stack.
 
 - TypeScript estricto en todo el monorepo (npm workspaces: `shared`, `backend` y cada frontend de
-  `⟨FRONTENDS⟩`; en MudanzApp: `frontend` y `wiki`).
+  `⟨FRONTENDS⟩`; en MudanzApp: `frontend` y `wiki`, más `shop`, declarada en el stack y sin
+  workspace hasta su ciclo de bootstrap).
 - Frontends: Angular v22 standalone, Signals-first, zoneless, NgOptimizedImage, httpResource,
-  Tailwind v4. Plantillas en archivos `.html` separados (nunca inline). `wiki` es una SPA propia con
-  su mapa de rutas, igual que la app principal: crece una ruta por ciclo, puede consumir el backend
-  con sus propios contratos y no conserva el alcance del arranque. El mapa vigente vive en
-  `wiki/README.md`.
+  Tailwind v4. Plantillas en archivos `.html` separados (nunca inline). `frontend` es la superficie
+  privada; `shop` es la superficie pública e indexable y se materializa en su ciclo de bootstrap;
+  `wiki` es una SPA propia con su mapa de rutas, igual que la app principal: crece una ruta por
+  ciclo, puede consumir el backend con sus propios contratos y no conserva el alcance del arranque.
+  El mapa vigente vive en `wiki/README.md`.
 - Backend: Node.js + TypeScript (ESM) con Express.
 - Datos: Postgres (Neon) con SQL crudo parametrizado vía `pg`. Prohibido cualquier ORM o query
   builder que oculte el SQL. Una sola dev branch de base de datos, local y remota; la rama
@@ -25,16 +27,16 @@ integraciones concretas viven en la fuente del stack.
 - Puerto del backend: `PORT` se lee de `process.env`. El default `3000` del código es solo de local y
   de pruebas. En Railway el servicio **define `PORT=3000`** de forma explícita y el dominio público
   apunta a ese puerto; el target port sigue al listener y nunca lo sustituye.
-- Integraciones declaradas: `APP_MODE` (integración primaria que reemplaza Wix), `R2_MODE`
-  (almacenamiento opcional) y `AI_MODE` (IA), con `live`/`fake` y default `live`. `live` exige
-  credenciales válidas; `fake` es el doble determinista de pruebas mientras se consiguen.
-  `APP_MODE` gobierna solo las credenciales de esa integración primaria. `AI_MODEL` se parametriza
-  si aplica; el ID del modelo no se cablea. Toda integración nueva sigue el mismo patrón y se
-  declara en la fuente del stack. El modo de una integración solo se lee cuando su capacidad
-  existe; sin capacidad no se construye adaptador ni se exige credencial. El default `live` aplica
-  solo a integraciones implementadas. Una variable de modo vacía cuenta como ausente; solo `live` y
-  `fake` son valores válidos, y cualquier otro valor falla con un código estable en la primera
-  petición.
+- Integraciones declaradas: `APP_MODE` (integración primaria que reemplaza Wix), `OAUTH_MODE`
+  (identidad de cuenta), `R2_MODE` (almacenamiento opcional) y `AI_MODE` (IA), con `live`/`fake` y
+  default `live`. `live` exige credenciales válidas; `fake` es el doble determinista de pruebas
+  mientras se consiguen. `APP_MODE` gobierna solo las credenciales de esa integración primaria y
+  `OAUTH_MODE` solo las de OAUTH. `AI_MODEL` y `OAUTH_ISSUER` se parametrizan si aplica; ni el ID del
+  modelo ni el emisor se cablean. Toda integración nueva sigue el mismo patrón y se declara en la
+  fuente del stack. El modo de una integración solo se lee cuando su capacidad existe; sin capacidad
+  no se construye adaptador ni se exige credencial. El default `live` aplica solo a integraciones
+  implementadas. Una variable de modo vacía cuenta como ausente; solo `live` y `fake` son valores
+  válidos, y cualquier otro valor falla con un código estable en la primera petición.
 - Almacenamiento de objetos: opcional; solo si la app guarda archivos. R2 se declara en la fuente
   del stack.
 - Costuras: solo donde compran aprendizaje (fake, segundo adaptador o dependencia cara).

@@ -19,27 +19,29 @@
 - Motivo: separar la estabilidad técnica de la marca; el renombrado público se presupuesta.
 - Evidencia: [`01-alcance-y-momento-de-decision.md`](../.guidelines/01-alcance-y-momento-de-decision.md:19).
 
-## 2. Dos frontends desde el inicio
+## 2. Dos frontends desde el inicio (superada)
 
-- `frontend` es la SPA principal; `wiki` es una SPA Angular propia con su mapa de rutas, que crece
-  una ruta por ciclo y puede consumir el backend con sus propios contratos.
-- Motivo: ambos existen desde el inicio y comparten la misma forma técnica; el contrato del
-  monorepo queda simétrico.
-- Evidencia: decisión del usuario y
-  [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md:19).
+- **Estado:** superada por §20, que declara tres superficies con la misma forma técnica.
+- Se conserva como registro de la decisión original: `frontend` y `wiki` existían desde el inicio y
+  compartían forma técnica, de modo que el contrato del monorepo quedaba simétrico.
+- Evidencia: decisión del usuario y [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md)
+  §1 y §3.
 
 ## 3. Integraciones y modos
 
-- Integraciones declaradas: APP (primaria, reemplaza Wix), R2 (almacenamiento opcional) y AI.
-- `APP_MODE`, `R2_MODE` y `AI_MODE` con `live`/`fake`, default `live`. Una variable vacía cuenta
-  como ausente; solo `live` y `fake` son valores válidos; cualquier otro valor produce un error
-  estable en la primera petición.
+- **Estado:** extendida por §21, que declara OAUTH como integración de identidad.
+- Integraciones declaradas: APP (primaria, reemplaza Wix), OAUTH (identidad de cuenta, §21), R2
+  (almacenamiento opcional) y AI.
+- `APP_MODE`, `OAUTH_MODE`, `R2_MODE` y `AI_MODE` con `live`/`fake`, default `live`. Una variable
+  vacía cuenta como ausente; solo `live` y `fake` son valores válidos; cualquier otro valor produce
+  un error estable en la primera petición.
 - El modo solo se lee cuando la capacidad existe; sin capacidad no se construye adaptador ni se
   exige credencial.
 - `live` exige credenciales válidas; `fake` es el doble determinista de pruebas mientras se
   consiguen las credenciales.
-- `APP_MODE` gobierna solo las credenciales de la integración primaria.
-- `AI_MODEL` se parametriza si aplica; el ID del modelo no se cablea.
+- `APP_MODE` gobierna solo las credenciales de la integración primaria, y `OAUTH_MODE` solo las de
+  OAUTH.
+- `AI_MODEL` y `OAUTH_ISSUER` se parametrizan si aplica; ni el ID del modelo ni el emisor se cablean.
 - Motivo: cada integración declara su propio modo y sus credenciales, sin compartirlas.
 - Evidencia: [`02-verdad-y-contratos.md`](../.guidelines/02-verdad-y-contratos.md:21) y
   [`03-fronteras-y-variacion.md`](../.guidelines/03-fronteras-y-variacion.md:5).
@@ -337,3 +339,48 @@ Reglas del crecimiento:
   Fase 8 describe el estado final, no el de ese punto intermedio.
 - **Disparador de revisión:** dominio propio para un frontend, un tercer frontend, o CORS con
   credenciales (donde `*` deja de ser una alternativa discutible).
+
+## 20. Tres superficies: `frontend` privada, `shop` pública e `wiki` como dossier (2026-10-30)
+
+- **Decisión:** la aplicación tiene tres superficies con audiencias distintas y forma técnica
+  compartida: `frontend` es la superficie privada del administrador y sus co-usuarios; `shop` es la
+  superficie pública del catálogo por enlace, indexable; `wiki` es el dossier técnico del proyecto,
+  escrito para colaboradores externos. No es una sola SPA con modos.
+- **Estado por superficie:** `frontend` y `wiki` existen en el monorepo. `shop` está declarada y
+  **sin artefacto**: no tiene workspace, ni scripts `dev:web:shop`, `build:web:shop` y
+  `test:web:shop`, ni puerto de desarrollo, ni Worker. Es una instrucción de construcción: esa
+  infraestructura llega con su ciclo de bootstrap.
+- **Motivo:** las tres audiencias no comparten forma de acceso ni régimen de indexación. Mezclar
+  catálogo público con área privada obliga a cada ruta a declarar su autorización, y un dossier
+  técnico dentro de la app privada no lo puede leer nadie de fuera.
+- **Alternativa descartada — una sola SPA con guardas por ruta:** el único artefacto publicado
+  seguiría siendo el privado, así que el catálogo no sería indexable ni compartible sin exponer el
+  área de trabajo, y el dossier quedaría inalcanzable.
+- **Alternativa descartada — declarar `shop` cuando exista:** deja al resumen funcional describiendo
+  una topología que el stack ya contradice; el estado se corrige con una nota, no con silencio.
+- **Supera a:** §2.
+- **Consecuencia aceptada:** el stack declara hoy una superficie sin artefacto. Se paga con la nota
+  de estado por superficie y se retira sola cuando su ciclo de bootstrap cree el workspace.
+- **Disparador de revisión:** creación del workspace `shop` o aparición de una cuarta superficie.
+
+## 21. OAUTH como integración declarada de identidad (2026-10-30)
+
+- **Decisión:** la identidad de cuenta es una integración declarada con `OAUTH_MODE` `live`/`fake`,
+  default `live`, credenciales solo en backend (`OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`) y emisor
+  parametrizado en `OAUTH_ISSUER`, igual que `AI_MODEL`: el emisor no se cablea. Los tokens se
+  verifican en la frontera HTTP.
+- **Estado:** declarada en [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md)
+  §7; todavía sin capacidad que la consuma. Por la regla del stack, un modo solo se lee cuando su
+  capacidad existe, así que hoy no se construye adaptador ni se exige credencial.
+- **Motivo:** la cuenta es el segundo factor del acceso y no cabe en `APP_MODE`, que gobierna solo
+  las credenciales de la integración primaria.
+- **Alternativa descartada — reutilizar `APP_MODE`:** acopla dos ciclos de credenciales distintos y
+  rompe la regla de que cada modo gobierna solo su integración.
+- **Alternativa descartada — cablear emisor y flujo:** impide probar con un doble y obliga a
+  reescribir la frontera ante cualquier cambio de proveedor.
+- **Consecuencia aceptada:** el arnés e2e compondrá `OAUTH_MODE=fake` en `backendEnv()`
+  ([`harness.ts`](../e2e/support/harness.ts:83)) en el commit de implementación del ciclo 1, junto
+  con la capacidad. Hasta entonces la variable no tiene lector, que es el estado que la regla del
+  stack ya contempla.
+- **Extiende a:** §3.
+- **Disparador de revisión:** cambio de proveedor o de flujo de identidad.

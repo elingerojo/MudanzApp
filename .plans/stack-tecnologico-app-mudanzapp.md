@@ -21,9 +21,16 @@
   crecimiento §14.3.1). El `index.html` de cada frontend no cablea la marca: el `build` de cada
   frontend ejecuta `brand:index` y `.scripts/generate-brand-index.mjs` la escribe en el artefacto
   construido, mientras la app fija el título en runtime desde la misma fuente.
-- Frontends: `frontend` y `wiki`, ambos desde el inicio. `wiki` es una SPA Angular con su propio
-  mapa de rutas que crece una ruta por ciclo; comparte la forma técnica de `frontend`, y el mapa
-  vigente vive en `wiki/README.md`.
+- Superficies de frontend: `frontend`, `shop` y `wiki`. `frontend` es la superficie privada del
+  administrador y sus co-usuarios; `shop` es la superficie pública e indexable del catálogo por
+  enlace; `wiki` es el dossier técnico del proyecto. Las tres comparten forma técnica (Angular,
+  Signals, zoneless) y mapa de rutas propio (decisión §20 de
+  `decisiones-tecnicas-app-mudanzapp.md`).
+- Estado de cada superficie: `frontend` y `wiki` existen como workspaces del monorepo. `shop` está
+  **declarada y sin artefacto**: no tiene workspace, ni scripts `dev:web:shop`, `build:web:shop` y
+  `test:web:shop`, ni puerto de desarrollo, ni Worker. Es una instrucción de construcción: esa
+  infraestructura llega con su ciclo de bootstrap y, hasta entonces, ninguna fuente puede citarla
+  como existente. El mapa de rutas vigente de `wiki` vive en `wiki/README.md`.
 
 ## 2. Monorepo y TypeScript
 
@@ -36,11 +43,13 @@
 - Angular v22 standalone, Signals-first, zoneless.
 - `NgOptimizedImage`, `httpResource` y Tailwind v4.
 - Plantillas en archivos `.html` separados; nunca inline.
-- `frontend` es la SPA principal; `wiki` es la SPA del proyecto, con su propio mapa de rutas y su
-  propio alcance. Cualquier crecimiento se declara en el resumen funcional y en `wiki/README.md`
-  cuando su ciclo se abra.
+- `frontend` es la SPA privada; `wiki` es la SPA del proyecto, con su propio mapa de rutas y su
+  propio alcance; `shop` es la SPA pública del catálogo, pensada para enlazarse y para indexarse.
+  Cualquier crecimiento se declara en el resumen funcional y, en `wiki`, en `wiki/README.md` cuando
+  su ciclo se abra.
 - La URL base del backend se compila por entorno; el navegador no lee secretos en runtime.
-- Un Worker de Cloudflare por frontend, solo de assets.
+- Un Worker de Cloudflare por frontend, solo de assets. El de `shop` llega con su ciclo de
+  bootstrap, igual que su workspace y sus scripts.
 
 ## 4. Backend
 
@@ -75,6 +84,7 @@
 | Integración | Variable | Default | Credenciales | Notas |
 | --- | --- | --- | --- | --- |
 | APP (primaria, reemplaza Wix) | `APP_MODE` | `live` | solo backend; `APP_MODE` gobierna solo las de esta integración | Live con credenciales válidas; fake determinista para tests |
+| OAUTH (identidad de cuenta) | `OAUTH_MODE` | `live` | solo backend: `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET` | `OAUTH_ISSUER` se parametriza igual que `AI_MODEL`; con `fake` emite un subject fijo para e2e |
 | R2 (almacenamiento opcional) | `R2_MODE` | `live` | solo backend | Solo si la app guarda archivos |
 | AI | `AI_MODE` + `AI_MODEL` | `live` | `AI_API_KEY` en backend | El ID del modelo no se cablea |
 
@@ -82,7 +92,9 @@
   consiguen las credenciales. Una variable vacía cuenta como ausente; solo `live` y `fake` son
   valores válidos. El default `live` se aplica solo si la capacidad existe; cualquier otro valor
   produce un error estable en la primera petición.
-- Pruebas y e2e corren con `APP_MODE=fake`, `R2_MODE=fake` y `AI_MODE=fake`.
+- Pruebas y e2e corren con `APP_MODE=fake`, `OAUTH_MODE=fake`, `R2_MODE=fake` y `AI_MODE=fake`.
+- `APP_MODE` permanece abierto: no hay capacidad que lo consuma y, mientras no la haya, no se
+  construye adaptador ni se exige credencial.
 - Toda integración nueva sigue el mismo patrón y se añade a esta tabla.
 - El modo de una integración solo se lee cuando su capacidad existe; sin capacidad no se construye
   adaptador ni se exige credencial. El default `live` aplica solo a integraciones implementadas.

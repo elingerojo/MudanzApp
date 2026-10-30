@@ -42,8 +42,8 @@ Reglas de corrida:
 - Sin evidencia ejecutable, el ciclo no se cierra.
 
 Modo fake:
-- Integración y e2e corren con `APP_MODE=fake`, `R2_MODE=fake` y `AI_MODE=fake`.
+- Integración y e2e corren con `APP_MODE=fake`, `OAUTH_MODE=fake`, `R2_MODE=fake` y `AI_MODE=fake`.
 - `live` significa credenciales válidas; `fake` es el doble determinista de pruebas mientras se
   consiguen las credenciales.
-- Ninguna prueba depende de APIs reales, de R2 ni del motor de IA.
+- Ninguna prueba depende de APIs reales, del proveedor de identidad, de R2 ni del motor de IA.
 - Los dobles fake son deterministas y sustituibles sin tocar la variable de entorno.
