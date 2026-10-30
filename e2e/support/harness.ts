@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
  * viaja por la salida.
  *
  * Las integraciones se declaran en `fake`; el modo de una integración se lee solo cuando su
- * capacidad existe (`00-stack`), así que hoy son marcas deterministas para el ciclo que la cree.
+ * capacidad existe (`00-stack`). La identidad OAUTH ya tiene lector desde el ciclo 1, así que
+ * `OAUTH_MODE=fake` es lo que hace determinista el e2e (`decisiones` §21).
  */
 
 export interface FrontendHarness {
@@ -27,6 +28,12 @@ export const WORKSPACE_DIRECTORY = join(e2eDirectory, '..', '..');
 
 export const BACKEND_PORT = 3000;
 export const BACKEND_URL = `http://localhost:${String(BACKEND_PORT)}`;
+
+/**
+ * Credencial de administración del arnés: valor fijo de pruebas, no un secreto. Solo existe dentro
+ * de la corrida y la spec lo conoce; nunca se imprime y nunca es el valor de un entorno real.
+ */
+export const ADMIN_TOKEN = 'e2e-admin-token';
 
 /**
  * Un `project` por frontend, con su propio `ng serve`. El puerto es siempre **explícito**: `ng
@@ -87,6 +94,9 @@ export function backendEnv(): Record<string, string> {
     NODE_ENV: 'test',
     // Allowlist de CORS: un origen por frontend, normalizados sin barra final (`cors.ts`).
     APP_BASE_URL: FRONTENDS.map((frontend) => frontendUrl(frontend)).join(','),
+    ADMIN_TOKEN,
+    OAUTH_MODE: 'fake',
+    OAUTH_ISSUER: 'https://fake.oauth.local',
     APP_MODE: 'fake',
     R2_MODE: 'fake',
     AI_MODE: 'fake',

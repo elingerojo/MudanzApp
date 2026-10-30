@@ -99,15 +99,18 @@ CREATE DATABASE mudanzapp_branch_test OWNER mudanzapp;
 
 Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como ausente**.
 
-| Archivo                        | Variable             | Papel                                                                                         |
-| ------------------------------ | -------------------- | --------------------------------------------------------------------------------------------- |
-| `backend/.env.local`           | `DATABASE_URL`       | **Única obligatoria en local**: `postgresql://mudanzapp:<password>@localhost:5432/mudanzapp`  |
-| `backend/.env.local`           | `PORT`               | Opcional; default `3000`                                                                      |
-| `backend/.env.local`           | `NODE_ENV`           | Opcional; default `development`                                                               |
-| `backend/.env.local`           | `APP_BASE_URL`       | Allowlist de CORS, un origen por frontend separados por comas; se usa en remoto y en el arnés |
-| `backend/.env.local`           | `BACKEND_PUBLIC_URL` | **Reservada, sin lector hoy**: origen público del backend; solo remoto                        |
-| `backend/.env.local`           | `ADMIN_TOKEN`        | **Reservada, sin lector hoy**: solo cuando exista la capacidad de administración              |
-| `backend/.env.migration.local` | `DATABASE_URL`       | Cadena **directa** de Neon; solo comandos `db:migrate:remote*` y `db:ping:remote*`            |
+| Archivo                        | Variable                                  | Papel                                                                                         |
+| ------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `backend/.env.local`           | `DATABASE_URL`                            | **Única obligatoria en local**: `postgresql://mudanzapp:<password>@localhost:5432/mudanzapp`  |
+| `backend/.env.local`           | `PORT`                                    | Opcional; default `3000`                                                                      |
+| `backend/.env.local`           | `NODE_ENV`                                | Opcional; default `development`                                                               |
+| `backend/.env.local`           | `APP_BASE_URL`                            | Allowlist de CORS, un origen por frontend separados por comas; se usa en remoto y en el arnés |
+| `backend/.env.local`           | `OAUTH_MODE`                              | `live`/`fake`; pruebas y arnés en `fake`; default `live`                                      |
+| `backend/.env.local`           | `OAUTH_ISSUER`                            | Emisor OIDC del adaptador `live`; parametrizado, nunca cableado                               |
+| `backend/.env.local`           | `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` | Credenciales de OAUTH; solo se exigen en `live`                                               |
+| `backend/.env.local`           | `ADMIN_TOKEN`                             | Credencial del administrador único; la leen `/admin/*` y el script `invite`                   |
+| `backend/.env.local`           | `BACKEND_PUBLIC_URL`                      | Origen público del backend; lo usa el script `invite` en remoto                               |
+| `backend/.env.migration.local` | `DATABASE_URL`                            | Cadena **directa** de Neon; solo comandos `db:migrate:remote*` y `db:ping:remote*`            |
 
 - `process.env` se lee **una sola vez**, en [`backend/src/config.ts`](backend/src/config.ts:1). El
   servidor no lanza al importar: lo que falta se registra en `warnings` y `/health` sigue
@@ -116,11 +119,12 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
   es opcional y el default del código es `3000`; en **Railway es obligatoria con valor `3000`**
   (§12). Una variable vacía cuenta como ausente, así que `PORT=` en Railway no fija nada: se
   escribe `PORT=3000`.
-- Las integraciones (`APP_MODE`, `R2_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales se añaden
-  **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`.
-- `BACKEND_PUBLIC_URL` y `ADMIN_TOKEN` son **nombres reservados**, no requisitos: se conservan para
-  que el ciclo que cree su capacidad no invente el nombre (decisión `C8`). Ningún módulo las lee y
-  una instalación que las omita funciona igual.
+- Las integraciones APP, R2 y AI (`APP_MODE`, `R2_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales
+  se añaden **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`. La
+  integración **OAUTH sí tiene lector** desde el ciclo 1, con `live`/`fake` y default `live`.
+- `ADMIN_TOKEN` y `BACKEND_PUBLIC_URL` dejaron de ser nombres reservados: la capacidad de
+  administración del ciclo 1 los activa. Sin `ADMIN_TOKEN`, `/admin/*` responde `admin_not_configured`
+  con código estable en vez de degradar; el script `invite` exige la misma credencial.
 - La configuración del navegador se **compila**: el frontend no lee `process.env`. El origen del
   backend vive en [`environment.ts`](frontend/src/environments/environment.ts:1) y en
   [`environment.production.ts`](frontend/src/environments/environment.production.ts:1) de cada
@@ -161,6 +165,7 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 | `test:e2e` / `test:e2e:branch`                                      | `tsx e2e/run-e2e.ts [--branch]`                     | Ruta crítica                                       |
 | `db:ping[:test][:branch][:branch:test][:remote][:remote:branch]`    | Conectividad; emite solo `ok` o un error estable    | Datos                                              |
 | `db:migrate[:test][:branch][:branch:test][:remote][:remote:branch]` | Migración **manual**, nunca en el arranque          | Datos                                              |
+| `invite`                                                            | `tsx .../scripts/invite.ts` con `ADMIN_TOKEN`       | Emite una invitación con el API de administración  |
 | `lint` / `format:check`                                             | Pasada única desde la raíz (incluye `e2e/`)         | Gate                                               |
 
 Reglas del contrato:
@@ -212,7 +217,8 @@ npm run db:migrate:branch:test
 - En remoto solo existen `db:migrate:remote` (`main`) y `db:migrate:remote:branch` (`branch`), ambas
   contra la cadena directa de `backend/.env.migration.local`. Los objetivos `_test` remotos se
   rechazan con error estable.
-- La fuente única del modelo es `.plans/modelo-datos-app-mudanzapp.md`; el DDL debe coincidir.
+- La fuente única del modelo es `.plans/modelo-datos-app-mudanzapp.md`; el DDL debe coincidir. Las
+  seis tablas del corte de identidad viven en [`backend/sql/002_identity.sql`](backend/sql/002_identity.sql:1).
 
 ---
 
@@ -223,7 +229,20 @@ npm run db:migrate:branch:test
 | `GET /health`    | **Siempre** `200` con `{ status: 'ok', database }`; liveness no es readiness |
 | `GET /health/db` | `200` con `database: ok`, o `503` con `not-configured` / `error`             |
 
-- Orden de middleware: CORS → `express.json()` → health → `handleErrors`.
+### Identidad del ciclo 1
+
+| Ruta                                                                                                            | Respuesta                                                                    |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `POST /auth/redeem`                                                                                             | `201` con la sesión `app`; `410 invitation_invalid` si el enlace no sirve    |
+| `POST /auth/sessions`                                                                                           | `201` con una sesión nueva; `401 account_not_linked` sin invitación canjeada |
+| `GET /auth/session` · `GET /events` · `GET /events/:id`                                                         | Lectura por sesión; `401`/`404` estables; un evento ajeno responde `404`     |
+| `POST /admin/events` · `POST /admin/events/:id/invitations` · `GET .../sessions` · `DELETE /admin/sessions/:id` | Administración con `ADMIN_TOKEN` (`401 admin_unauthorized`)                  |
+
+- Los tokens de invitación y de sesión son opacos, los emite el servidor y la base guarda solo su
+  hash SHA-256; no hay cookies ni JWT. La sesión viaja en `Authorization: Bearer`.
+- `OAUTH_MODE=fake` emite un subject fijo; `live` verifica firma, emisor, audiencia y vigencia
+  contra el JWKS del emisor con `jose`.
+- Orden de middleware: CORS → `express.json()` → health → identidad → `handleErrors`.
 - CORS es **aditivo**: allowlist desde la configuración tipada, un origen por frontend separados por
   comas, barra final normalizada, `OPTIONS` `204`; sin `Origin` pasa sin cabeceras. El módulo **no**
   lee `process.env`.
@@ -263,6 +282,9 @@ npm run db:migrate:branch:test
   haber un `dev:api` levantado contra la base de desarrollo.
 - El humo abre **cada** frontend y exige proceso `ok` y base `ok` en el DOM real, con el valor
   observado como evidencia. El reporte queda en `e2e/playwright-report/`.
+- [`identity.spec.ts`](e2e/identity.spec.ts:1) ejerce el corte de identidad por API (una vez, no por
+  `project`): canje de un solo uso, segunda sesión por cuenta, aislamiento entre eventos, hash en
+  base y revocación por dispositivo.
 
 ---
 

@@ -2,6 +2,7 @@ import type { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 
 import { AppError, INTERNAL_ERROR, VALIDATION_FAILED, isAppError } from './errors.js';
+import { OAuthError } from './identity/oauth.js';
 
 /**
  * Último middleware del orden del humo.
@@ -21,6 +22,9 @@ export const handleErrors: ErrorRequestHandler = (error, _request, response, nex
     appError = error;
   } else if (error instanceof ZodError) {
     appError = new AppError(VALIDATION_FAILED.code);
+  } else if (error instanceof OAuthError) {
+    // El fallo de la integración conserva su código estable; el detalle queda en la evidencia.
+    appError = new AppError(error.code);
   } else {
     console.error('unhandled-error');
     appError = new AppError(INTERNAL_ERROR.code);

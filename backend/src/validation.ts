@@ -8,8 +8,8 @@ import { AppError, VALIDATION_FAILED } from './errors.js';
  * El detalle del fallo no cruza el borde: el cliente recibe el código estable
  * `validation_failed`, mientras el error de `zod` queda dentro del proceso para la evidencia.
  *
- * Es **contrato mínimo acordado** (auditoría `C10`): hoy no hay ruta con payload que lo use y se
- * conserva porque es la costura por la que entra el primer esquema exportado por `shared`.
+ * Es la costura por la que entran los esquemas exportados por `shared`; el corte de identidad la
+ * usa en `POST /auth/redeem`, `POST /auth/sessions` y las rutas de administración.
  */
 export function parseOrThrow<T>(schema: ZodType<T>, input: unknown): T {
   const result = schema.safeParse(input);

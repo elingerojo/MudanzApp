@@ -3,11 +3,8 @@
  *
  * Es el artefacto de la decisión §14.1 de `.plans/decisiones-tecnicas-app-mudanzapp.md`: códigos
  * estables, sin payload y sin detalles internos. Los códigos concretos de cada capacidad se añaden
- * al catálogo cuando esa capacidad los necesite; aquí solo viven los del humo.
- *
- * Superficie declarada como **contrato mínimo acordado** (auditoría `C10`), no como resto huérfano:
- * el borde consume `internal_error`; `validation_failed` y `not_found` los consumen la primera
- * frontera validada por `validation.ts` y la primera ruta con recurso que buscar.
+ * al catálogo cuando esa capacidad los necesite; hoy viven los del humo y los del corte de
+ * identidad (`invite`, `session`, `account-link`).
  */
 
 export interface ErrorDefinition {
@@ -26,6 +23,56 @@ export const ERROR_CATALOG = {
     code: 'validation_failed',
     status: 400,
     message: 'Request validation failed',
+  },
+  unauthorized: {
+    code: 'unauthorized',
+    status: 401,
+    message: 'Authentication required',
+  },
+  session_revoked: {
+    code: 'session_revoked',
+    status: 401,
+    message: 'Session revoked',
+  },
+  admin_unauthorized: {
+    code: 'admin_unauthorized',
+    status: 401,
+    message: 'Admin credential required',
+  },
+  admin_not_configured: {
+    code: 'admin_not_configured',
+    status: 503,
+    message: 'Admin capability is not configured',
+  },
+  oauth_invalid_token: {
+    code: 'oauth_invalid_token',
+    status: 401,
+    message: 'OAuth token is not valid',
+  },
+  oauth_not_configured: {
+    code: 'oauth_not_configured',
+    status: 503,
+    message: 'OAuth integration is not configured',
+  },
+  oauth_mode_invalid: {
+    code: 'oauth_mode_invalid',
+    status: 500,
+    message: 'OAuth mode is not valid',
+  },
+  account_not_linked: {
+    code: 'account_not_linked',
+    status: 401,
+    message: 'Account is not linked to an event',
+  },
+  invitation_invalid: {
+    code: 'invitation_invalid',
+    status: 410,
+    message: 'Invitation is not usable',
+  },
+  database_not_configured: {
+    code: 'database_not_configured',
+    status: 503,
+    message: 'Database is not configured',
   },
   not_found: {
     code: 'not_found',

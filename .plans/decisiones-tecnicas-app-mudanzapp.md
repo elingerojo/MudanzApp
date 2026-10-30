@@ -108,9 +108,9 @@
   es capacidad en alcance y sostiene la hipótesis del corte.
 - Se conserva como registro: mientras no había ciclo abierto, `invite` era solo un criterio para
   evaluar caminos de implementación y no una capacidad core comprometida.
-- El bootstrap permaneció cero-features. El script canónico de invitación llega con el ciclo 1:
-  `.roo/rules/07-secretos.md` ya lo lista con la marca «cuando exista» y esa marca se retira al
-  crearse el script.
+- El bootstrap permaneció cero-features. El script canónico de invitación existe desde el ciclo 1
+  en [`backend/scripts/invite.ts`](../backend/scripts/invite.ts:1) (`npm run invite`), y la marca
+  «cuando exista» se retiró de `.roo/rules/07-secretos.md`.
 - Motivo del cambio: la hipótesis del ciclo 1 es que un enlace de un solo uso crea sesiones
   utilizables por dispositivo, y esa hipótesis no se puede revisar sin la capacidad.
 - Evidencia: `resumen-funcional-app-mudanzapp.md` §2 y §4 y decisión del usuario (auditoría `C3`).
@@ -380,19 +380,19 @@ Reglas del crecimiento:
   default `live`, credenciales solo en backend (`OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`) y emisor
   parametrizado en `OAUTH_ISSUER`, igual que `AI_MODEL`: el emisor no se cablea. Los tokens se
   verifican en la frontera HTTP.
-- **Estado:** declarada en [`stack-tecnologico-app-mudanzapp.md`](stack-tecnologico-app-mudanzapp.md)
-  §7; todavía sin capacidad que la consuma. Por la regla del stack, un modo solo se lee cuando su
-  capacidad existe, así que hoy no se construye adaptador ni se exige credencial.
+- **Estado:** implementada en el ciclo 1. El adaptador vive en
+  [`backend/src/identity/oauth.ts`](../backend/src/identity/oauth.ts:1) con los modos `fake` y
+  `live`; `live` verifica firma, emisor, audiencia y vigencia contra el JWKS del emisor con `jose`
+  (stack §12). El modo se lee solo porque la capacidad existe.
 - **Motivo:** la cuenta es el segundo factor del acceso y no cabe en `APP_MODE`, que gobierna solo
   las credenciales de la integración primaria.
 - **Alternativa descartada — reutilizar `APP_MODE`:** acopla dos ciclos de credenciales distintos y
   rompe la regla de que cada modo gobierna solo su integración.
 - **Alternativa descartada — cablear emisor y flujo:** impide probar con un doble y obliga a
   reescribir la frontera ante cualquier cambio de proveedor.
-- **Consecuencia aceptada:** el arnés e2e compondrá `OAUTH_MODE=fake` en `backendEnv()`
-  ([`harness.ts`](../e2e/support/harness.ts:83)) en el commit de implementación del ciclo 1, junto
-  con la capacidad. Hasta entonces la variable no tiene lector, que es el estado que la regla del
-  stack ya contempla.
+- **Consecuencia aceptada (aplicada):** el arnés e2e compone `OAUTH_MODE=fake` en `backendEnv()`
+  ([`harness.ts`](../e2e/support/harness.ts:83)), junto con un `ADMIN_TOKEN` de pruebas, y la spec
+  de identidad lo ejerce sobre la base de la dev branch.
 - **Extiende a:** §3.
 - **Disparador de revisión:** cambio de proveedor o de flujo de identidad.
 
@@ -411,6 +411,9 @@ Reglas del crecimiento:
   dispositivo sin una lista negra, que es `app.session` con otro nombre.
 - **Consecuencia aceptada:** dos factores son dos pasos de entrada. El ciclo 1 mide ese costo antes
   de declarar la hipótesis aprendida.
+- **Artefactos:** regla pura en [`backend/src/domain/account.ts`](../backend/src/domain/account.ts:1);
+  canje y sesión por dispositivo en [`backend/src/routes/auth-router.ts`](../backend/src/routes/auth-router.ts:1);
+  tablas en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1).
 - **Completa a:** §21.
 - **Disparador de revisión:** adopción de dominio propio o de passkey.
 

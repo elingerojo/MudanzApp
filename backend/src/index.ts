@@ -1,15 +1,23 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { createDatabase } from './db.js';
+import { createOAuthVerifier } from './identity/oauth.js';
 
 // El proceso —no el módulo— posee el ciclo de vida: aquí se crea el adaptador, se construye la
-// app y se escucha. Ningún otro archivo llama a createDatabase.
+// app y se escucha. Ningún otro archivo llama a createDatabase ni a createOAuthVerifier.
 for (const warning of config.warnings) {
   console.warn(`config-warning: ${warning}`);
 }
 
 const database = createDatabase(config.databaseUrl);
-const app = createApp({ database, appBaseUrl: config.appBaseUrl });
+const oauth = createOAuthVerifier(config.oauth);
+const app = createApp({
+  database,
+  appBaseUrl: config.appBaseUrl,
+  oauth,
+  adminToken: config.adminToken,
+  now: () => new Date(),
+});
 
 const server = app.listen(config.port, () => {
   console.log(`backend listening on port ${String(config.port)}`);

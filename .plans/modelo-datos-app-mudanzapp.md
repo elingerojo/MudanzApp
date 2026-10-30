@@ -1,8 +1,8 @@
 # Modelo de datos — MudanzApp
 
-> **Estado:** seis tablas de negocio declaradas para el corte de identidad del ciclo 1; el DDL que
-> las crea todavía no existe. Este documento es la fuente única del modelo; el DDL debe coincidir
-> con él.
+> **Estado:** seis tablas de negocio del corte de identidad del ciclo 1 con su DDL en
+> [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1). Este documento es la fuente
+> única del modelo; el DDL debe coincidir con él.
 > **Dueño:** Architect / Backend. **Disparador de revisión:** nueva tabla, migración o cambio de
 > contrato.
 
@@ -26,12 +26,11 @@ Restricciones que van con el DDL:
 - `app.session.scope` con valores `app` y `shop`;
 - ningún campo de nombre, correo, teléfono ni dirección del visitante.
 
-El único DDL aplicado hoy es el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
-[`backend/sql/001_init.sql`](../backend/sql/001_init.sql), sin tablas de negocio, construido por la
-pre-decisión §14.2 de [`decisiones-tecnicas-app-mudanzapp.md`](decisiones-tecnicas-app-mudanzapp.md).
-Las seis tablas se añaden en un archivo **nuevo** de `backend/sql/`, escrito con la forma de §9: es
-una **instrucción de construcción**, no un archivo que ya exista, y hasta que exista ninguna fuente
-puede citarlo como aplicado. El archivo aplicado no se edita (§9, regla 6).
+El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
+[`backend/sql/001_init.sql`](../backend/sql/001_init.sql) y las seis tablas de este corte viven en
+[`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1), escrito con la forma de §9:
+aditivo, idempotente (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción propia. El
+archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
 
 Candidatas sin compromiso, cada una con su ciclo: `app.item`, `app.item_photo`, `app.listing`,
 `app.sale`, `app.packing_step`, `app.packing_material` y `app.receive_check`. `app.reservation` no

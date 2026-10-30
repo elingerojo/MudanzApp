@@ -22,7 +22,7 @@ nunca el valor**.
   `dev:api`, `db:migrate`, `db:migrate:remote`, `db:migrate:test`, `db:migrate:branch`,
   `db:migrate:branch:test`, `db:migrate:remote:branch`, `db:ping`, `db:ping:test`,
   `db:ping:branch`, `db:ping:branch:test`, `db:ping:remote`, `db:ping:remote:branch`,
-  `invite` (cuando exista), `test:api:db`, `test:api:db:branch`, `test:e2e` y `test:e2e:branch`.
+  `invite`, `test:api:db`, `test:api:db:branch`, `test:e2e` y `test:e2e:branch`.
   El valor nunca pasa por el prompt ni por la salida. Los comandos remotos usan
   `backend/.env.migration.local`; los locales, `backend/.env.local`.
 - La URL de la **dev branch** y la de su prueba también se **derivan** (`_branch`, `_branch_test`); no

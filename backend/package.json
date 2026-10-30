@@ -20,6 +20,7 @@
     "db:migrate:branch:test": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --branch --test",
     "test:db": "tsx --env-file-if-exists=.env.local scripts/test-db.ts",
     "test:db:branch": "tsx --env-file-if-exists=.env.local scripts/test-db.ts --branch",
+    "invite": "tsx --env-file-if-exists=.env.local scripts/invite.ts",
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
