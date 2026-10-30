@@ -10,17 +10,17 @@ import { INVITATION_MAX_USES, invitationUsability, normalizeIssuer } from '../do
 import { AppError } from '../errors.js';
 import {
   addEventMember,
-  claimEventInvitations,
   createFactor,
   createSession,
   createUser,
   findEventById,
   findEventForUser,
+  findEventOwnerUserId,
   findFactor,
   findInvitationForUpdate,
   increaseInvitationUse,
   listEventsForUser,
-  revokeEventSessions,
+  revokeSession,
   touchFactor,
 } from '../store/identity-store.js';
 import { createOpaqueToken, hashToken } from '../tokens.js';
@@ -33,9 +33,10 @@ import { createSessionMiddleware, identityOf } from './session.js';
  * Entrada de identidad: canje del enlace, reclamo con cuenta y sesión del segundo dispositivo.
  *
  * El canje **no** pide identidad: emite una sesión de evento y el invitado documenta sin cuenta
- * (`decisiones` §30). El reclamo convierte esa sesión en una de cuenta, cierra el enlace para todos
- * y revoca las demás sesiones de evento. La sesión del segundo dispositivo exige una cuenta ya
- * reclamada: es el camino de regreso cuando el navegador perdió su almacenamiento.
+ * (`decisiones` §30). El reclamo es **aditivo**: añade la cuenta como miembro con `invited_by` igual
+ * al dueño del evento y emite la sesión de cuenta, sin cerrar invitaciones ni revocar las sesiones
+ * de los demás co-dispositivos. La sesión del segundo dispositivo exige una cuenta ya reclamada: es
+ * el camino de regreso cuando el navegador perdió su almacenamiento.
  */
 export function createAuthRouter(deps: IdentityDeps): Router {
   const router = Router();
@@ -103,7 +104,6 @@ export function createAuthRouter(deps: IdentityDeps): Router {
       const input = parseOrThrow(claimEventSchema, request.body);
       const verified = await deps.oauth.verify(input.oauthToken);
       const issuer = normalizeIssuer(verified.issuer);
-      const now = deps.now();
       const { eventId } = identity;
       const sessionToken = createOpaqueToken();
 
@@ -121,18 +121,19 @@ export function createAuthRouter(deps: IdentityDeps): Router {
           await touchFactor(transaction, factor.factorId);
         }
 
-        // `invited_by` queda vacío: el reclamo no acredita a una invitación concreta, cierra todas
-        // las del evento. El corte del ciclo 2 lo llena con el dueño del evento y deja de cerrarlas.
+        const ownerUserId = await findEventOwnerUserId(transaction, eventId);
+        if (ownerUserId === null) {
+          throw new AppError('internal_error');
+        }
+
+        // `invited_by` es el dueño del evento: el único invitante de registro que el modelo reconoce
+        // (`decisiones` §30). El reclamo no acredita una invitación concreta.
         await addEventMember(transaction, {
           eventId,
           userId: factor.user.id,
           role: 'member',
-          invitedBy: null,
+          invitedBy: ownerUserId,
         });
-
-        // Desde que existe una cuenta, el evento deja de admitir entradas sin identidad.
-        await claimEventInvitations(transaction, { eventId, now });
-        await revokeEventSessions(transaction, eventId);
 
         await createSession(transaction, {
           userId: factor.user.id,
@@ -141,6 +142,10 @@ export function createAuthRouter(deps: IdentityDeps): Router {
           scope: 'app',
           deviceLabel: input.deviceLabel ?? null,
         });
+
+        // Aditivo: solo se revoca la sesión que se está reclamando, porque el cliente la sustituye
+        // en `localStorage`. Las demás sesiones del evento siguen válidas (`decisiones` §30).
+        await revokeSession(transaction, identity.sessionId);
 
         const membership = await findEventForUser(transaction, eventId, factor.user.id);
         if (membership === null) {

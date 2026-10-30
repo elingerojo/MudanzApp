@@ -139,6 +139,23 @@ export async function findEventById(
   return rows[0] ?? null;
 }
 
+/**
+ * Dueño del evento: el invitante de registro de toda membresía (`decisiones` §30). Es una consulta
+ * escalar y no un campo de `EventRecord`, para no arrastrar la columna a las tres lecturas que solo
+ * necesitan la vista del evento. `null` significa que el evento no existe.
+ */
+export async function findEventOwnerUserId(
+  database: Queryable,
+  eventId: string,
+): Promise<string | null> {
+  const { rows } = await database.query<{ ownerUserId: string }>(
+    `SELECT owner_user_id AS "ownerUserId" FROM app.event WHERE id = $1`,
+    [eventId],
+  );
+
+  return rows[0]?.ownerUserId ?? null;
+}
+
 export async function listEventsForUser(
   database: Queryable,
   userId: string,
@@ -256,26 +273,6 @@ export async function increaseInvitationUse(
   );
 
   return rowCount === 1;
-}
-
-/**
- * El reclamo cierra **todas** las invitaciones abiertas del evento, no solo la que se usó: desde que
- * existe una cuenta, el evento deja de admitir entradas sin identidad (`decisiones` §30).
- */
-export async function claimEventInvitations(
-  database: Queryable,
-  input: { readonly eventId: string; readonly now: Date },
-): Promise<number> {
-  const { rowCount } = await database.query(
-    `UPDATE app.invitation
-        SET claimed_at = $2
-      WHERE event_id = $1
-        AND claimed_at IS NULL
-        AND revoked_at IS NULL`,
-    [input.eventId, input.now],
-  );
-
-  return rowCount ?? 0;
 }
 
 export async function findFactor(
@@ -446,23 +443,6 @@ export async function revokeSession(database: Queryable, sessionId: string): Pro
   );
 
   return rowCount === 1;
-}
-
-/**
- * Al reclamar, las sesiones de evento del evento dejan de servir: la identidad sustituye al enlace
- * como camino de entrada (`decisiones` §30). Las de cuenta no se tocan.
- */
-export async function revokeEventSessions(database: Queryable, eventId: string): Promise<number> {
-  const { rowCount } = await database.query(
-    `UPDATE app.session
-        SET revoked_at = now()
-      WHERE event_id = $1
-        AND user_id IS NULL
-        AND revoked_at IS NULL`,
-    [eventId],
-  );
-
-  return rowCount ?? 0;
 }
 
 export async function listEventSessions(

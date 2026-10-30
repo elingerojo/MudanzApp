@@ -1,6 +1,7 @@
 import {
   INVITATION_MAX_USES,
   INVITATION_TTL_MS,
+  canActOnEvent,
   invitationExpiry,
   invitationUsability,
   normalizeIssuer,
@@ -51,7 +52,7 @@ describe('invitationUsability', () => {
     });
   });
 
-  it('reports a claimed invitation as claimed, because the claim closes the link for good', () => {
+  it('reports a claimed invitation as claimed, for the rows the retired rule left behind', () => {
     expect(invitationUsability({ ...freshInvitation, useCount: 1, claimedAt: now }, now)).toEqual({
       usable: false,
       reason: 'claimed',
@@ -117,6 +118,28 @@ describe('sessionCoversScope', () => {
   it('requires the exact scope', () => {
     expect(sessionCoversScope('app', 'app')).toBe(true);
     expect(sessionCoversScope('app', 'shop')).toBe(false);
+  });
+});
+
+describe('canActOnEvent', () => {
+  it('lets an event session act on its own event', () => {
+    expect(canActOnEvent({ eventId: 'event-1', userId: null }, 'event-1', false)).toBe(true);
+  });
+
+  it('refuses an event session on another event, even when a membership flag arrives', () => {
+    expect(canActOnEvent({ eventId: 'event-1', userId: null }, 'event-2', true)).toBe(false);
+  });
+
+  it('lets an account session act where it is a member', () => {
+    expect(canActOnEvent({ eventId: null, userId: 'user-1' }, 'event-2', true)).toBe(true);
+  });
+
+  it('refuses an account session where it is not a member', () => {
+    expect(canActOnEvent({ eventId: null, userId: 'user-1' }, 'event-2', false)).toBe(false);
+  });
+
+  it('refuses an impossible session with neither an event nor a subject', () => {
+    expect(canActOnEvent({ eventId: null, userId: null }, 'event-1', true)).toBe(false);
   });
 });
 

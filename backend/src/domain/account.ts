@@ -6,8 +6,8 @@
  * borde se limitan a traducir filas a estas formas.
  *
  * Hechos que implementa, con su fuente:
- * - la invitación dura 72 horas desde su emisión, admite cinco canjes y es revocable; el reclamo con
- *   cuenta la inutiliza (`decisiones` §30);
+ * - la invitación dura 72 horas desde su emisión, admite cinco canjes y es revocable; reclamar con
+ *   una cuenta **no** la inutiliza (`decisiones` §30, revisada);
  * - la sesión es un token opaco por dispositivo, revocable, con alcance `app` o `shop`, y su dueño
  *   es una cuenta o un evento (`modelo-datos` §1 y `decisiones` §22);
  * - el sujeto de una cuenta es el par `(issuer, subject)` de su factor OAuth (`modelo-datos` §1).
@@ -33,9 +33,10 @@ export type InvitationUsability =
   { readonly usable: true } | { readonly usable: false; readonly reason: InvitationUnusableReason };
 
 /**
- * Orden del veredicto: manda el acto del administrador (revocada), después el acto del invitado que
- * cierra el enlace para siempre (reclamada), después el agotamiento por canjes y al final el
- * tiempo. Así la evidencia dice la causa más cercana al acto, no la más lejana.
+ * Orden del veredicto: manda el acto del administrador (revocada), después el reclamo que cerraba el
+ * enlace en la versión anterior del corte —se conserva para leer filas históricas, porque ya nada lo
+ * escribe—, después el agotamiento por canjes y al final el tiempo. Así la evidencia dice la causa
+ * más cercana al acto, no la más lejana.
  */
 export function invitationUsability(invitation: InvitationState, now: Date): InvitationUsability {
   if (invitation.revokedAt !== null) {
@@ -101,6 +102,30 @@ export function sessionOwner(session: {
 /** El alcance de la sesión debe cubrir exactamente el recurso que se consume. */
 export function sessionCoversScope(sessionScope: SessionScope, required: SessionScope): boolean {
   return sessionScope === required;
+}
+
+/**
+ * Alcance de escritura sobre un evento (`decisiones` §30): una sesión de evento llega solo a su
+ * propio evento y una sesión de cuenta llega a los eventos donde es miembro. Una fila imposible —sin
+ * sujeto y sin evento— no llega a ninguno.
+ *
+ * No conoce la base: quien llama resuelve `isMember` con una consulta y esta función decide. Es el
+ * único lugar donde se decide si una sesión puede emitir invitaciones de un evento.
+ */
+export function canActOnEvent(
+  session: { readonly eventId: string | null; readonly userId: string | null },
+  eventId: string,
+  isMember: boolean,
+): boolean {
+  if (session.eventId !== null) {
+    return session.eventId === eventId;
+  }
+
+  if (session.userId !== null) {
+    return isMember;
+  }
+
+  return false;
 }
 
 /**
