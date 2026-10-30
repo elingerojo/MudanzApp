@@ -478,3 +478,28 @@ Reglas del crecimiento:
 - **Consecuencia aceptada:** un XSS en cualquier superficie compromete la sesión de ese dispositivo;
   la revocación por dispositivo acota el daño a la sesión afectada.
 - **Disparador de revisión:** incidente o adopción de dominio propio con cookies.
+
+## 28. Metadatos del sitio en build; tarjeta por artículo aplazada (2026-10-30)
+
+- **Decisión:** los metadatos del sitio se emiten en build desde `shared/src/brand.json` y el
+  `index.html` construido de cada frontend. La tarjeta de vista previa por artículo queda aplazada y,
+  si hace falta, se resuelve con inyección en el Worker y caché con invalidación. El SSR de Angular
+  queda descartado.
+- **Motivo:** el enlace que hoy se comparte funciona sin tarjeta propia. Añadir inyección por ruta
+  multiplica el contrato del Worker antes de saber si la tarjeta cambia una venta.
+- **Alternativa descartada — SSR de Angular:** convierte cada frontend en un proceso con estado para
+  resolver un problema que hoy es de metadatos y de caché.
+- **Consecuencia aceptada:** al compartir un artículo, la vista previa es la del sitio y no la del
+  artículo, hasta tener evidencia de que la tarjeta afecta la venta.
+- **Disparador de revisión:** evidencia de que la tarjeta por artículo afecta la venta.
+
+## 29. Passkey diferida por el RP ID (2026-10-30)
+
+- **Decisión:** passkey queda diferida. La credencial está atada al RP ID y `workers.dev` no permite
+  compartirla entre subdominios.
+- **Motivo:** sin dominio propio, cada superficie sería un RP distinto y la credencial no serviría
+  entre ellas; adoptarla hoy obliga a rehacerla al mudar de dominio.
+- **Alternativa descartada — adoptarla con un RP provisional:** obliga a re-registrar todas las
+  credenciales al adoptar el dominio definitivo, con el soporte que eso implica.
+- **Consecuencia aceptada:** el segundo factor sigue siendo la cuenta OAuth (§22).
+- **Disparador de revisión:** existencia de dominio propio.

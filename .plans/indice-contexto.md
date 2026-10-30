@@ -18,6 +18,9 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | Corte con base de datos | `04`, `06`, modelo-datos §9, `06-datos`, `07-secretos` | auditoría, glosario |
 | Corte de integración externa | stack §7, `03`, `05`, `00-stack` | manual |
 | Corte de UI o frontend | stack §3, `02`, `03` | modelo-datos |
+| Corte de identidad o sesión | `04`, `05`, `02`, modelo-datos, `07-secretos` | dossier, manual |
+| Corte del eCommerce | `03`, `02`, stack §7, modelo-datos | manual, auditoría |
+| Sección del dossier en `wiki` | `00`, `02`, decisiones-tecnicas | modelo-datos |
 | Ciclo del indicador de carga | indicador-carga-componente | el resto |
 | Cerrar el ciclo | `06`, `02-commits`, `04-verificacion` | plantilla |
 | Duda sobre jerarquía o excepción | glosario-de-criterios | el resto |

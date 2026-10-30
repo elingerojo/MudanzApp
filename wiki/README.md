@@ -17,3 +17,24 @@ crece una ruta por ciclo.
 - **Tests unitarios**: `npm run test:web:wiki` desde la raíz (Vitest).
 - **E2E**: el arnés del monorepo es **Playwright**, no `ng e2e`. Se ejecuta desde la raíz con
   `npm run test:e2e`.
+
+## Dossier
+
+El dossier es el producto de `wiki`: explica cómo está hecha la aplicación y por qué, como base para
+colaboradores externos del proyecto open source. Cada ciclo añade **una** sección, escrita en el
+mismo ciclo que produce el hecho que explica.
+
+| Ciclo | Sección del dossier                                                           | Estado    |
+| ----- | ----------------------------------------------------------------------------- | --------- |
+| 1     | Identidad: dos factores y por qué el enlace de invitación muere al primer uso | Propuesta |
+| 2     | Roles y superficies: por qué tres frontends y no uno                          | Propuesta |
+| 3     | Foto a ficha: contrato de la IA y revisión humana                             | Propuesta |
+| 4     | Catálogo público: indexación, bloqueo de 15 minutos y venta fuera de banda    | Propuesta |
+| 5     | La regla 4/11/21 como función pura y su justificación económica               | Propuesta |
+| 6     | Empaque y cotización: de la estimación burda al dato verificable              | Propuesta |
+
+- Una sección se escribe cuando su hecho ya existe en el código; mientras tanto su estado es
+  `Propuesta` y no se documenta por anticipado.
+- La superficie pública `shop` está declarada en el stack y todavía no existe; la sección 4 habla de
+  su comportamiento cuando su ciclo la materialice (decisión §20 de
+  [`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md)).
