@@ -31,6 +31,7 @@
   "dependencies": {
     "@mudanzapp/shared": "*",
     "express": "^5.2.1",
+    "jose": "^6.2.14",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },

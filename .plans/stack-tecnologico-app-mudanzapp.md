@@ -148,6 +148,7 @@ scaffold (nota E3 en `.roo/rules/05-deps.md`).
 | Express | ^5.2.1 | runtime | 2026-10-19 | API HTTP mínima | Fastify, Koa | Stack §4 |
 | pg | ^8.23.0 | runtime | 2026-10-19 | SQL crudo parametrizado | ORM o query builder | `.guidelines/04` y decisión 4 |
 | zod | ^4.6.5 | runtime | 2026-10-19 | Validación en la frontera | Validación manual | `.guidelines/02` y decisión 13 |
+| jose | ^6.2.14 | runtime | 2026-10-30 | Verificación OIDC (firma, emisor, audiencia, vigencia) del adaptador `live` de OAUTH | Verificación manual con `node:crypto` | Aprobación explícita del usuario al abrir `account-link`; decisión §21 y ciclo 1 |
 | Tailwind CSS | v4 | dev | 2026-10-19 | Estilos utilitarios | CSS propio | Stack §3 |
 | Vitest | ^4.0.8 | dev | 2026-10-19 | Pruebas unitarias | Jest | Stack §8 y decisión 9 |
 | Playwright | ^1.63.0 | dev | 2026-10-19 | E2E | Cypress | Stack §8 y decisión 11 |
