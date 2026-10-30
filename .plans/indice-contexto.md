@@ -18,6 +18,7 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | Corte con base de datos | `04`, `06`, modelo-datos §9, `06-datos`, `07-secretos` | auditoría, glosario |
 | Corte de integración externa | stack §7, `03`, `05`, `00-stack` | manual |
 | Corte de UI o frontend | stack §3, `02`, `03` | modelo-datos |
+| Ciclo del indicador de carga | indicador-carga-componente | el resto |
 | Cerrar el ciclo | `06`, `02-commits`, `04-verificacion` | plantilla |
 | Duda sobre jerarquía o excepción | glosario-de-criterios | el resto |
 | Decisión técnica ya tomada | decisiones-tecnicas (biblioteca de patrones) | — |
@@ -34,6 +35,7 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | `resumen-funcional-app-mudanzapp.md` | el QUÉ | sí | planificación |
 | `decisiones-tecnicas-app-mudanzapp.md` | biblioteca de patrones | sí | consulta |
 | `glosario-de-criterios.md` | jerarquía y excepción | sí | consulta |
+| `indicador-carga-componente.md` | contrato y aprendizaje del indicador de carga | sí | solo ciclos del indicador |
 | `auditoria-consistencia-workspace.md` | evidencia de la apertura | sí | rara vez |
 | `plantilla-inicializacion-workspace.md` | cómo se arranca | no | solo arranque |
 | `manual-setup-workspace-local-y-remoto.md` | consolas | no | arranque y hechos remotos |

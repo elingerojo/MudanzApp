@@ -1,0 +1,61 @@
+<div class="sandbox" data-testid="sandbox">
+  <header class="flex flex-col gap-1">
+    <p class="text-muted text-xs font-medium tracking-wide uppercase">
+      Sandbox local · no es alcance de producto
+    </p>
+    <h1 class="text-2xl font-semibold">Indicador de carga</h1>
+    <p class="text-muted text-sm">
+      Agrega o resta volumen en m³ y observa cómo se llena el vehículo que corresponde. Un valor
+      negativo vuelve al estado fresco de la tira y desde ahí anima hasta el nuevo total.
+    </p>
+  </header>
+
+  <form
+    class="rounded-card border-line bg-surface flex flex-col gap-3 border p-4 sm:flex-row sm:items-end"
+    (submit)="agregar($event)"
+  >
+    <label class="flex flex-1 flex-col gap-1 text-sm font-medium" for="volumen">
+      Volumen (m³)
+      <input
+        #volumen
+        id="volumen"
+        data-testid="volumen"
+        class="border-line bg-surface text-ink focus:border-brand rounded-md border px-3 py-2 text-base outline-none"
+        type="number"
+        step="0.1"
+        inputmode="decimal"
+        [value]="borrador()"
+        (input)="actualizarBorrador($event)"
+      />
+    </label>
+
+    <button
+      class="bg-brand hover:bg-brand-strong rounded-md px-4 py-2 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      type="submit"
+      data-testid="agregar"
+      [disabled]="!puedeAgregar()"
+    >
+      {{ etiquetaAccion() }}
+    </button>
+  </form>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm" aria-live="polite" data-testid="total">Total: {{ totalTexto() }}</p>
+    <button
+      class="border-line rounded-md border px-3 py-1.5 text-sm"
+      type="button"
+      data-testid="reiniciar-carga"
+      (click)="reiniciarCarga()"
+    >
+      Reiniciar carga
+    </button>
+  </div>
+
+  <ul class="text-muted grid gap-1 text-sm sm:grid-cols-2" data-testid="detalle">
+    @for (vehiculo of detalle(); track vehiculo.nombre) {
+      <li>{{ vehiculo.nombre }}: {{ vehiculo.porcentaje }} % de {{ vehiculo.capacidadM3 }} m³</li>
+    }
+  </ul>
+
+  <app-indicador-carga [carga]="total()" [sinTransicion]="sinTransicion()" />
+</div>
