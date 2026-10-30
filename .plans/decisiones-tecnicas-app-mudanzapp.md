@@ -396,25 +396,29 @@ Reglas del crecimiento:
 - **Extiende a:** §3.
 - **Disparador de revisión:** cambio de proveedor o de flujo de identidad.
 
-## 22. Identidad de dos factores: invitación de un solo uso y cuenta OAuth (2026-10-30)
+## 22. La cuenta OAuth es el factor de identidad; la invitación no lo es (2026-10-30, revisada el mismo día)
 
-- **Decisión:** el acceso combina un enlace de invitación de un solo uso (7 días, revocable, token
-  emitido por el servidor y guardado como hash) con una cuenta externa verificada en la frontera
-  (§21). La sesión resultante es un token opaco por dispositivo, guardado como hash, con alcance
+- **Decisión:** la identidad la aporta solo una cuenta externa verificada en la frontera (§21). La
+  invitación no identifica a nadie: autoriza el acceso a un evento y, desde §30, admite sesiones de
+  evento **sin sujeto**. La sesión es un token opaco por dispositivo, guardado como hash, con alcance
   `app` o `shop`; no hay cookies ni JWT.
-- **Motivo:** la invitación prueba que el sujeto fue autorizado a un evento concreto y la cuenta
-  prueba que es siempre la misma persona. Con un solo factor queda un agujero: un enlace reenviado
-  sirve a cualquiera, y una cuenta sola no dice a qué evento pertenece.
+- **Motivo:** un enlace reenviado no dice quién lo porta y una cuenta sola no dice a qué evento
+  pertenece. Separar los dos hechos deja que el primero sea barato y opcional y el segundo sea el que
+  sostiene la continuidad entre dispositivos.
 - **Alternativa descartada — contraseña propia:** añade recuperación, rotación y almacenamiento de
   credenciales a un producto que solo necesita saber quién entra a un evento.
 - **Alternativa descartada — JWT revocable:** un token autocontenido no se puede revocar por
   dispositivo sin una lista negra, que es `app.session` con otro nombre.
-- **Consecuencia aceptada:** dos factores son dos pasos de entrada. El ciclo 1 mide ese costo antes
-  de declarar la hipótesis aprendida.
+- **Consecuencia aceptada:** documentar no exige cuenta; recuperar el acceso en otro navegador o
+  cerrar el enlace sí. Ese paso y su costo se fijan en §30.
+- **Consecuencia aceptada:** un token de sesión **nunca** viaja en una URL. Un token que tiene que ir
+  en un enlace es de un solo uso y de vida corta; el de sesión, revocable y de vida larga, se queda en
+  `Authorization: Bearer` (§27).
 - **Artefactos:** regla pura en [`backend/src/domain/account.ts`](../backend/src/domain/account.ts:1);
-  canje y sesión por dispositivo en [`backend/src/routes/auth-router.ts`](../backend/src/routes/auth-router.ts:1);
-  tablas en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1).
-- **Completa a:** §21.
+  canje, reclamo y sesión por dispositivo en
+  [`backend/src/routes/auth-router.ts`](../backend/src/routes/auth-router.ts:1); tablas en
+  [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1).
+- **Completa a:** §21. **Revisada por:** §30.
 - **Disparador de revisión:** adopción de dominio propio o de passkey.
 
 ## 23. La regla 4/11/21 es función pura del núcleo (2026-10-30)
@@ -426,6 +430,9 @@ Reglas del crecimiento:
   evidencia que el ciclo puede pagar; además, el umbral se discute sin tocar la tabla.
 - **Alternativa descartada — estado persistido del recordatorio:** duplica la verdad del conteo y
   obliga a migrar cada vez que cambian los umbrales.
+- **Alcance del 21:** el umbral obliga a **decidir**, no a identificarse. Que documentar sin cuenta se
+  corte en el artículo 21 es un hecho distinto y todavía pendiente
+  ([`resumen-funcional-app-mudanzapp.md`](resumen-funcional-app-mudanzapp.md) §6).
 - **Consecuencia aceptada:** el conteo es derivado. Si su costo crece, se resuelve con un índice
   antes que con una columna.
 - **Disparador de revisión:** cambio de umbrales o aparición de un tercer factor.
@@ -506,3 +513,41 @@ Reglas del crecimiento:
   credenciales al adoptar el dominio definitivo, con el soporte que eso implica.
 - **Consecuencia aceptada:** el segundo factor sigue siendo la cuenta OAuth (§22).
 - **Disparador de revisión:** existencia de dominio propio.
+
+## 30. Invitación acotada y sesión de evento reclamable (2026-10-30)
+
+- **Decisión:** el enlace de invitación dura **72 horas desde su emisión** y admite **cinco canjes**.
+  Cada canje emite una **sesión de evento**: la misma forma que la de cuenta, sin sujeto (`user_id`
+  nulo y `event_id` no nulo). El invitado documenta sin cuenta. Cuando quiere continuar en otro
+  dispositivo o recuperar el acceso tras perder el navegador, **reclama** el evento con una cuenta
+  OAuth: se crea o vincula el sujeto, se añade como miembro, la sesión de evento se sustituye por una
+  de cuenta, se revocan las demás sesiones de evento de ese evento y el enlace deja de servir
+  (`claimed_at`).
+- **Motivo:** el primer artículo no debe pagar una cuenta, pero sin sujeto nada fuera del navegador
+  puede demostrar "es la misma persona": el enlace sería la única llave y tendría que ser reutilizable
+  para siempre. Acotarlo en tiempo y en canjes, y apagarlo cuando nace el factor fuerte, convierte ese
+  hueco en un costo medido en vez de una credencial permanente.
+- **Alternativa descartada — identidad obligatoria desde el primer artículo:** es la rama más segura,
+  pero cobra el inicio de sesión antes del efecto que el ciclo 3 quiere medir.
+- **Alternativa descartada — documentar sin cuenta hasta el artículo 21 y nada más:** deja el enlace
+  como único camino de regreso y obliga a que sea permanente; reescribe la hipótesis del ciclo 1 y
+  retrasa `account-link` sin resolver la recuperación.
+- **Alternativa descartada — el token de sesión en cada mensaje (`?token=`):** la URL acaba siendo la
+  credencial: viaja al historial, a los logs del proxy, al `Referer` y a la vista previa del chat
+  (§22 y §24).
+- **Alternativa descartada — preguntas de seguridad:** las respuestas de alta certeza son justo los
+  datos personales que el modelo prohíbe (§24), y las de baja certeza se leen en el propio evento.
+- **Alternativa descartada — reconocimiento de una foto con IA:** la foto del artículo es pública por
+  diseño (§24), así que una foto de la pantalla la satisface; además convierte `AI_MODE` en
+  dependencia de seguridad y un doble `fake` no puede demostrar un match.
+- **Consecuencia aceptada:** lo que no se reclamó antes de que el enlace se agote se pierde si además
+  el navegador borró la sesión. El hueco es conocido y acotado a 72 horas; el cliente debe ofrecer el
+  reclamo antes de que el enlace muera.
+- **Consecuencia aceptada:** el reclamo revoca las demás sesiones de evento del evento; esos
+  dispositivos vuelven por la cuenta con `POST /auth/sessions`.
+- **Artefactos:** [`backend/src/domain/account.ts`](../backend/src/domain/account.ts:1),
+  [`backend/src/routes/auth-router.ts`](../backend/src/routes/auth-router.ts:1) y
+  [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1).
+- **Revisa a:** §22 y §23.
+- **Disparador de revisión:** aparición de un dato personal, incidente con un enlace reenviado, o el
+  corte que fije el umbral de identidad del artículo 21.

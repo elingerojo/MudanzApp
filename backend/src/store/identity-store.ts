@@ -34,7 +34,9 @@ export type InvitationRecord = {
   readonly eventId: string;
   readonly createdBy: string;
   readonly expiresAt: Date;
+  readonly useCount: number;
   readonly consumedAt: Date | null;
+  readonly claimedAt: Date | null;
   readonly revokedAt: Date | null;
 };
 
@@ -45,16 +47,17 @@ export type FactorRecord = {
 
 export type SessionRecord = {
   readonly id: string;
-  readonly userId: string;
+  readonly userId: string | null;
+  readonly eventId: string | null;
   readonly scope: SessionScope;
   readonly revokedAt: Date | null;
-  readonly user: UserRecord;
+  readonly user: UserRecord | null;
 };
 
 export type EventSessionRecord = {
   readonly id: string;
-  readonly userId: string;
-  readonly userDisplayName: string;
+  readonly userId: string | null;
+  readonly userDisplayName: string | null;
   readonly scope: SessionScope;
   readonly deviceLabel: string | null;
   readonly createdAt: Date;
@@ -212,7 +215,9 @@ export async function findInvitationForUpdate(
             event_id AS "eventId",
             created_by AS "createdBy",
             expires_at AS "expiresAt",
+            use_count AS "useCount",
             consumed_at AS "consumedAt",
+            claimed_at AS "claimedAt",
             revoked_at AS "revokedAt"
      FROM app.invitation
      WHERE token_hash = $1
@@ -223,20 +228,54 @@ export async function findInvitationForUpdate(
   return rows[0] ?? null;
 }
 
-/** Consumo atómico: solo la primera transacción que llega marca `consumed_at`. */
-export async function consumeInvitation(
+/**
+ * Canje atómico: suma un uso y, en el primero, marca `consumed_at` y `consumed_by`. La condición
+ * repite el veredicto del núcleo con el reloj del servidor, así que un canje que perdió la carrera
+ * —o que llegó después de una revocación o de un reclamo— no escribe nada.
+ */
+export async function increaseInvitationUse(
   database: Queryable,
-  invitationId: string,
-  userId: string,
+  input: {
+    readonly invitationId: string;
+    readonly maxUses: number;
+    readonly now: Date;
+    readonly userId: string | null;
+  },
 ): Promise<boolean> {
   const { rowCount } = await database.query(
     `UPDATE app.invitation
-     SET consumed_at = now(), consumed_by = $2
-     WHERE id = $1 AND consumed_at IS NULL AND revoked_at IS NULL`,
-    [invitationId, userId],
+        SET use_count = use_count + 1,
+            consumed_at = COALESCE(consumed_at, $3),
+            consumed_by = COALESCE(consumed_by, $4)
+      WHERE id = $1
+        AND use_count < $2
+        AND revoked_at IS NULL
+        AND claimed_at IS NULL
+        AND expires_at > $3`,
+    [input.invitationId, input.maxUses, input.now, input.userId],
   );
 
   return rowCount === 1;
+}
+
+/**
+ * El reclamo cierra **todas** las invitaciones abiertas del evento, no solo la que se usó: desde que
+ * existe una cuenta, el evento deja de admitir entradas sin identidad (`decisiones` §30).
+ */
+export async function claimEventInvitations(
+  database: Queryable,
+  input: { readonly eventId: string; readonly now: Date },
+): Promise<number> {
+  const { rowCount } = await database.query(
+    `UPDATE app.invitation
+        SET claimed_at = $2
+      WHERE event_id = $1
+        AND claimed_at IS NULL
+        AND revoked_at IS NULL`,
+    [input.eventId, input.now],
+  );
+
+  return rowCount ?? 0;
 }
 
 export async function findFactor(
@@ -325,17 +364,18 @@ export async function addEventMember(
 export async function createSession(
   database: Queryable,
   input: {
-    readonly userId: string;
+    readonly userId: string | null;
+    readonly eventId: string | null;
     readonly tokenHash: string;
     readonly scope: SessionScope;
     readonly deviceLabel: string | null;
   },
 ): Promise<string> {
   const { rows } = await database.query<{ id: string }>(
-    `INSERT INTO app.session (user_id, token_hash, scope, device_label)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO app.session (user_id, event_id, token_hash, scope, device_label)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id`,
-    [input.userId, input.tokenHash, input.scope, input.deviceLabel],
+    [input.userId, input.eventId, input.tokenHash, input.scope, input.deviceLabel],
   );
 
   const session = rows[0];
@@ -350,17 +390,24 @@ export async function findSessionByTokenHash(
   database: Queryable,
   tokenHash: string,
 ): Promise<SessionRecord | null> {
-  const { rows } = await database.query<
-    Omit<SessionRecord, 'user'> & { readonly displayName: string; readonly isAdmin: boolean }
-  >(
+  const { rows } = await database.query<{
+    readonly id: string;
+    readonly userId: string | null;
+    readonly eventId: string | null;
+    readonly scope: SessionScope;
+    readonly revokedAt: Date | null;
+    readonly displayName: string | null;
+    readonly isAdmin: boolean | null;
+  }>(
     `SELECT s.id,
             s.user_id AS "userId",
+            s.event_id AS "eventId",
             s.scope,
             s.revoked_at AS "revokedAt",
             u.display_name AS "displayName",
             u.is_admin AS "isAdmin"
      FROM app.session s
-     JOIN app."user" u ON u.id = s.user_id
+     LEFT JOIN app."user" u ON u.id = s.user_id
      WHERE s.token_hash = $1`,
     [tokenHash],
   );
@@ -370,12 +417,19 @@ export async function findSessionByTokenHash(
     return null;
   }
 
+  // La sesión de evento no tiene sujeto: `user` es `null`, no un usuario vacío.
+  const user =
+    row.userId === null || row.displayName === null
+      ? null
+      : { id: row.userId, displayName: row.displayName, isAdmin: row.isAdmin === true };
+
   return {
     id: row.id,
     userId: row.userId,
+    eventId: row.eventId,
     scope: row.scope,
     revokedAt: row.revokedAt,
-    user: { id: row.userId, displayName: row.displayName, isAdmin: row.isAdmin },
+    user,
   };
 }
 
@@ -394,24 +448,41 @@ export async function revokeSession(database: Queryable, sessionId: string): Pro
   return rowCount === 1;
 }
 
+/**
+ * Al reclamar, las sesiones de evento del evento dejan de servir: la identidad sustituye al enlace
+ * como camino de entrada (`decisiones` §30). Las de cuenta no se tocan.
+ */
+export async function revokeEventSessions(database: Queryable, eventId: string): Promise<number> {
+  const { rowCount } = await database.query(
+    `UPDATE app.session
+        SET revoked_at = now()
+      WHERE event_id = $1
+        AND user_id IS NULL
+        AND revoked_at IS NULL`,
+    [eventId],
+  );
+
+  return rowCount ?? 0;
+}
+
 export async function listEventSessions(
   database: Queryable,
   eventId: string,
 ): Promise<EventSessionRecord[]> {
   const { rows } = await database.query<EventSessionRecord>(
     `SELECT s.id,
-            s.user_id AS "userId",
-            u.display_name AS "userDisplayName",
-            s.scope,
-            s.device_label AS "deviceLabel",
-            s.created_at AS "createdAt",
-            s.last_seen_at AS "lastSeenAt",
-            s.revoked_at AS "revokedAt"
-     FROM app.session s
-     JOIN app."user" u ON u.id = s.user_id
-     JOIN app.event_member m ON m.user_id = s.user_id
-     WHERE m.event_id = $1
-     ORDER BY s.created_at DESC`,
+           s.user_id AS "userId",
+           u.display_name AS "userDisplayName",
+           s.scope,
+           s.device_label AS "deviceLabel",
+           s.created_at AS "createdAt",
+           s.last_seen_at AS "lastSeenAt",
+           s.revoked_at AS "revokedAt"
+    FROM app.session s
+    LEFT JOIN app."user" u ON u.id = s.user_id
+    WHERE s.event_id = $1
+       OR s.user_id IN (SELECT user_id FROM app.event_member WHERE event_id = $1)
+    ORDER BY s.created_at DESC`,
     [eventId],
   );
 

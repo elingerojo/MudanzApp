@@ -3,11 +3,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { AppError } from '../errors.js';
-import { findEventForUser, listEventsForUser } from '../store/identity-store.js';
+import { findEventById, findEventForUser, listEventsForUser } from '../store/identity-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
 import { toEventSummary } from './presenters.js';
-import { createSessionMiddleware, identityOf } from './session.js';
+import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
 
@@ -16,7 +16,7 @@ const eventParamsSchema = z.object({ eventId: z.uuid() });
  *
  * El invitado ve su evento y **ningún otro**: un evento del que no es miembro responde `not_found`
  * y no se distingue del inexistente. La autorización se ejerce en la lectura, no en la URL
- * (`decisiones` §24).
+ * (`decisiones` §24). Una sesión de evento ve exactamente el evento que la originó (`§30`).
  */
 export function createEventsRouter(deps: IdentityDeps): Router {
   const router = Router();
@@ -24,14 +24,31 @@ export function createEventsRouter(deps: IdentityDeps): Router {
   // y `/auth/*`, que se montan antes y después con su propia credencial.
   const requireSession = createSessionMiddleware(deps.database);
 
+  /**
+   * Eventos visibles para la sesión: la membresía manda en una de cuenta y el propio evento en una
+   * de evento. Es el único lugar donde se decide esa diferencia.
+   */
+  const visibleEvents = async (identity: RequestIdentity): Promise<EventSummary[]> => {
+    if (identity.user !== null) {
+      const events = await listEventsForUser(deps.database, identity.user.id);
+      return events.map(toEventSummary);
+    }
+
+    if (identity.eventId === null) {
+      return [];
+    }
+
+    const event = await findEventById(deps.database, identity.eventId);
+    return event === null ? [] : [toEventSummary({ ...event, role: null })];
+  };
+
   router.get('/auth/session', requireSession, (request, response, next) => {
     const handle = async (): Promise<void> => {
       const identity = identityOf(request);
-      const events = await listEventsForUser(deps.database, identity.user.id);
       const payload: CurrentIdentity = {
         user: identity.user,
         session: { id: identity.sessionId, scope: identity.scope },
-        events: events.map(toEventSummary),
+        events: await visibleEvents(identity),
       };
       response.json(payload);
     };
@@ -42,8 +59,8 @@ export function createEventsRouter(deps: IdentityDeps): Router {
   router.get('/events', requireSession, (request, response, next) => {
     const handle = async (): Promise<void> => {
       const identity = identityOf(request);
-      const events = await listEventsForUser(deps.database, identity.user.id);
-      response.json({ events: events.map(toEventSummary) });
+      const events = await visibleEvents(identity);
+      response.json({ events });
     };
 
     void handle().catch(next);
@@ -53,13 +70,28 @@ export function createEventsRouter(deps: IdentityDeps): Router {
     const handle = async (): Promise<void> => {
       const { eventId } = parseOrThrow(eventParamsSchema, request.params);
       const identity = identityOf(request);
+
+      if (identity.user === null) {
+        // Sesión de evento: solo el evento que la originó, y sin rol porque no hay membresía.
+        if (identity.eventId !== eventId) {
+          throw new AppError('not_found');
+        }
+
+        const event = await findEventById(deps.database, eventId);
+        if (event === null) {
+          throw new AppError('not_found');
+        }
+
+        response.json({ event: toEventSummary({ ...event, role: null }) });
+        return;
+      }
+
       const event = await findEventForUser(deps.database, eventId, identity.user.id);
       if (event === null) {
         throw new AppError('not_found');
       }
 
-      const payload: { event: EventSummary } = { event: toEventSummary(event) };
-      response.json(payload);
+      response.json({ event: toEventSummary(event) });
     };
 
     void handle().catch(next);

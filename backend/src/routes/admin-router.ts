@@ -1,8 +1,8 @@
-import { createEventSchema } from '@mudanzapp/shared';
+import { createEventSchema, type CreatedInvitation } from '@mudanzapp/shared';
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 
-import { invitationExpiry } from '../domain/account.js';
+import { INVITATION_MAX_USES, invitationExpiry } from '../domain/account.js';
 import { AppError } from '../errors.js';
 import {
   createEvent,
@@ -89,11 +89,13 @@ export function createAdminRouter(deps: IdentityDeps): Router {
         expiresAt: invitationExpiry(deps.now()),
       });
 
-      response.status(201).json({
+      const payload: CreatedInvitation = {
         id: invitation.id,
         token,
         expiresAt: invitation.expiresAt.toISOString(),
-      });
+        maxUses: INVITATION_MAX_USES,
+      };
+      response.status(201).json(payload);
     };
 
     void handle().catch(next);

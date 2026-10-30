@@ -12,11 +12,13 @@ export type { Brand } from './brand.js';
 export {
   EVENT_ROLES,
   SESSION_SCOPES,
+  claimEventSchema,
   createEventSchema,
   createSessionSchema,
   redeemInvitationSchema,
 } from './identity.js';
 export type {
+  ClaimEventRequest,
   CreateEventRequest,
   CreateSessionRequest,
   CreatedEvent,

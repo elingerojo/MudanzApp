@@ -69,6 +69,11 @@ export const ERROR_CATALOG = {
     status: 410,
     message: 'Invitation is not usable',
   },
+  session_not_claimable: {
+    code: 'session_not_claimable',
+    status: 409,
+    message: 'Session is already an account session',
+  },
   database_not_configured: {
     code: 'database_not_configured',
     status: 503,

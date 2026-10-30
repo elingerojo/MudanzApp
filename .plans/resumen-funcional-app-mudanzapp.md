@@ -40,15 +40,18 @@ Roles:
 
 ## 2. Alcance del primer ciclo
 
-- **Hipótesis:** un enlace de invitación de un solo uso crea sesiones utilizables en más de un
-  dispositivo dentro del mismo evento, sin contraseña y sin transportar secretos entre dispositivos.
-- **Corte vertical:** el administrador crea un evento y una invitación; el invitado canjea el enlace;
-  el servidor emite una sesión por dispositivo; el invitado ve su evento y no ve ningún otro; el
+- **Hipótesis:** un enlace de invitación acotado —72 horas y cinco canjes— permite empezar a
+  documentar **sin identidad** en el primer dispositivo, y el reclamo con una cuenta conserva ese
+  acceso en más de un dispositivo sin transportar secretos entre ellos.
+- **Corte vertical:** el administrador crea un evento y una invitación; el invitado canjea el enlace
+  y recibe una sesión **de evento** sin identidad; ve su evento y no ve ningún otro; reclama con una
+  cuenta y la sesión de evento se sustituye por una **de cuenta**; el enlace deja de servir; el
   administrador revoca una sesión y esa sesión deja de servir.
 - **Evidencia ejecutable:** e2e con `OAUTH_MODE=fake` sobre la base de la dev branch, más unit del
-  núcleo de la regla de cuenta.
-- **Fuera del ciclo:** artículos, fotos, ficha, publicación, `shop`, pagos, apartado, empaque,
-  cotización y verificación.
+  núcleo de la regla de cuenta: la invitación se agota por tiempo y por canjes, y el reclamo la
+  inutiliza.
+- **Fuera del ciclo:** artículos y su umbral de identidad, fotos, ficha, publicación, `shop`, pagos,
+  apartado, empaque, cotización y verificación.
 
 ## 3. Ciclos tentativos
 
@@ -67,9 +70,9 @@ Roles:
 
 | Capacidad | Estado | Nota |
 | --- | --- | --- |
-| `invite` | En alcance del ciclo 1 | Enlace de un solo uso, 7 días, revocable; el token lo emite el servidor |
-| `session` | En alcance del ciclo 1 | Token opaco por dispositivo, guardado como hash, con alcance `app` o `shop` |
-| `account-link` | En alcance del ciclo 1 | Vincular cuenta OAuth; es el segundo factor |
+| `invite` | En alcance del ciclo 1 | Enlace de 72 horas y cinco canjes, revocable; el token lo emite el servidor y el reclamo con cuenta lo inutiliza |
+| `session` | En alcance del ciclo 1 | Token opaco por dispositivo, guardado como hash, con alcance `app` o `shop`, y dueño: una cuenta o un evento |
+| `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: convierte la sesión de evento en sesión de cuenta y cierra el enlace. No es obligatorio para documentar; es el camino de regreso y el segundo dispositivo |
 | `invite-member` | Tentativa, ciclo 2 | Un co-usuario invita a otro dentro del mismo evento |
 | `capture` | Tentativa, ciclo 3 | Foto y datos mínimos del artículo |
 | `ai-draft` | Tentativa, ciclo 3 | Ficha borrador con salida validada; la IA no fija dimensiones ni peso definitivos |
@@ -104,6 +107,7 @@ código de referencia.
 
 | Hecho | Dueño | Disparador de revisión |
 | --- | --- | --- |
+| Umbral de identidad: si documentar sin cuenta se corta en el artículo 21 y con qué código falla | Architect con el usuario | Antes de `capture` |
 | Semántica de `APP_MODE` frente a publicación propia | Architect con el usuario | Antes de construir cualquier adaptador APP |
 | Monto registrado al cerrar una venta | Architect con el usuario | Antes de `settle-sale` |
 | Lectura pública de fotos y su política de retención | Architect / Backend | Antes de `capture` |

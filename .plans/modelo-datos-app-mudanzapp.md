@@ -1,21 +1,24 @@
 # Modelo de datos — MudanzApp
 
-> **Estado:** seis tablas de negocio del corte de identidad del ciclo 1 con su DDL en
-> [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1). Este documento es la fuente
-> única del modelo; el DDL debe coincidir con él.
+> **Estado:** seis tablas de negocio del corte de identidad del ciclo 1, con su DDL en
+> [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1) y el corte de la invitación
+> canjeable en [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1).
+> Este documento es la fuente única del modelo; el DDL debe coincidir con él.
 > **Dueño:** Architect / Backend. **Disparador de revisión:** nueva tabla, migración o cambio de
 > contrato.
 
 ## 1. Estado
 
-El corte de identidad del ciclo 1 introduce las seis primeras tablas de negocio.
+El corte de identidad del ciclo 1 introduce las seis primeras tablas de negocio. La invitación es una
+capacidad acotada —72 horas y cinco canjes— y admite sesiones de evento sin identidad
+(`decisiones` §30).
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
 | `app.user` | Sujeto: administrador, co-usuario o comprador | `id`, `display_name`, `account_status`, `is_admin`, `created_at` |
 | `app.auth_factor` | Cómo se prueba el sujeto; aditivo por diseño | `id`, `user_id`, `kind`, `issuer`, `subject`, `created_at`, `last_used_at` |
-| `app.session` | Prueba temporal por dispositivo | `id`, `user_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
-| `app.invitation` | Capacidad de entrada a un evento | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `consumed_at`, `consumed_by`, `revoked_at` |
+| `app.session` | Prueba temporal por dispositivo; de cuenta o de evento | `id`, `user_id`, `event_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
+| `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at` |
 | `app.event` | El evento de mudanza | `id`, `owner_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
 
@@ -24,6 +27,14 @@ Restricciones que van con el DDL:
 - unicidad `(issuer, subject)` en `app.auth_factor`;
 - índice único parcial que garantice **un solo** administrador;
 - `app.session.scope` con valores `app` y `shop`;
+- `session_owner_check`: una sesión es **o** de cuenta (`user_id` no nulo, `event_id` nulo) **o** de
+  evento (`event_id` no nulo, `user_id` nulo); nunca ambas y nunca ninguna. La sesión de evento tiene
+  la misma forma que la de cuenta salvo que no tiene sujeto: prueba pertenencia a un evento, no
+  identidad (`decisiones` §30);
+- la invitación dura **72 horas desde su emisión** y admite **cinco canjes** (`INVITATION_TTL_MS` e
+  `INVITATION_MAX_USES` en el núcleo de la regla); `consumed_at` marca el primer canje, `use_count`
+  cuenta todos y `claimed_at` marca el reclamo con cuenta, que la deja inutilizable sin tocar
+  `revoked_at`, que queda para la revocación del administrador;
 - ningún campo de nombre, correo, teléfono ni dirección del visitante.
 
 El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de

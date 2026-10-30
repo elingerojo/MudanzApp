@@ -1,10 +1,6 @@
-import type { EventSummary, IdentityUser, SessionSummary } from '@mudanzapp/shared';
+import type { EventRole, EventSummary, IdentityUser, SessionSummary } from '@mudanzapp/shared';
 
-import type {
-  EventMembershipRecord,
-  EventSessionRecord,
-  UserRecord,
-} from '../store/identity-store.js';
+import type { EventRecord, EventSessionRecord, UserRecord } from '../store/identity-store.js';
 
 /**
  * Traducción fila → contrato. Es el único lugar donde el `snake_case` de la base se convierte en
@@ -14,7 +10,13 @@ export function toIdentityUser(user: UserRecord): IdentityUser {
   return { id: user.id, displayName: user.displayName, isAdmin: user.isAdmin };
 }
 
-export function toEventSummary(event: EventMembershipRecord): EventSummary {
+/**
+ * `role` es `null` cuando la sesión es de evento: el hecho "es miembro" todavía no existe, y el
+ * contrato no lo inventa (`decisiones` §30).
+ */
+export function toEventSummary(
+  event: EventRecord & { readonly role: EventRole | null },
+): EventSummary {
   return {
     id: event.id,
     originCity: event.originCity,
