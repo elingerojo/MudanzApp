@@ -20,11 +20,11 @@ El resultado esperado tiene tres ejes:
 - **Psicológico:** lo que se regala llega a una persona con nombre, no a la basura.
 
 El efecto buscado es una ruta corta: foto, ficha revisable, precio, publicación y enlace
-compartible. La aplicación tiene tres superficies y tres roles:
+compartible. La aplicación tiene tres superficies:
 
 | Superficie | Audiencia | Qué hace |
 | --- | --- | --- |
-| `frontend` | Administrador y co-usuarios invitados | Crear el evento, decidir, publicar, cerrar ventas, empaque y traslado |
+| `frontend` | Administrador y los co-dispositivos del evento | Crear el evento, decidir, publicar, cerrar ventas, empaque y traslado |
 | `shop` | Cualquier visitante con el enlace | Ver el catálogo y la página de cada artículo; apartar o comprar exige cuenta |
 | `wiki` | Público interesado en el proyecto | Dossier técnico: cómo funciona, decisiones, ejemplos y justificación |
 
@@ -32,10 +32,15 @@ compartible. La aplicación tiene tres superficies y tres roles:
 scripts y su Worker llegan con su ciclo de bootstrap (decisión §20 de
 [`decisiones-tecnicas-app-mudanzapp.md`](decisiones-tecnicas-app-mudanzapp.md)).
 
-Roles:
+Vocabulario de acceso:
 
-- **Administrador:** único. Crea eventos e invitaciones.
-- **Co-usuario:** invitado por el administrador o por otro co-usuario, dentro del mismo evento.
+- **Administrador:** único. Crea eventos e invitaciones, y opera solo con `ADMIN_TOKEN`: no tiene
+  sesión ni factor.
+- **Co-dispositivo:** dispositivo que sostiene una sesión del evento. Es la misma cuenta, el mismo
+  acceso y los mismos derechos; no es otra persona, no es un rol y no introduce una puerta de
+  autenticación. Se llama así al hablar del sistema; la interfaz lo llama «dispositivo vinculado».
+- **Cuenta del evento:** factor OAuth que permite volver a entrar desde un dispositivo sin sesión. Es
+  recuperación, no una puerta: vincularla no cambia el acceso de ningún otro co-dispositivo.
 - **Visitante:** anónimo al leer; con cuenta y sesión de alcance `shop` al apartar o comprar.
 
 ## 2. Alcance del primer ciclo
@@ -47,6 +52,9 @@ Roles:
   y recibe una sesión **de evento** sin identidad; ve su evento y no ve ningún otro; reclama con una
   cuenta y la sesión de evento se sustituye por una **de cuenta**; el enlace deja de servir; el
   administrador revoca una sesión y esa sesión deja de servir.
+- **Revisión del ciclo 2:** el reclamo ya no cierra el enlace ni revoca las demás sesiones
+  (`decisiones` §30, revisada). El corte anterior se conserva como registro de lo que se implementó y
+  validó en el ciclo 1.
 - **Evidencia ejecutable:** e2e con `OAUTH_MODE=fake` sobre la base de la dev branch, más unit del
   núcleo de la regla de cuenta: la invitación se agota por tiempo y por canjes, y el reclamo la
   inutiliza.
@@ -60,7 +68,7 @@ Roles:
 
 | Ciclo | Hipótesis tentativa | Superficies |
 | --- | --- | --- |
-| 2 | Un co-usuario invitado trabaja en paralelo dentro del mismo evento | `frontend` |
+| 2 | Un co-dispositivo invitado trabaja en paralelo dentro del mismo evento | `frontend` |
 | 3 | El valor se percibe en el primer artículo compartido por WhatsApp | `frontend` y `shop` |
 | 4 | El catálogo público se navega y el bloqueo protege al vendedor sin frenar al comprador | `shop` |
 | 5 | La regla 4/11/21 convierte la cuenta en red de seguridad sin frenar el inicio | `frontend` |
@@ -70,10 +78,10 @@ Roles:
 
 | Capacidad | Estado | Nota |
 | --- | --- | --- |
-| `invite` | En alcance del ciclo 1 | Enlace de 72 horas y cinco canjes, revocable; el token lo emite el servidor y el reclamo con cuenta lo inutiliza |
+| `invite` | En alcance del ciclo 1 | Enlace de 72 horas y cinco canjes, revocable; el token lo emite el servidor y el reclamo con cuenta no lo inutiliza |
 | `session` | En alcance del ciclo 1 | Token opaco por dispositivo, guardado como hash, con alcance `app` o `shop`, y dueño: una cuenta o un evento |
-| `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: convierte la sesión de evento en sesión de cuenta y cierra el enlace. No es obligatorio para documentar; es el camino de regreso y el segundo dispositivo |
-| `invite-member` | Tentativa, ciclo 2 | Un co-usuario invita a otro dentro del mismo evento |
+| `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: vincula el sujeto y añade una sesión de cuenta. Es aditivo: no cierra el enlace ni revoca otras sesiones. No es obligatorio para documentar; es el camino de regreso |
+| `invite-device` | Tentativa, ciclo 2 | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
 | `capture` | Tentativa, ciclo 3 | Foto y datos mínimos del artículo |
 | `ai-draft` | Tentativa, ciclo 3 | Ficha borrador con salida validada; la IA no fija dimensiones ni peso definitivos |
 | `publish` | Tentativa, ciclo 3 | URL legible por artículo, indexable |

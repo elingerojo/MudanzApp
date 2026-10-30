@@ -15,7 +15,7 @@ capacidad acotada —72 horas y cinco canjes— y admite sesiones de evento sin 
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
-| `app.user` | Sujeto: administrador, co-usuario o comprador | `id`, `display_name`, `account_status`, `is_admin`, `created_at` |
+| `app.user` | Sujeto: administrador, cuenta vinculada al evento o comprador | `id`, `display_name`, `account_status`, `is_admin`, `created_at` |
 | `app.auth_factor` | Cómo se prueba el sujeto; aditivo por diseño | `id`, `user_id`, `kind`, `issuer`, `subject`, `created_at`, `last_used_at` |
 | `app.session` | Prueba temporal por dispositivo; de cuenta o de evento | `id`, `user_id`, `event_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
 | `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at` |
@@ -32,9 +32,12 @@ Restricciones que van con el DDL:
   la misma forma que la de cuenta salvo que no tiene sujeto: prueba pertenencia a un evento, no
   identidad (`decisiones` §30);
 - la invitación dura **72 horas desde su emisión** y admite **cinco canjes** (`INVITATION_TTL_MS` e
-  `INVITATION_MAX_USES` en el núcleo de la regla); `consumed_at` marca el primer canje, `use_count`
-  cuenta todos y `claimed_at` marca el reclamo con cuenta, que la deja inutilizable sin tocar
-  `revoked_at`, que queda para la revocación del administrador;
+  `INVITATION_MAX_USES` en el núcleo de la regla); `consumed_at` marca el primer canje y `use_count`
+  cuenta todos. `claimed_at` es **histórico**: el reclamo ya no la inutiliza (`decisiones` §30,
+  revisada), así que ningún camino lo escribe y el veredicto `claimed` del núcleo se conserva para
+  leer las filas anteriores. `revoked_at` queda para la revocación del administrador;
+- `event_member.invited_by` registra al **dueño del evento**: es el único invitante de registro que el
+  modelo reconoce (`decisiones` §30) y no distingue qué co-dispositivo emitió el enlace;
 - ningún campo de nombre, correo, teléfono ni dirección del visitante.
 
 El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de

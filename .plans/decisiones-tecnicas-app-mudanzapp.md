@@ -354,8 +354,9 @@ Reglas del crecimiento:
 ## 20. Tres superficies: `frontend` privada, `shop` pública e `wiki` como dossier (2026-10-30)
 
 - **Decisión:** la aplicación tiene tres superficies con audiencias distintas y forma técnica
-  compartida: `frontend` es la superficie privada del administrador y sus co-usuarios; `shop` es la
-  superficie pública del catálogo por enlace, indexable; `wiki` es el dossier técnico del proyecto,
+  compartida: `frontend` es la superficie privada del administrador y los co-dispositivos de cada
+  evento; `shop` es la superficie pública del catálogo por enlace, indexable; `wiki` es el dossier
+  técnico del proyecto,
   escrito para colaboradores externos. No es una sola SPA con modos.
 - **Estado por superficie:** `frontend` y `wiki` existen en el monorepo. `shop` está declarada y
   **sin artefacto**: no tiene workspace, ni scripts `dev:web:shop`, `build:web:shop` y
@@ -409,8 +410,8 @@ Reglas del crecimiento:
   credenciales a un producto que solo necesita saber quién entra a un evento.
 - **Alternativa descartada — JWT revocable:** un token autocontenido no se puede revocar por
   dispositivo sin una lista negra, que es `app.session` con otro nombre.
-- **Consecuencia aceptada:** documentar no exige cuenta; recuperar el acceso en otro navegador o
-  cerrar el enlace sí. Ese paso y su costo se fijan en §30.
+- **Consecuencia aceptada:** documentar no exige cuenta; recuperar el acceso en otro navegador sí
+  exige la cuenta. Ese paso y su costo se fijan en §30.
 - **Consecuencia aceptada:** un token de sesión **nunca** viaja en una URL. Un token que tiene que ir
   en un enlace es de un solo uso y de vida corta; el de sesión, revocable y de vida larga, se queda en
   `Authorization: Bearer` (§27).
@@ -514,19 +515,23 @@ Reglas del crecimiento:
 - **Consecuencia aceptada:** el segundo factor sigue siendo la cuenta OAuth (§22).
 - **Disparador de revisión:** existencia de dominio propio.
 
-## 30. Invitación acotada y sesión de evento reclamable (2026-10-30)
+## 30. Invitación acotada y reclamo aditivo (2026-10-30, revisada el mismo día)
 
 - **Decisión:** el enlace de invitación dura **72 horas desde su emisión** y admite **cinco canjes**.
   Cada canje emite una **sesión de evento**: la misma forma que la de cuenta, sin sujeto (`user_id`
-  nulo y `event_id` no nulo). El invitado documenta sin cuenta. Cuando quiere continuar en otro
-  dispositivo o recuperar el acceso tras perder el navegador, **reclama** el evento con una cuenta
-  OAuth: se crea o vincula el sujeto, se añade como miembro, la sesión de evento se sustituye por una
-  de cuenta, se revocan las demás sesiones de evento de ese evento y el enlace deja de servir
-  (`claimed_at`).
+  nulo y `event_id` no nulo). El invitado documenta sin cuenta. Cualquier sesión del evento —de
+  evento o de cuenta— puede emitir más invitaciones para ese evento. Reclamar con una cuenta OAuth es
+  **aditivo**: crea o vincula el sujeto, lo añade como miembro con `invited_by` igual al dueño del
+  evento y emite una sesión de cuenta. **No** revoca otras sesiones, **no** cierra invitaciones y
+  **no** limita a ningún co-dispositivo.
 - **Motivo:** el primer artículo no debe pagar una cuenta, pero sin sujeto nada fuera del navegador
-  puede demostrar "es la misma persona": el enlace sería la única llave y tendría que ser reutilizable
-  para siempre. Acotarlo en tiempo y en canjes, y apagarlo cuando nace el factor fuerte, convierte ese
-  hueco en un costo medido en vez de una credencial permanente.
+  puede demostrar "es la misma persona": el enlace sería la única llave. Acotarlo en tiempo y en
+  canjes deja un hueco medido, y la cuenta compra la recuperación en otro dispositivo sin convertir la
+  autenticación en una puerta que frene a los co-dispositivos que ya están trabajando.
+- **Alternativa descartada — el reclamo cierra el enlace y revoca las demás sesiones de evento
+  (primera versión de esta decisión):** funciona con un solo invitado, pero en cuanto hay varios
+  co-dispositivos el primero que se autentica expulsa a los demás y el trabajo en paralelo —la
+  hipótesis del ciclo 2— se vuelve imposible.
 - **Alternativa descartada — identidad obligatoria desde el primer artículo:** es la rama más segura,
   pero cobra el inicio de sesión antes del efecto que el ciclo 3 quiere medir.
 - **Alternativa descartada — documentar sin cuenta hasta el artículo 21 y nada más:** deja el enlace
@@ -543,11 +548,22 @@ Reglas del crecimiento:
 - **Consecuencia aceptada:** lo que no se reclamó antes de que el enlace se agote se pierde si además
   el navegador borró la sesión. El hueco es conocido y acotado a 72 horas; el cliente debe ofrecer el
   reclamo antes de que el enlace muera.
-- **Consecuencia aceptada:** el reclamo revoca las demás sesiones de evento del evento; esos
-  dispositivos vuelven por la cuenta con `POST /auth/sessions`.
+- **Consecuencia aceptada:** la invitación deja de cerrarse sola. Vive sus 72 horas y sus cinco
+  canjes aunque exista una cuenta, y cualquier sesión puede emitir más: el perímetro del evento es
+  quien tenga el enlace o una sesión. Su disparador de revisión es un incidente con un enlace
+  reenviado.
+- **Consecuencia aceptada:** desaparece el apagado global en un acto. El administrador conserva la
+  revocación por dispositivo y no hay endpoint para revocar un enlace; `app.invitation.revoked_at`
+  queda sin escritor.
+- **Consecuencia aceptada:** las sesiones no caducan; las 72 horas limitan adquirir una sesión, no
+  conservarla.
+- **Consecuencia aceptada:** pueden coexistir varias cuentas en un evento y ninguna se puede quitar;
+  quitar acceso es revocar sesiones.
+- **Consecuencia aceptada:** `claimed_at` queda sin escritor; el veredicto `claimed` del núcleo se
+  conserva para leer las filas que marcó la versión anterior.
 - **Artefactos:** [`backend/src/domain/account.ts`](../backend/src/domain/account.ts:1),
   [`backend/src/routes/auth-router.ts`](../backend/src/routes/auth-router.ts:1) y
   [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1).
-- **Revisa a:** §22 y §23.
+- **Revisa a:** §22 y §23. **Revisada por:** el corte del ciclo 2 (`invite-device`).
 - **Disparador de revisión:** aparición de un dato personal, incidente con un enlace reenviado, o el
   corte que fije el umbral de identidad del artículo 21.

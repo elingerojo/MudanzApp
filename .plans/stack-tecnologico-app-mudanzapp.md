@@ -22,9 +22,9 @@
   frontend ejecuta `brand:index` y `.scripts/generate-brand-index.mjs` la escribe en el artefacto
   construido, mientras la app fija el título en runtime desde la misma fuente.
 - Superficies de frontend: `frontend`, `shop` y `wiki`. `frontend` es la superficie privada del
-  administrador y sus co-usuarios; `shop` es la superficie pública e indexable del catálogo por
-  enlace; `wiki` es el dossier técnico del proyecto. Las tres comparten forma técnica (Angular,
-  Signals, zoneless) y mapa de rutas propio (decisión §20 de
+  administrador y los co-dispositivos de cada evento; `shop` es la superficie pública e indexable
+  del catálogo por enlace; `wiki` es el dossier técnico del proyecto. Las tres comparten forma
+  técnica (Angular, Signals, zoneless) y mapa de rutas propio (decisión §20 de
   `decisiones-tecnicas-app-mudanzapp.md`).
 - Estado de cada superficie: `frontend` y `wiki` existen como workspaces del monorepo. `shop` está
   **declarada y sin artefacto**: no tiene workspace, ni scripts `dev:web:shop`, `build:web:shop` y

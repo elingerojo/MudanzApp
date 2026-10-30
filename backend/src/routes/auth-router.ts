@@ -122,7 +122,7 @@ export function createAuthRouter(deps: IdentityDeps): Router {
         }
 
         // `invited_by` queda vacío: el reclamo no acredita a una invitación concreta, cierra todas
-        // las del evento. Se conserva la columna para el ciclo que invite co-usuarios.
+        // las del evento. El corte del ciclo 2 lo llena con el dueño del evento y deja de cerrarlas.
         await addEventMember(transaction, {
           eventId,
           userId: factor.user.id,
