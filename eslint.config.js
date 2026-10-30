@@ -17,6 +17,9 @@ export default [
       '**/build/**',
       '**/.angular/**',
       '**/coverage/**',
+      // Codigo archivado en `.plans/referencia/`: no compila, no se mantiene y se lee como
+      // referencia. Sin esta entrada, una regla futura lo marcaria como rojo ajeno al ciclo.
+      '.plans/**',
       // Salidas del arnés: viven junto a `e2e/playwright.config.ts`, no en la raíz.
       '**/playwright-report/**',
       '**/blob-report/**',
