@@ -26,6 +26,14 @@
   --color-success: #16a34a;
   --color-success-soft: #16a34a0d;
 
+  /* Instrumentos de medicion: pista vacia, relleno y hardware de un indicador de nivel.
+     Miden; no compiten con `--color-brand`, que sigue siendo el unico acento de marca.
+     Los huecos del dibujo toman `--color-canvas`, el texto sobre el relleno
+     `--color-surface` y el trazo `--color-ink`: no llevan token propio. */
+  --color-meter-track: #4953d3;
+  --color-meter-fill: #d93a2b;
+  --color-meter-hardware: #b3a6a6;
+
   --radius-card: 0.75rem;
   --radius-pill: 9999px;
 
