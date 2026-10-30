@@ -174,6 +174,10 @@ si **no** existiera; la forma vigente de citarlas es el puntero al artefacto.
 - **Puntero:** `backend/sql/001_init.sql` contiene el marcador idempotente `CREATE SCHEMA IF NOT
   EXISTS app`, sin tablas de negocio, y coincide con `modelo-datos` §7.
 - **Disparador de revisión:** la primera tabla de negocio del modelo.
+- **Revisión (2026-10-30):** el disparador se cumplió. `modelo-datos` §1 declara las seis tablas del
+  corte de identidad y el puntero a `001_init.sql` sigue siendo cierto, porque ese archivo solo
+  conserva el marcador. Las tablas entran en un archivo nuevo, aditivo e idempotente del mismo
+  directorio; el archivo aplicado no se edita (`modelo-datos` §9, regla 6).
 
 ### 14.3 Marca pública (`shared/src/brand.json` + `shared/src/brand.ts`)
 
@@ -342,6 +346,10 @@ Reglas del crecimiento:
   Fase 8 describe el estado final, no el de ese punto intermedio.
 - **Disparador de revisión:** dominio propio para un frontend, un tercer frontend, o CORS con
   credenciales (donde `*` deja de ser una alternativa discutible).
+- **Revisión (2026-10-30):** el tercer frontend ya está declarado como superficie planificada (§20)
+  sin artefacto. El disparador se cumple cuando `shop` se materialice: su origen entra en
+  `APP_BASE_URL` y en el mapa de frontends del arnés, y el backend se redespliega después de su
+  primer deploy.
 
 ## 20. Tres superficies: `frontend` privada, `shop` pública e `wiki` como dossier (2026-10-30)
 
@@ -387,3 +395,86 @@ Reglas del crecimiento:
   stack ya contempla.
 - **Extiende a:** §3.
 - **Disparador de revisión:** cambio de proveedor o de flujo de identidad.
+
+## 22. Identidad de dos factores: invitación de un solo uso y cuenta OAuth (2026-10-30)
+
+- **Decisión:** el acceso combina un enlace de invitación de un solo uso (7 días, revocable, token
+  emitido por el servidor y guardado como hash) con una cuenta externa verificada en la frontera
+  (§21). La sesión resultante es un token opaco por dispositivo, guardado como hash, con alcance
+  `app` o `shop`; no hay cookies ni JWT.
+- **Motivo:** la invitación prueba que el sujeto fue autorizado a un evento concreto y la cuenta
+  prueba que es siempre la misma persona. Con un solo factor queda un agujero: un enlace reenviado
+  sirve a cualquiera, y una cuenta sola no dice a qué evento pertenece.
+- **Alternativa descartada — contraseña propia:** añade recuperación, rotación y almacenamiento de
+  credenciales a un producto que solo necesita saber quién entra a un evento.
+- **Alternativa descartada — JWT revocable:** un token autocontenido no se puede revocar por
+  dispositivo sin una lista negra, que es `app.session` con otro nombre.
+- **Consecuencia aceptada:** dos factores son dos pasos de entrada. El ciclo 1 mide ese costo antes
+  de declarar la hipótesis aprendida.
+- **Completa a:** §21.
+- **Disparador de revisión:** adopción de dominio propio o de passkey.
+
+## 23. La regla 4/11/21 es función pura del núcleo (2026-10-30)
+
+- **Decisión:** la regla es una función pura: invitación a los 4 artículos, recordatorio a los 11 y
+  obligación de decidir a los 21. El disparador es la captura del artículo 21 y no exige que exista
+  un borrador de ficha.
+- **Motivo:** una función pura se prueba con unit sin base, sin reloj propio y sin HTTP, que es la
+  evidencia que el ciclo puede pagar; además, el umbral se discute sin tocar la tabla.
+- **Alternativa descartada — estado persistido del recordatorio:** duplica la verdad del conteo y
+  obliga a migrar cada vez que cambian los umbrales.
+- **Consecuencia aceptada:** el conteo es derivado. Si su costo crece, se resuelve con un índice
+  antes que con una columna.
+- **Disparador de revisión:** cambio de umbrales o aparición de un tercer factor.
+
+## 24. Enlace público legible e indexable; la autorización vive en la escritura (2026-10-30)
+
+- **Decisión:** la superficie pública usa URLs legibles e indexables por artículo. La autorización
+  se ejerce en la escritura, nunca en la URL ni en la ruta, y la base no guarda datos personales de
+  visitantes.
+- **Motivo:** el enlace se comparte por WhatsApp y lo lee gente sin sesión. Esconder el régimen de
+  acceso en la ruta rompe la indexación y crea una falsa sensación de control.
+- **Alternativa descartada — rutas con token por artículo:** no se pueden indexar ni recordar, y el
+  token acaba siendo la credencial de lectura.
+- **Consecuencia aceptada:** cualquiera con el enlace lee el artículo; por eso la base no tiene
+  campos de nombre, teléfono, correo ni dirección del visitante
+  ([`resumen-funcional-app-mudanzapp.md`](resumen-funcional-app-mudanzapp.md) §5).
+- **Disparador de revisión:** aparición de un dato personal necesario.
+
+## 25. El apartado es un bloqueo de 15 minutos sin fila (2026-10-30)
+
+- **Decisión:** apartar es un bloqueo de 15 minutos por visitante con cuenta, con vencimiento
+  perezoso y sin fila propia. `Vendido` lo produce un acto del vendedor en cualquier estado.
+- **Motivo:** un bloqueo con vencimiento perezoso no necesita proceso de limpieza ni escritura
+  periódica; una fila solo guardaría un instante que el estado del artículo ya guarda.
+- **Alternativa descartada — fila `reservation` con proceso de expiración:** añade escritura
+  periódica y un estado que hay que reconciliar con el del artículo.
+- **Consecuencia aceptada:** el vendedor manda sobre el bloqueo. Sostener un apartado más allá del
+  vencimiento exige revisar esta decisión, no añadir una fila a escondidas.
+- **Disparador de revisión:** necesidad de sostener un apartado más allá del vencimiento.
+
+## 26. La lectura pública de fotos forma parte de `R2_MODE` (2026-10-30)
+
+- **Decisión:** la lectura pública de las fotos de artículo forma parte de `R2_MODE`, y `R2_MODE`
+  deja de ser opcional en cuanto existe la foto del artículo.
+- **Motivo:** la foto se sirve a visitantes sin sesión. Si la lectura pública fuera un camino
+  aparte, `fake` no podría sustituirla y media app dependería de una API real en pruebas.
+- **Alternativa descartada — servir las fotos desde el backend:** mete ancho de banda, caché y
+  autorización propias en el camino crítico de una app que no las necesita.
+- **Consecuencia aceptada:** el modo de almacenamiento condiciona la página pública; su política de
+  retención se revisa con él ([`resumen-funcional-app-mudanzapp.md`](resumen-funcional-app-mudanzapp.md)
+  §6).
+- **Disparador de revisión:** cambio de proveedor de almacenamiento o de retención.
+
+## 27. Riesgo de XSS en `localStorage` aceptado con mitigación (2026-10-30)
+
+- **Decisión:** el token de sesión vive en `localStorage`. El riesgo se acepta con tres
+  mitigaciones: CSP estricta en las tres superficies, ningún script de terceros y sesiones
+  revocables por dispositivo.
+- **Motivo:** sin cookies ni dominio propio, `localStorage` es el único sitio que sobrevive a la
+  recarga sin acoplar la sesión al dominio; las tres mitigaciones se pueden verificar hoy.
+- **Alternativa descartada — cookie `HttpOnly` puesta por el backend:** exige CORS con credenciales
+  y un dominio propio para no romper la allowlist por origen (§19).
+- **Consecuencia aceptada:** un XSS en cualquier superficie compromete la sesión de ese dispositivo;
+  la revocación por dispositivo acota el daño a la sesión afectada.
+- **Disparador de revisión:** incidente o adopción de dominio propio con cookies.

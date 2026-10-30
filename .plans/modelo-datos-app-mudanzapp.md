@@ -1,16 +1,41 @@
 # Modelo de datos — MudanzApp
 
-> **Estado:** stub. No hay tablas de negocio aprobadas. Este documento es la fuente única del
-> modelo; el DDL debe coincidir con él.
+> **Estado:** seis tablas de negocio declaradas para el corte de identidad del ciclo 1; el DDL que
+> las crea todavía no existe. Este documento es la fuente única del modelo; el DDL debe coincidir
+> con él.
 > **Dueño:** Architect / Backend. **Disparador de revisión:** nueva tabla, migración o cambio de
 > contrato.
 
 ## 1. Estado
 
-Pendiente de definir con el primer ciclo. Mientras no exista una tabla aquí, el único DDL válido es
-el marcador idempotente que **ya existe** en `backend/sql/001_init.sql` —`CREATE SCHEMA IF NOT
-EXISTS app`, sin tablas de negocio—, construido por la pre-decisión §14.2 de
-`decisiones-tecnicas-app-mudanzapp.md` y coincidente con §7 de este documento.
+El corte de identidad del ciclo 1 introduce las seis primeras tablas de negocio.
+
+| Tabla | Propósito | Columnas clave |
+| --- | --- | --- |
+| `app.user` | Sujeto: administrador, co-usuario o comprador | `id`, `display_name`, `account_status`, `is_admin`, `created_at` |
+| `app.auth_factor` | Cómo se prueba el sujeto; aditivo por diseño | `id`, `user_id`, `kind`, `issuer`, `subject`, `created_at`, `last_used_at` |
+| `app.session` | Prueba temporal por dispositivo | `id`, `user_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
+| `app.invitation` | Capacidad de entrada a un evento | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `consumed_at`, `consumed_by`, `revoked_at` |
+| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
+| `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
+
+Restricciones que van con el DDL:
+
+- unicidad `(issuer, subject)` en `app.auth_factor`;
+- índice único parcial que garantice **un solo** administrador;
+- `app.session.scope` con valores `app` y `shop`;
+- ningún campo de nombre, correo, teléfono ni dirección del visitante.
+
+El único DDL aplicado hoy es el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
+[`backend/sql/001_init.sql`](../backend/sql/001_init.sql), sin tablas de negocio, construido por la
+pre-decisión §14.2 de [`decisiones-tecnicas-app-mudanzapp.md`](decisiones-tecnicas-app-mudanzapp.md).
+Las seis tablas se añaden en un archivo **nuevo** de `backend/sql/`, escrito con la forma de §9: es
+una **instrucción de construcción**, no un archivo que ya exista, y hasta que exista ninguna fuente
+puede citarlo como aplicado. El archivo aplicado no se edita (§9, regla 6).
+
+Candidatas sin compromiso, cada una con su ciclo: `app.item`, `app.item_photo`, `app.listing`,
+`app.sale`, `app.packing_step`, `app.packing_material` y `app.receive_check`. `app.reservation` no
+figura: la decisión §25 del apartado declara que no hay fila propia.
 
 ## 2. Motor
 
