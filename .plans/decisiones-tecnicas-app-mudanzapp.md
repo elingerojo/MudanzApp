@@ -101,16 +101,19 @@
   secretos.
 - Motivo: [`07-secretos.md`](../.roo/rules/07-secretos.md:16).
 
-## 11. Invitación como intención de futuro alcance
+## 11. Invitación como intención de futuro alcance (superada)
 
-- `invite` se registra como **intención de futuro alcance**, no como capacidad core comprometida: no
-  declara alcance, garantía, fecha ni corte.
-- Su función es servir de criterio al evaluar caminos de implementación cuando esa capacidad se
-  evalúe; no autoriza construir nada por sí sola.
-- No forma parte del código de arranque: su script y su camino canónico (autorizado) llegan con su
-  propio ciclo.
-- Motivo: el bootstrap se mantiene cero-features y un criterio de evaluación no es una capacidad.
-- Evidencia: `resumen-funcional-app-mudanzapp.md` §4 y decisión del usuario (auditoría `C3`).
+- **Estado:** superada por el alcance del ciclo 1 declarado en
+  [`resumen-funcional-app-mudanzapp.md`](resumen-funcional-app-mudanzapp.md) §2 y §4, donde `invite`
+  es capacidad en alcance y sostiene la hipótesis del corte.
+- Se conserva como registro: mientras no había ciclo abierto, `invite` era solo un criterio para
+  evaluar caminos de implementación y no una capacidad core comprometida.
+- El bootstrap permaneció cero-features. El script canónico de invitación llega con el ciclo 1:
+  `.roo/rules/07-secretos.md` ya lo lista con la marca «cuando exista» y esa marca se retira al
+  crearse el script.
+- Motivo del cambio: la hipótesis del ciclo 1 es que un enlace de un solo uso crea sesiones
+  utilizables por dispositivo, y esa hipótesis no se puede revisar sin la capacidad.
+- Evidencia: `resumen-funcional-app-mudanzapp.md` §2 y §4 y decisión del usuario (auditoría `C3`).
 
 ## 12. MCP: muestra genérica y regla del workspace
 
