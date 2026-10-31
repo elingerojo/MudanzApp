@@ -96,12 +96,12 @@ bucket, la base de lectura pública y el endpoint S3 son direcciones, no secreto
 `R2_SECRET_ACCESS_KEY` **no** se escriben en ningún archivo versionado: viven en `backend/.env.local` y
 en el dashboard de Railway (`.roo/rules/07-secretos.md`).
 
-| Hecho                   | Valor                                                                  | Se obtuvo en                                 | Estado    |
-| ----------------------- | ---------------------------------------------------------------------- | -------------------------------------------- | --------- |
-| `R2_BUCKET`             | `mudanzapp-photos`                                                     | manual `Man-3.3` pasos 1–3                   | observado |
-| `R2_PUBLIC_BASE_URL`    | `https://pub-e6d03e1ff1ae462e9952586dc772de66.r2.dev/mudanzapp-photos` | URL pública de un objeto real, sin la clave  | observado |
-| `R2_ENDPOINT`           | `pending`                                                              | manual `Man-3.3` paso 3 (dashboard → S3 API) | pendiente |
-| Fecha de la observación | 2026-10-31                                                             | cierre del ciclo 3c (`plan-ciclo-3c` §13)    | observado |
+| Hecho                   | Valor                                                                  | Se obtuvo en                                 | Estado     |
+| ----------------------- | ---------------------------------------------------------------------- | -------------------------------------------- | ---------- |
+| `R2_BUCKET`             | `mudanzapp-photos`                                                     | manual `Man-3.3` pasos 1–3                   | observado  |
+| `R2_PUBLIC_BASE_URL`    | `https://pub-e6d03e1ff1ae462e9952586dc772de66.r2.dev/mudanzapp-photos` | URL pública de un objeto real, sin la clave  | observado  |
+| `R2_ENDPOINT`           | configurado (valor no anotado; ver nota)                               | manual `Man-3.3` paso 3 (dashboard → S3 API) | ejercitado |
+| Fecha de la observación | 2026-10-31                                                             | cierre del ciclo 3c (`plan-ciclo-3c` §13)    | observado  |
 
 - **La base pública de esta cuenta incluye el segmento del bucket.** Medido el 2026-10-31 con la foto
   del artículo `silla-blanca-de-plastico-f97d4e`: `…r2.dev/mudanzapp-photos/<clave>` responde `200` y
@@ -110,6 +110,13 @@ en el dashboard de Railway (`.roo/rules/07-secretos.md`).
   aplica al **endpoint S3** (`R2_ENDPOINT`), que es otro host con otro papel.
 - Si la variable se fija sin ese segmento, la ficha pública pinta la página y la imagen queda en
   hueco, con un `404` en la consola del navegador: el contrato no falla, la URL apunta a otro objeto.
+- **Verificación `live` del ciclo 3c (2026-10-31):** en Chromium sin sesión, sobre
+  `https://mudanzapp-shop.elingerojo.workers.dev/silla-blanca-de-plastico-f97d4e`, la ficha responde
+  `200`, el título es el del artículo, el `<img>` apunta a `…r2.dev/mudanzapp-photos/…` y la imagen
+  **decodifica** (`naturalWidth` 3072) con `localStorage` vacío. La foto se descarga del bucket
+  público sin credencial y el backend no sirve bytes en ese camino (decisión §26).
+- `R2_ENDPOINT` no se anota porque solo lo usan las credenciales del backend; su corrección está
+  probada por el uso: la subida (`PutObject`) y la lectura con sesión (`GetObject`) funcionan.
 - El `r2.dev` es un dominio de **desarrollo**: rate-limited, sin SLA y no recomendado para producción;
   su sustitución por un dominio propio es una variable de entorno y un redespliegue del backend, sin
   reconstruir el Worker de `shop` (`plan-ciclo-3c` §10).
