@@ -1,0 +1,73 @@
+<section class="space-y-6">
+  <header class="text-center">
+    <h1 class="text-2xl font-semibold text-slate-900" data-testid="home-title">{{ appName }}</h1>
+    <p class="mt-1 text-sm text-slate-600">
+      Decide el destino de cada artículo de tu mudanza, con foto y medidas desde el teléfono.
+    </p>
+  </header>
+
+  <app-ui-card title="Sesión del dispositivo">
+    @if (!hasSession()) {
+      <p class="text-sm text-slate-700" data-testid="home-no-session">
+        Este dispositivo no tiene sesión todavía.
+      </p>
+      <p class="mt-2 text-sm text-slate-600">
+        Abre el enlace que te compartió el administrador, o pega su token en la pantalla de canje.
+      </p>
+
+      <div class="mt-4">
+        <app-ui-button link="/invitacion" testId="home-invitation-link">
+          Canjear una invitación
+        </app-ui-button>
+      </div>
+    } @else if (identityFailed()) {
+      <p class="text-sm text-red-600" data-testid="home-session-invalid">
+        La sesión de este dispositivo ya no es válida. Canjea una invitación nueva.
+      </p>
+
+      <div class="mt-4">
+        <app-ui-button link="/invitacion" testId="home-invitation-link">
+          Canjear una invitación
+        </app-ui-button>
+      </div>
+    } @else {
+      <p class="text-sm text-slate-700" data-testid="home-session">
+        Sesión activa
+        @if (user(); as account) {
+          como {{ account.displayName }}.
+        } @else {
+          sin cuenta vinculada.
+        }
+      </p>
+
+      @if (firstEvent(); as event) {
+        <p class="mt-2 text-sm text-slate-600" data-testid="home-event">
+          {{ event.originCity }} → {{ event.destinationCity }}
+        </p>
+
+        <div class="mt-4">
+          <app-ui-button [link]="'/eventos/' + event.id" testId="home-event-link">
+            Ver los artículos
+          </app-ui-button>
+        </div>
+      }
+
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <app-ui-button link="/invitacion" variant="secondary" testId="home-invitation-link">
+          Canjear otra invitación
+        </app-ui-button>
+
+        <button
+          type="button"
+          [class]="signOutClasses"
+          data-testid="home-signout"
+          (click)="signOut()"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    }
+  </app-ui-card>
+
+  <app-status />
+</section>

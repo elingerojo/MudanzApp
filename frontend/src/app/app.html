@@ -1,7 +1,77 @@
-<main class="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
-  <header>
-    <h1 class="text-2xl font-semibold" data-testid="app-title">{{ appName }}</h1>
+<div class="flex min-h-screen flex-col bg-slate-50">
+  <header class="bg-slate-900 text-white shadow">
+    <div class="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
+      <div class="flex min-w-0 items-center gap-2">
+        <a routerLink="/" class="truncate text-base font-semibold" data-testid="shell-brand">
+          {{ appName }}
+        </a>
+
+        @if (showNavigation()) {
+        <nav class="flex items-center gap-1 overflow-x-auto" aria-label="Secciones">
+          @for (destination of destinations(); track destination.path) {
+          <a
+            [routerLink]="destination.path"
+            routerLinkActive="bg-slate-700"
+            class="flex items-center gap-1 rounded px-2 py-1.5 text-sm whitespace-nowrap hover:bg-slate-700"
+            [attr.data-testid]="destination.testId"
+          >
+            <span aria-hidden="true">{{ destination.icon }}</span>
+            <span>{{ destination.label }}</span>
+          </a>
+          }
+        </nav>
+        }
+      </div>
+
+      @if (hasSession()) {
+      <details class="relative shrink-0">
+        <summary
+          class="cursor-pointer list-none rounded px-2 py-1 text-sm hover:bg-slate-700"
+          data-testid="shell-account"
+        >
+          Cuenta
+        </summary>
+
+        <div
+          class="absolute right-0 z-50 mt-2 w-60 space-y-2 rounded-lg bg-white p-3 text-slate-700 shadow-lg"
+          data-testid="shell-account-menu"
+        >
+          <p class="text-xs text-slate-500">
+            @if (user(); as account) { {{ account.displayName }} } @else { Dispositivo sin cuenta
+            vinculada }
+          </p>
+
+          <a
+            routerLink="/invitacion"
+            class="block rounded px-2 py-1 text-sm hover:bg-slate-100"
+            data-testid="shell-invite-link"
+          >
+            Canjear otra invitación
+          </a>
+
+          <button
+            type="button"
+            [class]="signOutClasses"
+            data-testid="shell-signout"
+            (click)="signOut()"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </details>
+      } @else {
+      <a
+        routerLink="/invitacion"
+        class="rounded px-2 py-1 text-sm hover:bg-slate-700"
+        data-testid="shell-invite-link"
+      >
+        Entrar con un enlace
+      </a>
+      }
+    </div>
   </header>
 
-  <router-outlet />
-</main>
+  <main class="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
+    <router-outlet />
+  </main>
+</div>

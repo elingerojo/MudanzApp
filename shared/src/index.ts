@@ -17,6 +17,15 @@ export {
   createSessionSchema,
   redeemInvitationSchema,
 } from './identity.js';
+export { ITEM_LIMITS, ITEM_PHOTO_CONTENT_TYPES, createItemSchema } from './item.js';
+export type {
+  CreatedItem,
+  CreateItemRequest,
+  ItemList,
+  ItemPhoto,
+  ItemPhotoContentType,
+  ItemSummary,
+} from './item.js';
 export type {
   ClaimEventRequest,
   CreateEventRequest,

@@ -5,6 +5,7 @@ import type { DatabaseState } from '@mudanzapp/shared';
 import { createApp } from '../../src/app.js';
 import type { Database } from '../../src/db.js';
 import { createOAuthVerifier } from '../../src/identity/oauth.js';
+import type { ObjectStore } from '../../src/storage/object-store.js';
 
 export interface RunningApp {
   readonly baseUrl: string;
@@ -41,12 +42,24 @@ export async function startTestApp(
     clientSecret: null,
   });
 
+  // Doble en memoria del almacén: el humo no escribe fotos, y un almacén real aquí haría que la
+  // prueba dependiera del sistema de archivos.
+  const objects = new Map<string, { readonly bytes: Buffer; readonly contentType: string }>();
+  const storage: ObjectStore = {
+    put: (key, bytes, contentType) => {
+      objects.set(key, { bytes, contentType });
+      return Promise.resolve();
+    },
+    get: (key) => Promise.resolve(objects.get(key) ?? null),
+  };
+
   const server = createApp({
     database,
     appBaseUrl,
     oauth,
     adminToken: options.adminToken ?? null,
     now: () => new Date(),
+    storage,
   }).listen(0);
 
   await new Promise<void>((resolve) => {

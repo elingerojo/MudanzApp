@@ -1,8 +1,10 @@
 # Modelo de datos — MudanzApp
 
-> **Estado:** seis tablas de negocio del corte de identidad del ciclo 1, con su DDL en
+> **Estado:** seis tablas del corte de identidad del ciclo 1, con su DDL en
 > [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1) y el corte de la invitación
-> canjeable en [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1).
+> canjeable en [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1),
+> más las dos tablas del corte de captura del ciclo 3a en
+> [`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1).
 > Este documento es la fuente única del modelo; el DDL debe coincidir con él.
 > **Dueño:** Architect / Backend. **Disparador de revisión:** nueva tabla, migración o cambio de
 > contrato.
@@ -11,7 +13,9 @@
 
 El corte de identidad del ciclo 1 introduce las seis primeras tablas de negocio. La invitación es una
 capacidad acotada —72 horas y cinco canjes— y admite sesiones de evento sin identidad
-(`decisiones` §30).
+(`decisiones` §30). El corte de captura del ciclo 3a agrega el artículo y su foto: el artículo nace
+sin estado de publicación y la foto se lee solo con sesión del evento hasta que `publish` abra la
+lectura pública (decisión §26).
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
@@ -21,6 +25,8 @@ capacidad acotada —72 horas y cinco canjes— y admite sesiones de evento sin 
 | `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at` |
 | `app.event` | El evento de mudanza | `id`, `owner_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
+| `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `created_at` |
+| `app.item_photo` | Foto de un artículo, una por posición | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
 
 Restricciones que van con el DDL:
 
@@ -38,17 +44,23 @@ Restricciones que van con el DDL:
   leer las filas anteriores. `revoked_at` queda para la revocación del administrador;
 - `event_member.invited_by` registra al **dueño del evento**: es el único invitante de registro que el
   modelo reconoce (`decisiones` §30) y no distingue qué co-dispositivo emitió el enlace;
-- ningún campo de nombre, correo, teléfono ni dirección del visitante.
+- ningún campo de nombre, correo, teléfono ni dirección del visitante;
+- `app.item_photo.content_type` se limita a `image/jpeg`, `image/png` y `image/webp`; `object_key` es
+  único y hay una sola fila por `(item_id, position)`; borrar el artículo borra sus fotos
+  (`ON DELETE CASCADE`). Los bytes viven en el almacén de objetos detrás de `R2_MODE`, no en la base;
+- `app.item` no guarda estado de publicación, precio ni moneda: el estado publicado es
+  `app.listing`, en el ciclo 3c (`publish`).
 
 El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
-[`backend/sql/001_init.sql`](../backend/sql/001_init.sql) y las seis tablas de este corte viven en
-[`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1), escrito con la forma de §9:
-aditivo, idempotente (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción propia. El
-archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
+[`backend/sql/001_init.sql`](../backend/sql/001_init.sql). Las seis tablas del corte de identidad
+viven en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1) y las del artículo en
+[`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1), escritos con la forma de §9: aditivos,
+idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción propia. El archivo
+aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
 
-Candidatas sin compromiso, cada una con su ciclo: `app.item`, `app.item_photo`, `app.listing`,
-`app.sale`, `app.packing_step`, `app.packing_material` y `app.receive_check`. `app.reservation` no
-figura: la decisión §25 del apartado declara que no hay fila propia.
+Candidatas sin compromiso, cada una con su ciclo: `app.listing`, `app.sale`, `app.packing_step`,
+`app.packing_material` y `app.receive_check`. `app.reservation` no figura: la decisión §25 del
+apartado declara que no hay fila propia.
 
 ## 2. Motor
 

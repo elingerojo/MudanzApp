@@ -1,0 +1,9 @@
+@if (link(); as href) {
+<a [routerLink]="href" [class]="classes()" [attr.data-testid]="testId()">
+  <ng-content />
+</a>
+} @else {
+<button [type]="type()" [disabled]="disabled()" [class]="classes()" [attr.data-testid]="testId()">
+  <ng-content />
+</button>
+}

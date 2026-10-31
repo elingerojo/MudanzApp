@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { config } from './config.js';
 import { createDatabase } from './db.js';
 import { createOAuthVerifier } from './identity/oauth.js';
+import { createObjectStore } from './storage/object-store.js';
 
 // El proceso —no el módulo— posee el ciclo de vida: aquí se crea el adaptador, se construye la
 // app y se escucha. Ningún otro archivo llama a createDatabase ni a createOAuthVerifier.
@@ -11,12 +12,14 @@ for (const warning of config.warnings) {
 
 const database = createDatabase(config.databaseUrl);
 const oauth = createOAuthVerifier(config.oauth);
+const storage = createObjectStore(config.storage);
 const app = createApp({
   database,
   appBaseUrl: config.appBaseUrl,
   oauth,
   adminToken: config.adminToken,
   now: () => new Date(),
+  storage,
 });
 
 const server = app.listen(config.port, () => {

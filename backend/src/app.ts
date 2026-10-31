@@ -9,6 +9,8 @@ import { createAdminRouter } from './routes/admin-router.js';
 import { createAuthRouter } from './routes/auth-router.js';
 import type { IdentityDeps } from './routes/dependencies.js';
 import { createEventsRouter } from './routes/events-router.js';
+import { createItemsRouter } from './routes/items-router.js';
+import type { ObjectStore } from './storage/object-store.js';
 
 /** El bootstrap inyecta las dependencias; las pruebas pasan dobles deterministas. */
 export interface AppDependencies {
@@ -17,6 +19,7 @@ export interface AppDependencies {
   readonly oauth: OAuthVerifier;
   readonly adminToken: string | null;
   readonly now: () => Date;
+  readonly storage: ObjectStore;
 }
 
 export function createApp({
@@ -25,9 +28,10 @@ export function createApp({
   oauth,
   adminToken,
   now,
+  storage,
 }: AppDependencies): Express {
   const app = express();
-  const identity: IdentityDeps = { database, oauth, now, adminToken };
+  const identity: IdentityDeps = { database, oauth, now, adminToken, storage };
 
   // 1. CORS primero: las cabeceras tienen que estar también en /health y /health/db.
   //    La allowlist viene de la configuración tipada; este archivo nunca lee process.env.
@@ -56,6 +60,10 @@ export function createApp({
   // 5. Identidad del ciclo 1: canje, sesión por dispositivo y administración.
   app.use(createAuthRouter(identity));
   app.use(createEventsRouter(identity));
+
+  // 6. Artículos y fotos del ciclo 3a (`capture`).
+  app.use(createItemsRouter(identity));
+
   app.use('/admin', createAdminRouter(identity));
 
   // 6. Último: captura el AppError de cualquier ruta.

@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_OAUTH_MODE = 'live';
+const DEFAULT_R2_MODE = 'live';
 const portSchema = z.coerce.number().int().min(1).max(65_535);
 
 /**
@@ -25,6 +26,20 @@ export interface OAuthConfig {
   readonly clientSecret: string | null;
 }
 
+/**
+ * Almacenamiento de objetos (`R2_MODE`). Solo las credenciales de esta integración: `R2_MODE`
+ * gobierna estas y ninguna otra. En el ciclo 3a el lector existe porque la capacidad existe —la foto
+ * del artículo—, pero solo el adaptador `fake` está implementado; `live` falla con un código estable
+ * hasta el ciclo que apruebe el cliente S3.
+ */
+export interface StorageConfig {
+  readonly mode: string;
+  readonly bucket: string | null;
+  readonly endpoint: string | null;
+  readonly accessKeyId: string | null;
+  readonly secretAccessKey: string | null;
+}
+
 export interface Config {
   readonly port: number;
   readonly nodeEnv: string;
@@ -32,6 +47,7 @@ export interface Config {
   readonly appBaseUrl: string;
   readonly adminToken: string | null;
   readonly oauth: OAuthConfig;
+  readonly storage: StorageConfig;
   readonly warnings: readonly string[];
 }
 
@@ -93,6 +109,37 @@ if (oauth.mode !== 'live' && oauth.mode !== 'fake') {
   );
 }
 
+const storage: StorageConfig = {
+  mode: readOptional('R2_MODE') ?? DEFAULT_R2_MODE,
+  bucket: readOptional('R2_BUCKET'),
+  endpoint: readOptional('R2_ENDPOINT'),
+  accessKeyId: readOptional('R2_ACCESS_KEY_ID'),
+  secretAccessKey: readOptional('R2_SECRET_ACCESS_KEY'),
+};
+
+// La capacidad de almacenamiento existe desde el ciclo 3a (`capture`). Se avisa de lo que falta para
+// que el primer fallo sea diagnosticable desde el arranque, nunca imprimiendo un valor.
+if (storage.mode !== 'live' && storage.mode !== 'fake') {
+  warnings.push('R2_MODE is not live or fake; the first photo request will report r2_mode_invalid');
+} else if (storage.mode === 'fake') {
+  warnings.push(
+    'R2_MODE is fake: photos are stored in the system temp directory and are neither durable nor shared',
+  );
+} else if (
+  storage.bucket === null ||
+  storage.endpoint === null ||
+  storage.accessKeyId === null ||
+  storage.secretAccessKey === null
+) {
+  warnings.push(
+    'R2_MODE is live but its configuration is incomplete; the first photo request will report r2_not_configured',
+  );
+} else {
+  warnings.push(
+    'R2_MODE is live but the live adapter is not implemented yet; the first photo request will report r2_live_unavailable',
+  );
+}
+
 export const config: Config = {
   port: readPort(warnings),
   nodeEnv: readOptional('NODE_ENV') ?? 'development',
@@ -100,5 +147,6 @@ export const config: Config = {
   appBaseUrl: readOptional('APP_BASE_URL') ?? '',
   adminToken,
   oauth,
+  storage,
   warnings,
 };

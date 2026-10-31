@@ -1,6 +1,13 @@
-import type { EventRole, EventSummary, IdentityUser, SessionSummary } from '@mudanzapp/shared';
+import type {
+  EventRole,
+  EventSummary,
+  IdentityUser,
+  ItemSummary,
+  SessionSummary,
+} from '@mudanzapp/shared';
 
 import type { EventRecord, EventSessionRecord, UserRecord } from '../store/identity-store.js';
+import type { ItemWithPhotoRecord } from '../store/item-store.js';
 
 /**
  * Traducción fila → contrato. Es el único lugar donde el `snake_case` de la base se convierte en
@@ -37,5 +44,33 @@ export function toSessionSummary(session: EventSessionRecord): SessionSummary {
     createdAt: session.createdAt.toISOString(),
     lastSeenAt: session.lastSeenAt?.toISOString() ?? null,
     revokedAt: session.revokedAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * El artículo con su foto opcional. `photo` es `null` mientras no se subió: el contrato no inventa
+ * una URL ni un objeto vacío, porque en este corte la lectura de la foto exige sesión del evento.
+ */
+export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
+  const photo =
+    item.photoId === null || item.photoContentType === null || item.photoByteSize === null
+      ? null
+      : {
+          id: item.photoId,
+          contentType: item.photoContentType,
+          byteSize: item.photoByteSize,
+        };
+
+  return {
+    id: item.id,
+    eventId: item.eventId,
+    title: item.title,
+    note: item.note,
+    widthCm: item.widthCm,
+    heightCm: item.heightCm,
+    depthCm: item.depthCm,
+    weightKg: item.weightKg,
+    photo,
+    createdAt: item.createdAt.toISOString(),
   };
 }

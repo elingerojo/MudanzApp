@@ -69,10 +69,16 @@ Vocabulario de acceso:
 | Ciclo | Hipótesis tentativa | Superficies |
 | --- | --- | --- |
 | 2 | Un co-dispositivo invitado trabaja en paralelo dentro del mismo evento | `frontend` |
-| 3 | El valor se percibe en el primer artículo compartido por WhatsApp | `frontend` y `shop` |
+| 3a | Un co-dispositivo documenta su primer artículo con foto en un solo recorrido desde el teléfono | `frontend` |
+| 3b | El tercer frontend se despliega y se enruta igual que los otros dos | `shop` |
+| 3c | El valor se percibe en el primer artículo compartido por WhatsApp | `frontend` y `shop` |
+| 3d | La ficha borrador de la IA se revisa en vez de escribirse | `frontend` y `wiki` |
 | 4 | El catálogo público se navega y el bloqueo protege al vendedor sin frenar al comprador | `shop` |
 | 5 | La regla 4/11/21 convierte la cuenta en red de seguridad sin frenar el inicio | `frontend` |
 | 6 | La lista de empaque y la de cotización sustituyen la estimación burda | `frontend` y `wiki` |
+
+- El ciclo 3 se descompone en 3a–3d. El orden, lo que cada corte compra y su costo viven en
+  [`plans/plan-ciclo-3a-captura-articulo.md`](../plans/plan-ciclo-3a-captura-articulo.md:1) §13.
 
 ## 4. Capacidades core declaradas
 
@@ -81,10 +87,10 @@ Vocabulario de acceso:
 | `invite` | En alcance del ciclo 1 | Enlace de 72 horas y cinco canjes, revocable; el token lo emite el servidor y el reclamo con cuenta no lo inutiliza |
 | `session` | En alcance del ciclo 1 | Token opaco por dispositivo, guardado como hash, con alcance `app` o `shop`, y dueño: una cuenta o un evento |
 | `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: vincula el sujeto y añade una sesión de cuenta. Es aditivo: no cierra el enlace ni revoca otras sesiones. No es obligatorio para documentar; es el camino de regreso |
-| `invite-device` | Tentativa, ciclo 2 | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
-| `capture` | Tentativa, ciclo 3 | Foto y datos mínimos del artículo |
-| `ai-draft` | Tentativa, ciclo 3 | Ficha borrador con salida validada; la IA no fija dimensiones ni peso definitivos |
-| `publish` | Tentativa, ciclo 3 | URL legible por artículo, indexable |
+| `invite-device` | En alcance del ciclo 2 (cerrado) | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
+| `capture` | En alcance del ciclo 3a | Foto y datos mínimos del artículo; la foto se lee solo con sesión del evento hasta `publish` |
+| `publish` | Tentativa, ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto (decisión §26) |
+| `ai-draft` | Tentativa, ciclo 3d | Ficha borrador con salida validada; la IA no fija dimensiones ni peso definitivos |
 | `reserve` | Tentativa, ciclo 4 | Bloqueo de 15 minutos por visitante con cuenta |
 | `settle-sale` | Tentativa, ciclo 4 | El vendedor marca `Vendido` en cualquier estado |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |
@@ -115,10 +121,10 @@ código de referencia.
 
 | Hecho | Dueño | Disparador de revisión |
 | --- | --- | --- |
-| Umbral de identidad: si documentar sin cuenta se corta en el artículo 21 y con qué código falla | Architect con el usuario | Antes de `capture` |
+| Umbral de identidad: si documentar sin cuenta se corta en el artículo 21 y con qué código falla | Architect con el usuario | Apertura de `account-upgrade` (ciclo 5); el ciclo 3a no impone umbral |
 | Semántica de `APP_MODE` frente a publicación propia | Architect con el usuario | Antes de construir cualquier adaptador APP |
 | Monto registrado al cerrar una venta | Architect con el usuario | Antes de `settle-sale` |
-| Lectura pública de fotos y su política de retención | Architect / Backend | Antes de `capture` |
+| Lectura pública de fotos y su política de retención | Architect / Backend | Antes de `publish` (ciclo 3c) |
 | Alcance del dossier en `wiki` | Architect | Apertura del ciclo que lo toque |
 | Dependencia de verificación de tokens OIDC | Architect con el usuario | Al abrir el ciclo que implemente `account-link`; su aprobación explícita se registra en el stack §12, en su propio commit `deps` |
 

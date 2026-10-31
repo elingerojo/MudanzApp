@@ -1,0 +1,81 @@
+<section class="space-y-6">
+  <header class="flex flex-wrap items-end justify-between gap-2">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-900" data-testid="event-title">
+        @if (event(); as current) {
+          {{ current.originCity }} → {{ current.destinationCity }}
+        } @else {
+          Evento
+        }
+      </h1>
+      <p class="text-sm text-slate-600">
+        Artículos documentados por los dispositivos de este evento.
+      </p>
+    </div>
+
+    <a routerLink="/" class="text-sm text-slate-600 underline" data-testid="event-home-link">
+      Inicio
+    </a>
+  </header>
+
+  @if (sessionInvalid()) {
+    <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700" data-testid="event-session-invalid">
+      La sesión de este dispositivo ya no es válida. Canjea una invitación nueva desde el inicio.
+    </p>
+  }
+
+  <app-ui-card title="Agregar un artículo">
+    <app-item-form [eventId]="eventId" (created)="reload()" />
+  </app-ui-card>
+
+  <app-ui-card title="Artículos">
+    @if (loading()) {
+      <p class="text-sm text-slate-600" data-testid="items-loading">Cargando…</p>
+    } @else if (failed()) {
+      <p class="text-sm text-red-600" data-testid="items-error">
+        No se pudieron cargar los artículos. Recarga la página.
+      </p>
+    } @else if (items().length === 0) {
+      <p class="text-sm text-slate-600" data-testid="items-empty">
+        Todavía no hay artículos. Toma la primera foto.
+      </p>
+    } @else {
+      <ul class="divide-y divide-slate-200" data-testid="items-list">
+        @for (item of items(); track item.id) {
+          <li class="flex items-center gap-3 py-3" [attr.data-testid]="'item-' + item.id">
+            @if (item.photo; as photo) {
+              <app-item-photo [photoId]="photo.id" />
+            } @else {
+              <span
+                class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+              >
+                sin foto
+              </span>
+            }
+
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-slate-900" data-testid="item-title">
+                {{ item.title }}
+              </p>
+
+              @if (item.widthCm !== null && item.heightCm !== null && item.depthCm !== null) {
+                <p class="text-xs text-slate-600">
+                  {{ item.widthCm }} × {{ item.heightCm }} × {{ item.depthCm }} cm
+                  @if (item.weightKg !== null) {
+                    · {{ item.weightKg }} kg
+                  }
+                </p>
+              } @else if (item.weightKg !== null) {
+                <p class="text-xs text-slate-600">{{ item.weightKg }} kg</p>
+              }
+
+              @if (item.note; as note) {
+                <p class="truncate text-xs text-slate-500">{{ note }}</p>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </app-ui-card>
+</section>

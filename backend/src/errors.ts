@@ -74,6 +74,31 @@ export const ERROR_CATALOG = {
     status: 409,
     message: 'Session is already an account session',
   },
+  item_not_found: {
+    code: 'item_not_found',
+    status: 404,
+    message: 'Item not found',
+  },
+  photo_invalid: {
+    code: 'photo_invalid',
+    status: 400,
+    message: 'Photo is not acceptable',
+  },
+  r2_mode_invalid: {
+    code: 'r2_mode_invalid',
+    status: 500,
+    message: 'Storage mode is not valid',
+  },
+  r2_not_configured: {
+    code: 'r2_not_configured',
+    status: 503,
+    message: 'Storage is not configured',
+  },
+  r2_live_unavailable: {
+    code: 'r2_live_unavailable',
+    status: 503,
+    message: 'Storage live adapter is not available yet',
+  },
   database_not_configured: {
     code: 'database_not_configured',
     status: 503,
