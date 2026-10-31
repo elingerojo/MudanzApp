@@ -48,7 +48,7 @@
     "db:migrate:test": "npm run db:migrate:test -w backend",
     "db:migrate:branch": "npm run db:migrate:branch -w backend",
     "db:migrate:branch:test": "npm run db:migrate:branch:test -w backend",
-    "invite": "npm run invite -w backend",
+    "invite": "npm run invite -w backend --",
     "lint": "eslint .",
     "format": "prettier --write . --ignore-path .prettierignore --ignore-path .gitignore",
     "format:check": "prettier --check . --ignore-path .prettierignore --ignore-path .gitignore"
