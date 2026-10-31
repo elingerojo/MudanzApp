@@ -38,11 +38,15 @@ export const ADMIN_TOKEN = 'e2e-admin-token';
 /**
  * Un `project` por frontend, con su propio `ng serve`. El puerto es siempre **explícito**: `ng
  * serve` honra la variable `PORT`, así que heredar el entorno del backend lo haría competir por
- * `3000` (medido en la primera corrida real). El resto de los frontends usa `4201` (manual
+ * `3000` (medido en la primera corrida real). Los otros frontends usan `4201` y `4202` (manual
  * `Man-2.5`).
+ *
+ * Esta lista es la fuente única del arnés: `HARNESS_PORTS` y la allowlist de CORS (`APP_BASE_URL`)
+ * se derivan de aquí, así que un frontend nuevo entra en un solo lugar.
  */
 export const FRONTENDS: readonly FrontendHarness[] = [
   { name: 'frontend', port: 4200, command: 'npm run dev -w frontend -- --port 4200' },
+  { name: 'shop', port: 4202, command: 'npm run dev -w shop -- --port 4202' },
   { name: 'wiki', port: 4201, command: 'npm run dev -w wiki -- --port 4201' },
 ];
 

@@ -26,11 +26,11 @@
   del catálogo por enlace; `wiki` es el dossier técnico del proyecto. Las tres comparten forma
   técnica (Angular, Signals, zoneless) y mapa de rutas propio (decisión §20 de
   `decisiones-tecnicas-app-mudanzapp.md`).
-- Estado de cada superficie: `frontend` y `wiki` existen como workspaces del monorepo. `shop` está
-  **declarada y sin artefacto**: no tiene workspace, ni scripts `dev:web:shop`, `build:web:shop` y
-  `test:web:shop`, ni puerto de desarrollo, ni Worker. Es una instrucción de construcción: esa
-  infraestructura llega con su ciclo de bootstrap y, hasta entonces, ninguna fuente puede citarla
-  como existente. El mapa de rutas vigente de `wiki` vive en `wiki/README.md`.
+- Estado de cada superficie: `frontend`, `shop` y `wiki` existen como workspaces del monorepo, cada
+  uno con sus scripts `dev:web:⟨FE⟩`, `build:web:⟨FE⟩` y `test:web:⟨FE⟩`, su puerto de desarrollo
+  (`4200`, `4202` y `4201`) y su Worker de assets. `shop` se materializó en su ciclo de bootstrap
+  (3b) y todavía no expone capacidades de catálogo: su primera ruta es el humo del arranque. El mapa
+  de rutas vigente vive en `wiki/README.md` y en `shop/README.md`.
 
 ## 2. Monorepo y TypeScript
 
@@ -43,13 +43,13 @@
 - Angular v22 standalone, Signals-first, zoneless.
 - `NgOptimizedImage`, `httpResource` y Tailwind v4.
 - Plantillas en archivos `.html` separados; nunca inline.
-- `frontend` es la SPA privada; `wiki` es la SPA del proyecto, con su propio mapa de rutas y su
-  propio alcance; `shop` es la SPA pública del catálogo, pensada para enlazarse y para indexarse.
-  Cualquier crecimiento se declara en el resumen funcional y, en `wiki`, en `wiki/README.md` cuando
-  su ciclo se abra.
+- `frontend` es la SPA privada; `shop` es la SPA pública del catálogo, pensada para enlazarse y para
+  indexarse; `wiki` es la SPA del proyecto, con su propio mapa de rutas y su propio alcance.
+  Cualquier crecimiento se declara en el resumen funcional y, en `wiki` y `shop`, en el `README.md`
+  de cada frontend cuando su ciclo se abra.
 - La URL base del backend se compila por entorno; el navegador no lee secretos en runtime.
-- Un Worker de Cloudflare por frontend, solo de assets. El de `shop` llega con su ciclo de
-  bootstrap, igual que su workspace y sus scripts.
+- Un Worker de Cloudflare por frontend, solo de assets: `mudanzapp` (`frontend`), `mudanzapp-shop`
+  (`shop`) y `mudanzapp-wiki` (`wiki`), cada uno con su `wrangler.jsonc` dentro del workspace.
 
 ## 4. Backend
 

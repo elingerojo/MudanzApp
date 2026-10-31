@@ -7,11 +7,11 @@ Este archivo solo fija las restricciones no negociables. El detalle, la identida
 integraciones concretas viven en la fuente del stack.
 
 - TypeScript estricto en todo el monorepo (npm workspaces: `shared`, `backend` y cada frontend de
-  `⟨FRONTENDS⟩`; en MudanzApp: `frontend` y `wiki`, más `shop`, declarada en el stack y sin
-  workspace hasta su ciclo de bootstrap).
+  `⟨FRONTENDS⟩`; en MudanzApp: `frontend`, `shop` y `wiki`, cada uno con su workspace, sus scripts y
+  su Worker).
 - Frontends: Angular v22 standalone, Signals-first, zoneless, NgOptimizedImage, httpResource,
   Tailwind v4. Plantillas en archivos `.html` separados (nunca inline). `frontend` es la superficie
-  privada; `shop` es la superficie pública e indexable y se materializa en su ciclo de bootstrap;
+  privada; `shop` es la superficie pública e indexable, materializada en su ciclo de bootstrap;
   `wiki` es una SPA propia con su mapa de rutas, igual que la app principal: crece una ruta por
   ciclo, puede consumir el backend con sus propios contratos y no conserva el alcance del arranque.
   El mapa vigente vive en `wiki/README.md`.

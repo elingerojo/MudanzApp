@@ -7,6 +7,7 @@ Monorepo TypeScript de MudanzApp: contrato compartido, API y **un workspace Angu
 | `shared/`   | Tipos y valores de runtime del contrato; los esquemas `zod` llegan con el primer payload | `@mudanzapp/shared`   |
 | `backend/`  | API Express en ESM sobre Postgres, SQL crudo con `pg`                                    | `@mudanzapp/backend`  |
 | `frontend/` | SPA principal (Angular v22 standalone, zoneless)                                         | `@mudanzapp/frontend` |
+| `shop/`     | Tercer frontend: superficie pública e indexable, hoy en bootstrap                        | `@mudanzapp/shop`     |
 | `wiki/`     | Segundo frontend: wiki del proyecto con su propio mapa de rutas                          | `@mudanzapp/wiki`     |
 | `e2e/`      | Arnés Playwright; **no** es un workspace                                                 | —                     |
 
@@ -141,9 +142,10 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 | 2        | `npm run dev:api`                    | `tsx watch` con `--env-file-if-exists=.env.local` | `3000` |
 | 3        | `npm run dev:web:frontend`           | `ng serve` del SPA principal                      | `4200` |
 | 4        | `npm run dev -w wiki -- --port 4201` | `ng serve` del segundo frontend                   | `4201` |
+| 5        | `npm run dev -w shop -- --port 4202` | `ng serve` del tercer frontend                    | `4202` |
 
-- Solo un frontend usa `4200`; el segundo se levanta con `--port 4201`. El puerto es siempre
-  **explícito**: `ng serve` honra `PORT` y heredaría el del backend.
+- Solo un frontend usa `4200`; los otros dos se levantan con `--port 4201` y `--port 4202`. El puerto
+  es siempre **explícito**: `ng serve` honra `PORT` y heredaría el del backend.
 - En desarrollo el frontend llama `/api`, que
   [`proxy.conf.json`](frontend/proxy.conf.json:1) reescribe hacia `http://localhost:3000`; por eso no
   hay CORS. En producción la llamada es cross-origin y la permite `APP_BASE_URL`.
@@ -171,6 +173,8 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 Reglas del contrato:
 
 - `shared` compila en `npm install` (`prepare`): `npm ci` + `npm run build` bastan.
+- El **tercer frontend** entra en el mismo contrato con la misma forma: `dev:web:shop`,
+  `build:web:shop` y `test:web:shop`; el build compila `shared` antes, igual que los otros dos.
 - `shared` **no** declara runner unitario mientras no tenga suites: `vitest run` sin archivos sale
   `1` y tumbaría el alias raíz. El alias `test` usa `--if-present`, así que el runner solo existe
   donde hay specs.
@@ -278,8 +282,8 @@ npm run db:migrate:branch:test
 - `global-setup` **verifica** el esquema y no migra: si falta, falla ruidosamente.
 - Un `project` por frontend, tres `webServer` (backend + un `ng serve` por frontend) y `workers: 1`
   porque las suites comparten una sola base.
-- Si un puerto del arnés (`3000`, `4200`, `4201`) ya escucha, la corrida se rechaza: **no** puede
-  haber un `dev:api` levantado contra la base de desarrollo.
+- Si un puerto del arnés (`3000`, `4200`, `4201`, `4202`) ya escucha, la corrida se rechaza: **no**
+  puede haber un `dev:api` levantado contra la base de desarrollo.
 - El humo abre **cada** frontend y exige proceso `ok` y base `ok` en el DOM real, con el valor
   observado como evidencia. El reporte queda en `e2e/playwright-report/`.
 - [`identity.spec.ts`](e2e/identity.spec.ts:1) ejerce el corte de identidad por API (una vez, no por
@@ -341,6 +345,9 @@ de ciclo.
 | CORS                | `APP_BASE_URL` con **todos** los orígenes de los Workers, separados por comas                                                                                          |
 | CI/CD               | No hay workflows; la protección de rama es un paso manual del remoto                                                                                                   |
 
+- Son **tres** Workers de assets —`mudanzapp`, `mudanzapp-shop` y `mudanzapp-wiki`— y cada uno
+  publica desde `main` con su propio `build:web:<FE>`; el backend se redespliega después del primer
+  deploy de cualquiera de ellos, porque su origen entra en `APP_BASE_URL` (decisión §19).
 - El contrato del backend **no** vive en el repo. Config as Code está deprecado y un servicio nuevo
   **no** lo lee, así que no se crea `railway.json` ni `railway.toml`: los valores se capturan en el
   dashboard y se verifican en `Man-3.4`, que es su única copia. Los watch paths excluyen

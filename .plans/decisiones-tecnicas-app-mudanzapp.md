@@ -350,6 +350,9 @@ Reglas del crecimiento:
   sin artefacto. El disparador se cumple cuando `shop` se materialice: su origen entra en
   `APP_BASE_URL` y en el mapa de frontends del arnés, y el backend se redespliega después de su
   primer deploy.
+- **Revisión (ciclo 3b):** `shop` se materializó. Su origen local entra en la allowlist del arnés por
+  `FRONTENDS` (`http://localhost:4202`) y su origen remoto lo añade `Man-3.6` con el redespliegue del
+  backend. La lista de frontends y la allowlist siguen teniendo una sola fuente: el arnés.
 
 ## 20. Tres superficies: `frontend` privada, `shop` pública e `wiki` como dossier (2026-10-30)
 
@@ -358,10 +361,10 @@ Reglas del crecimiento:
   evento; `shop` es la superficie pública del catálogo por enlace, indexable; `wiki` es el dossier
   técnico del proyecto,
   escrito para colaboradores externos. No es una sola SPA con modos.
-- **Estado por superficie:** `frontend` y `wiki` existen en el monorepo. `shop` está declarada y
-  **sin artefacto**: no tiene workspace, ni scripts `dev:web:shop`, `build:web:shop` y
-  `test:web:shop`, ni puerto de desarrollo, ni Worker. Es una instrucción de construcción: esa
-  infraestructura llega con su ciclo de bootstrap.
+- **Estado por superficie:** las tres existen en el monorepo. `frontend` y `wiki` desde el arranque;
+  `shop` desde el ciclo 3b, con workspace, scripts `dev:web:shop`, `build:web:shop` y
+  `test:web:shop`, puerto de desarrollo `4202` y Worker `mudanzapp-shop`. Su primera ruta es el humo
+  del arranque: todavía no expone capacidades de catálogo.
 - **Motivo:** las tres audiencias no comparten forma de acceso ni régimen de indexación. Mezclar
   catálogo público con área privada obliga a cada ruta a declarar su autorización, y un dossier
   técnico dentro de la app privada no lo puede leer nadie de fuera.
@@ -371,9 +374,10 @@ Reglas del crecimiento:
 - **Alternativa descartada — declarar `shop` cuando exista:** deja al resumen funcional describiendo
   una topología que el stack ya contradice; el estado se corrige con una nota, no con silencio.
 - **Supera a:** §2.
-- **Consecuencia aceptada:** el stack declara hoy una superficie sin artefacto. Se paga con la nota
-  de estado por superficie y se retira sola cuando su ciclo de bootstrap cree el workspace.
-- **Disparador de revisión:** creación del workspace `shop` o aparición de una cuarta superficie.
+- **Consecuencia aceptada (cerrada en 3b):** entre §20 y el ciclo 3b el stack declaró una superficie
+  sin artefacto; la nota de estado por superficie se retiró al crear el workspace.
+- **Disparador de revisión:** aparición de una cuarta superficie. La creación del workspace `shop` se
+  cumplió en el ciclo 3b y ya no es un disparador pendiente.
 
 ## 21. OAUTH como integración declarada de identidad (2026-10-30)
 

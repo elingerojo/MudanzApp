@@ -28,8 +28,9 @@ compartible. La aplicación tiene tres superficies:
 | `shop` | Cualquier visitante con el enlace | Ver el catálogo y la página de cada artículo; apartar o comprar exige cuenta |
 | `wiki` | Público interesado en el proyecto | Dossier técnico: cómo funciona, decisiones, ejemplos y justificación |
 
-`frontend` y `wiki` existen en el monorepo. `shop` está declarada y sin artefacto: su workspace, sus
-scripts y su Worker llegan con su ciclo de bootstrap (decisión §20 de
+`frontend`, `shop` y `wiki` existen en el monorepo, cada uno con su workspace, sus scripts y su
+Worker. `shop` nació en el ciclo 3b como **bootstrap** —workspace, shell, puerto y Worker— y todavía
+no contiene catálogo: sus capacidades llegan con `publish` (3c) y `reserve` (4) (decisión §20 de
 [`decisiones-tecnicas-app-mudanzapp.md`](decisiones-tecnicas-app-mudanzapp.md)).
 
 Vocabulario de acceso:

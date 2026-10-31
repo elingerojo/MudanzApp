@@ -35,6 +35,7 @@ mismo ciclo que produce el hecho que explica.
 
 - Una sección se escribe cuando su hecho ya existe en el código; mientras tanto su estado es
   `Propuesta` y no se documenta por anticipado.
-- La superficie pública `shop` está declarada en el stack y todavía no existe; la sección 4 habla de
-  su comportamiento cuando su ciclo la materialice (decisión §20 de
+- La superficie pública `shop` ya existe como bootstrap (ciclo 3b: workspace, puerto `4202` y Worker
+  `mudanzapp-shop`), todavía sin catálogo; la sección 4 habla de su comportamiento cuando `publish` y
+  `reserve` la llenen de contenido (decisión §20 de
   [`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md)).

@@ -1,0 +1,20 @@
+<section class="rounded-lg border border-slate-300 p-4">
+  <h2 class="mb-2 text-lg font-medium">Backend status</h2>
+
+  @if (health.isLoading()) {
+    <p data-testid="status-loading">Checking…</p>
+  } @else {
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      <dt class="font-medium">Process</dt>
+      <dd data-testid="status-process">{{ processState() }}</dd>
+      <dt class="font-medium">Database</dt>
+      <dd data-testid="status-database">{{ databaseState() }}</dd>
+    </dl>
+
+    @if (health.error()) {
+      <p class="mt-2 text-sm text-red-600" data-testid="status-error">
+        The backend did not respond.
+      </p>
+    }
+  }
+</section>

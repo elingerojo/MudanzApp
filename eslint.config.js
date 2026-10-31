@@ -5,8 +5,8 @@ import js from '@eslint/js';
 import angular from 'angular-eslint';
 import tseslint from 'typescript-eslint';
 
-const angularFrontends = ['frontend/**/*.ts', 'wiki/**/*.ts'];
-const angularTemplates = ['frontend/**/*.html', 'wiki/**/*.html'];
+const angularFrontends = ['frontend/**/*.ts', 'shop/**/*.ts', 'wiki/**/*.ts'];
+const angularTemplates = ['frontend/**/*.html', 'shop/**/*.html', 'wiki/**/*.html'];
 
 const scopeTo = (patterns) => (config) => ({ ...config, files: patterns });
 
