@@ -64,6 +64,22 @@ derivados, no hechos de plataforma. Ningún valor de esta tabla es una credencia
 
 - El subdominio `workers.dev` es **uno solo por cuenta** y lo comparten todos los Workers: cambiar el
   label cambia las dos URLs, obliga a rehacer `APP_BASE_URL` y a redesplegar el backend.
+
+### Actualización (2026-10-31, cierre del ciclo 3c)
+
+| Hecho                              | Valor                                                                                                                                                                           | Se obtuvo en                                                                  | Estado                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------- |
+| URL del Worker `mudanzapp-shop`    | `https://mudanzapp-shop.elingerojo.workers.dev`                                                                                                                                 | `GET /` → `200`                                                               | observado               |
+| Origen de `shop` en `APP_BASE_URL` | el de arriba, ya permitido                                                                                                                                                      | `OPTIONS` con `Origin` → `204` y `access-control-allow-origin`                | observado               |
+| Deploy del backend                 | **automático** al empujar a `main` (Railway autodeploy)                                                                                                                         | estado `determined-manifestation - @mudanzapp/backend` en el commit `8789582` | observado               |
+| Deploy de los tres frontends       | **Workers Builds**, conectado al repo en `main`, root directory `/`, build `npm run build:web:<FE>`, deploy `npx wrangler deploy -c <FE>/wrangler.jsonc`, sin build watch paths | dashboard de Cloudflare                                                       | conectado el 2026-10-31 |
+
+- Antes de esta fecha los tres Workers **no** estaban conectados a Workers Builds: sus deployments
+  venían de `npx wrangler deploy` manual, que estampa el commit y la rama del repo local. Un push a
+  `main` no generaba build y el artefacto desplegado se quedaba en el commit anterior sin ninguna
+  señal; el síntoma se detectó comparando el hash del bundle servido con el del build local.
+- La verificación de un despliegue de frontend es **el check run del commit** (Workers Builds crea
+  uno por Worker conectado) o el hash del bundle servido, no el dashboard por sí solo.
 - **Cierre del bring-up (2026-10-25):** los dos Workers abren desde su URL con `proceso: ok` y
   `base: ok` en el componente de estado, sin error de CORS en la consola. Con `APP_BASE_URL` ya
   completa, el estado intermedio de abajo no reaparece
