@@ -85,7 +85,7 @@
 | --- | --- | --- | --- | --- |
 | APP (primaria, reemplaza Wix) | `APP_MODE` | `live` | solo backend; `APP_MODE` gobierna solo las de esta integración | Live con credenciales válidas; fake determinista para tests |
 | OAUTH (identidad de cuenta) | `OAUTH_MODE` | `live` | solo backend: `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET` | `OAUTH_ISSUER` se parametriza igual que `AI_MODEL`; con `fake` emite un subject fijo para e2e |
-| R2 (almacenamiento opcional) | `R2_MODE` | `live` | solo backend | Solo si la app guarda archivos |
+| R2 (almacenamiento de objetos) | `R2_MODE` | `live` | solo backend: `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BASE_URL` | La capacidad existe desde `capture` (3a) y la **lectura pública** es parte del modo desde `publish` (3c, decisión §26); `live` exige las cinco piezas, `fake` compone su propia base y no lee ninguna |
 | AI | `AI_MODE` + `AI_MODEL` | `live` | `AI_API_KEY` en backend | El ID del modelo no se cablea |
 
 - `live` exige credenciales válidas. `fake` es el doble determinista de pruebas mientras se
@@ -149,6 +149,7 @@ scaffold (nota E3 en `.roo/rules/05-deps.md`).
 | pg | ^8.23.0 | runtime | 2026-10-19 | SQL crudo parametrizado | ORM o query builder | `.guidelines/04` y decisión 4 |
 | zod | ^4.6.5 | runtime | 2026-10-19 | Validación en la frontera | Validación manual | `.guidelines/02` y decisión 13 |
 | jose | ^6.2.14 | runtime | 2026-10-30 | Verificación OIDC (firma, emisor, audiencia, vigencia) del adaptador `live` de OAUTH | Verificación manual con `node:crypto` | Aprobación explícita del usuario al abrir `account-link`; decisión §21 y ciclo 1 |
+| @aws-sdk/client-s3 | ^3.1161.0 | runtime | 2026-10-31 | Cliente oficial de la API compatible con S3 para el adaptador `live` de R2 (`PutObject`/`GetObject`) del ciclo 3c | Firma SigV4 a mano con `node:crypto` | Aprobación explícita del dueño al abrir `publish` (§3 de `plan-ciclo-3c`); commit `deps` propio |
 | Tailwind CSS | v4 | dev | 2026-10-19 | Estilos utilitarios | CSS propio | Stack §3 |
 | Vitest | ^4.0.8 | dev | 2026-10-19 | Pruebas unitarias | Jest | Stack §8 y decisión 9 |
 | Playwright | ^1.63.0 | dev | 2026-10-19 | E2E | Cypress | Stack §8 y decisión 11 |

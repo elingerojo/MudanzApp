@@ -30,6 +30,7 @@
     "format:check": "prettier --check . --ignore-path ../.prettierignore --ignore-path ../.gitignore"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@mudanzapp/shared": "*",
     "express": "^5.2.1",
     "jose": "^6.2.14",
