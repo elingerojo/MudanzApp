@@ -96,13 +96,20 @@ bucket, la base de lectura pública y el endpoint S3 son direcciones, no secreto
 `R2_SECRET_ACCESS_KEY` **no** se escriben en ningún archivo versionado: viven en `backend/.env.local` y
 en el dashboard de Railway (`.roo/rules/07-secretos.md`).
 
-| Hecho                   | Valor     | Se obtuvo en                                            | Estado                      |
-| ----------------------- | --------- | ------------------------------------------------------- | --------------------------- |
-| `R2_BUCKET`             | `pending` | manual `Man-3.3` pasos 1–3                              | pendiente del cierre remoto |
-| `R2_PUBLIC_BASE_URL`    | `pending` | manual `Man-3.3` paso 2 (`r2.dev`, temporal)            | pendiente del cierre remoto |
-| `R2_ENDPOINT`           | `pending` | manual `Man-3.3` paso 3 (dashboard → Settings → S3 API) | pendiente del cierre remoto |
-| Fecha de la observación | `pending` | cierre del ciclo 3c (`plan-ciclo-3c` §13)               | pendiente                   |
+| Hecho                   | Valor                                                                  | Se obtuvo en                                 | Estado    |
+| ----------------------- | ---------------------------------------------------------------------- | -------------------------------------------- | --------- |
+| `R2_BUCKET`             | `mudanzapp-photos`                                                     | manual `Man-3.3` pasos 1–3                   | observado |
+| `R2_PUBLIC_BASE_URL`    | `https://pub-e6d03e1ff1ae462e9952586dc772de66.r2.dev/mudanzapp-photos` | URL pública de un objeto real, sin la clave  | observado |
+| `R2_ENDPOINT`           | `pending`                                                              | manual `Man-3.3` paso 3 (dashboard → S3 API) | pendiente |
+| Fecha de la observación | 2026-10-31                                                             | cierre del ciclo 3c (`plan-ciclo-3c` §13)    | observado |
 
+- **La base pública de esta cuenta incluye el segmento del bucket.** Medido el 2026-10-31 con la foto
+  del artículo `silla-blanca-de-plastico-f97d4e`: `…r2.dev/mudanzapp-photos/<clave>` responde `200` y
+  `…r2.dev/<clave>` responde `404`. El adaptador solo compone `base + '/' + object_key`; el segmento
+  pertenece a la variable, no al código. La regla «sin el nombre del bucket» de la documentación
+  aplica al **endpoint S3** (`R2_ENDPOINT`), que es otro host con otro papel.
+- Si la variable se fija sin ese segmento, la ficha pública pinta la página y la imagen queda en
+  hueco, con un `404` en la consola del navegador: el contrato no falla, la URL apunta a otro objeto.
 - El `r2.dev` es un dominio de **desarrollo**: rate-limited, sin SLA y no recomendado para producción;
   su sustitución por un dominio propio es una variable de entorno y un redespliegue del backend, sin
   reconstruir el Worker de `shop` (`plan-ciclo-3c` §10).
