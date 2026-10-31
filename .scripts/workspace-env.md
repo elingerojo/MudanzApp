@@ -94,3 +94,18 @@ en el dashboard de Railway (`.roo/rules/07-secretos.md`).
   pública es un `GET` de `<img>`, que no negocia CORS.
 - Los valores se escriben en `backend/.env.local` (local) y en Railway (remoto). `.env.example` recibe
   solo los **nombres**.
+
+### Esquema remoto (observado)
+
+| Hecho                                         | Valor                                     | Se obtuvo en                       | Estado    |
+| --------------------------------------------- | ----------------------------------------- | ---------------------------------- | --------- |
+| Migraciones aplicadas en `mudanzapp` remota   | `5` (`001`–`005`, incluida `app.listing`) | `npm run db:migrate:remote`        | observado |
+| Migraciones aplicadas en la dev branch remota | `5` (`001`–`005`, incluida `app.listing`) | `npm run db:migrate:remote:branch` | observado |
+| Fecha de la observación                       | 2026-10-31                                | corrida local del ciclo 3c         | observado |
+
+- Los seis nombres de R2 en el servicio de Railway y el redespliegue del backend siguen **pendientes**:
+  son un cambio de plataforma que se hace en el dashboard (`Man-3.4`), no desde el repo. Mientras falten,
+  `R2_MODE` cae en `live` con configuración incompleta y la primera petición de foto responde
+  `r2_not_configured`.
+- Hasta que el backend desplegado tenga la ruta pública, el Worker de `shop` **no** se redespliega: la
+  ruta `/:slug` llamaría a un endpoint que todavía no existe.
