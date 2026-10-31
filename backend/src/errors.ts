@@ -99,6 +99,16 @@ export const ERROR_CATALOG = {
     status: 503,
     message: 'Storage live adapter is not available yet',
   },
+  r2_unavailable: {
+    code: 'r2_unavailable',
+    status: 503,
+    message: 'Object storage is unavailable',
+  },
+  listing_photo_required: {
+    code: 'listing_photo_required',
+    status: 409,
+    message: 'A listing requires a photo',
+  },
   database_not_configured: {
     code: 'database_not_configured',
     status: 503,

@@ -28,9 +28,11 @@ export interface OAuthConfig {
 
 /**
  * Almacenamiento de objetos (`R2_MODE`). Solo las credenciales de esta integración: `R2_MODE`
- * gobierna estas y ninguna otra. En el ciclo 3a el lector existe porque la capacidad existe —la foto
- * del artículo—, pero solo el adaptador `fake` está implementado; `live` falla con un código estable
- * hasta el ciclo que apruebe el cliente S3.
+ * gobierna estas y ninguna otra.
+ *
+ * Desde el ciclo 3c (`publish`) la capacidad incluye la **lectura pública** de la foto, así que su
+ * modo forma parte de la integración (decisión §26): `live` exige las cinco piezas —bucket, endpoint,
+ * las dos claves y la base pública— y `fake` no las usa, porque el doble compone su propia base.
  */
 export interface StorageConfig {
   readonly mode: string;
@@ -38,6 +40,7 @@ export interface StorageConfig {
   readonly endpoint: string | null;
   readonly accessKeyId: string | null;
   readonly secretAccessKey: string | null;
+  readonly publicBaseUrl: string | null;
 }
 
 export interface Config {
@@ -115,10 +118,12 @@ const storage: StorageConfig = {
   endpoint: readOptional('R2_ENDPOINT'),
   accessKeyId: readOptional('R2_ACCESS_KEY_ID'),
   secretAccessKey: readOptional('R2_SECRET_ACCESS_KEY'),
+  publicBaseUrl: readOptional('R2_PUBLIC_BASE_URL'),
 };
 
-// La capacidad de almacenamiento existe desde el ciclo 3a (`capture`). Se avisa de lo que falta para
-// que el primer fallo sea diagnosticable desde el arranque, nunca imprimiendo un valor.
+// La capacidad de almacenamiento existe desde el ciclo 3a (`capture`) y su lectura pública desde 3c
+// (`publish`). Se avisa de lo que falta para que el primer fallo sea diagnosticable desde el
+// arranque, nunca imprimiendo un valor.
 if (storage.mode !== 'live' && storage.mode !== 'fake') {
   warnings.push('R2_MODE is not live or fake; the first photo request will report r2_mode_invalid');
 } else if (storage.mode === 'fake') {
@@ -129,14 +134,11 @@ if (storage.mode !== 'live' && storage.mode !== 'fake') {
   storage.bucket === null ||
   storage.endpoint === null ||
   storage.accessKeyId === null ||
-  storage.secretAccessKey === null
+  storage.secretAccessKey === null ||
+  storage.publicBaseUrl === null
 ) {
   warnings.push(
     'R2_MODE is live but its configuration is incomplete; the first photo request will report r2_not_configured',
-  );
-} else {
-  warnings.push(
-    'R2_MODE is live but the live adapter is not implemented yet; the first photo request will report r2_live_unavailable',
   );
 }
 

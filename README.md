@@ -100,18 +100,23 @@ CREATE DATABASE mudanzapp_branch_test OWNER mudanzapp;
 
 Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como ausente**.
 
-| Archivo                        | Variable                                  | Papel                                                                                         |
-| ------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `backend/.env.local`           | `DATABASE_URL`                            | **Única obligatoria en local**: `postgresql://mudanzapp:<password>@localhost:5432/mudanzapp`  |
-| `backend/.env.local`           | `PORT`                                    | Opcional; default `3000`                                                                      |
-| `backend/.env.local`           | `NODE_ENV`                                | Opcional; default `development`                                                               |
-| `backend/.env.local`           | `APP_BASE_URL`                            | Allowlist de CORS, un origen por frontend separados por comas; se usa en remoto y en el arnés |
-| `backend/.env.local`           | `OAUTH_MODE`                              | `live`/`fake`; pruebas y arnés en `fake`; default `live`                                      |
-| `backend/.env.local`           | `OAUTH_ISSUER`                            | Emisor OIDC del adaptador `live`; parametrizado, nunca cableado                               |
-| `backend/.env.local`           | `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` | Credenciales de OAUTH; solo se exigen en `live`                                               |
-| `backend/.env.local`           | `ADMIN_TOKEN`                             | Credencial del administrador único; la leen `/admin/*` y el script `invite`                   |
-| `backend/.env.local`           | `BACKEND_PUBLIC_URL`                      | Origen público del backend; lo usa el script `invite` en remoto                               |
-| `backend/.env.migration.local` | `DATABASE_URL`                            | Cadena **directa** de Neon; solo comandos `db:migrate:remote*` y `db:ping:remote*`            |
+| Archivo                        | Variable                                    | Papel                                                                                         |
+| ------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `backend/.env.local`           | `DATABASE_URL`                              | **Única obligatoria en local**: `postgresql://mudanzapp:<password>@localhost:5432/mudanzapp`  |
+| `backend/.env.local`           | `PORT`                                      | Opcional; default `3000`                                                                      |
+| `backend/.env.local`           | `NODE_ENV`                                  | Opcional; default `development`                                                               |
+| `backend/.env.local`           | `APP_BASE_URL`                              | Allowlist de CORS, un origen por frontend separados por comas; se usa en remoto y en el arnés |
+| `backend/.env.local`           | `OAUTH_MODE`                                | `live`/`fake`; pruebas y arnés en `fake`; default `live`                                      |
+| `backend/.env.local`           | `OAUTH_ISSUER`                              | Emisor OIDC del adaptador `live`; parametrizado, nunca cableado                               |
+| `backend/.env.local`           | `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET`   | Credenciales de OAUTH; solo se exigen en `live`                                               |
+| `backend/.env.local`           | `ADMIN_TOKEN`                               | Credencial del administrador único; la leen `/admin/*` y el script `invite`                   |
+| `backend/.env.local`           | `BACKEND_PUBLIC_URL`                        | Origen público del backend; lo usa el script `invite` en remoto                               |
+| `backend/.env.local`           | `R2_MODE`                                   | `live`/`fake`; arnés y pruebas en `fake`; default `live`                                      |
+| `backend/.env.local`           | `R2_BUCKET`                                 | Bucket de fotos (`mudanzapp-photos`); solo se exige en `live`                                 |
+| `backend/.env.local`           | `R2_ENDPOINT`                               | Endpoint S3 del bucket (`https://<account-id>.r2.cloudflarestorage.com`), sin el bucket       |
+| `backend/.env.local`           | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Token S3 limitado al bucket; solo se exige en `live`                                          |
+| `backend/.env.local`           | `R2_PUBLIC_BASE_URL`                        | Base de **lectura pública** del bucket (dominio `r2.dev`), sin barra final                    |
+| `backend/.env.migration.local` | `DATABASE_URL`                              | Cadena **directa** de Neon; solo comandos `db:migrate:remote*` y `db:ping:remote*`            |
 
 - `process.env` se lee **una sola vez**, en [`backend/src/config.ts`](backend/src/config.ts:1). El
   servidor no lanza al importar: lo que falta se registra en `warnings` y `/health` sigue
@@ -120,9 +125,13 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
   es opcional y el default del código es `3000`; en **Railway es obligatoria con valor `3000`**
   (§12). Una variable vacía cuenta como ausente, así que `PORT=` en Railway no fija nada: se
   escribe `PORT=3000`.
-- Las integraciones APP, R2 y AI (`APP_MODE`, `R2_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales
-  se añaden **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`. La
-  integración **OAUTH sí tiene lector** desde el ciclo 1, con `live`/`fake` y default `live`.
+- Las integraciones APP y AI (`APP_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales se añaden
+  **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`. Las integraciones
+  **OAUTH** (ciclo 1) y **R2** (ciclos 3a y 3c) sí tienen lector, con `live`/`fake` y default `live`.
+- **R2** cubre la escritura de la foto y su **lectura pública** (decisión §26). En `live` exige las
+  cinco piezas —bucket, endpoint, las dos claves y la base pública—; en `fake` el doble compone su
+  propia base y **no lee** ninguna, así que configurar R2 no cambia una sola corrida local. El gate
+  corre en `fake` (`.roo/rules/04-verificacion.md`).
 - `ADMIN_TOKEN` y `BACKEND_PUBLIC_URL` dejaron de ser nombres reservados: la capacidad de
   administración del ciclo 1 los activa. Sin `ADMIN_TOKEN`, `/admin/*` responde `admin_not_configured`
   con código estable en vez de degradar; el script `invite` exige la misma credencial.
@@ -233,6 +242,20 @@ npm run db:migrate:branch:test
 | `GET /health`    | **Siempre** `200` con `{ status: 'ok', database }`; liveness no es readiness |
 | `GET /health/db` | `200` con `database: ok`, o `503` con `not-configured` / `error`             |
 
+### Publicación del ciclo 3c
+
+| Ruta                                          | Credencial        | Respuesta                                                                                                                         |
+| --------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /events/:eventId/items/:itemId/listing` | Sesión del evento | `201` con `{ slug, path }`; `200` si ya estaba publicado; `404 not_found`/`item_not_found`; `409 listing_photo_required` sin foto |
+| `GET /public/listings/:slug`                  | **Ninguna**       | `200` con la ficha y `Cache-Control: public, max-age=60`; `404 not_found` si el `slug` no existe o no cumple el patrón            |
+
+- Publicar exige foto y es idempotente: republicar devuelve el mismo `slug`. La URL de la foto la
+  compone el backend desde `R2_PUBLIC_BASE_URL` y el navegador la descarga del almacén, no de la API.
+- La ficha pública no expone `eventId`, `itemId` ni `object_key`, y no muestra precio ni moneda.
+- Códigos nuevos y estables: `listing_photo_required` (409) y `r2_unavailable` (503). Un fallo de
+  credencial de R2 se ve como `r2_not_configured` o `r2_unavailable`, nunca como una foto en blanco
+  silenciosa.
+
 ### Identidad del ciclo 1
 
 | Ruta                                                                                                            | Respuesta                                                                    |
@@ -261,7 +284,13 @@ npm run db:migrate:branch:test
 - Tailwind v4 **CSS-first**: `@import "tailwindcss"` en `src/styles.css` y `@tailwindcss/postcss`
   como único PostCSS plugin.
 - `environments` + `fileReplacements` **solo** en la configuración `production`; el origen del
-  backend entra por el token `API_BASE_URL`.
+  backend entra por el token `API_BASE_URL` y el origen de `shop` en `frontend`, por `SHOP_BASE_URL`.
+- La **excepción de `NgOptimizedImage` deja de ser global**: sigue vigente en la foto autenticada de
+  `frontend` (se sirve como blob con sesión) y se **retira** en la foto pública de `shop`, que usa la
+  directiva con un loader de identidad porque no hay CDN que transforme la URL del almacén. Esa foto
+  lleva `priority` y deja la advertencia de desarrollo `NG02956` pidiendo un `preconnect` al origen
+  del almacén: el origen lo decide el backend en runtime y no puede estar en el `<head>` del
+  artefacto, así que la advertencia se acepta en dev (`plan-ciclo-3c` §10).
 - La marca vive en `shared/src/brand.json`; el `index.html` de cada frontend deja su título **vacío**
   y `.scripts/generate-brand-index.mjs` lo escribe en el artefacto construido. El fuente no cablea el
   nombre público (`decisiones` §14.3 y su criterio de crecimiento).
@@ -333,17 +362,18 @@ Notas de corrida:
 Declarado y ejercitado una vez en local; el bring-up remoto es **manual** y no forma parte del gate
 de ciclo.
 
-| Pieza               | Contrato                                                                                                                                                               |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend             | Contrato en el **dashboard** de Railway: build `npm run build`, start `npm run start`, healthcheck `/health` y watch paths. Producción nunca usa `tsx` ni `--env-file` |
-| Puerto del backend  | **`PORT=3000` como variable del servicio**; el dominio público apunta al target port `3000` y el healthcheck `/health` se evalúa contra ese puerto                     |
-| Frontends           | **Un Worker de assets por frontend** (Cloudflare Workers, no Pages), sin `main` ni `_redirects`                                                                        |
-| Nombre del Worker   | **Idéntico** al `name` de su [`wrangler.jsonc`](frontend/wrangler.jsonc:1) y al del dashboard                                                                          |
-| Build del Worker    | `npm run build:web:<FE>` (compila `shared` antes: Angular resuelve tipos desde `dist`)                                                                                 |
-| Deploy              | `npx wrangler deploy -c <FE>/wrangler.jsonc`; `wrangler` es devDependency **raíz**                                                                                     |
-| Config del frontend | `environment.production.ts` se compila: si cambia el host del backend, hay que reconstruir **ese** Worker                                                              |
-| CORS                | `APP_BASE_URL` con **todos** los orígenes de los Workers, separados por comas                                                                                          |
-| CI/CD               | No hay workflows; la protección de rama es un paso manual del remoto                                                                                                   |
+| Pieza               | Contrato                                                                                                                                                                                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend             | Contrato en el **dashboard** de Railway: build `npm run build`, start `npm run start`, healthcheck `/health` y watch paths. Producción nunca usa `tsx` ni `--env-file`                                                                                                        |
+| Puerto del backend  | **`PORT=3000` como variable del servicio**; el dominio público apunta al target port `3000` y el healthcheck `/health` se evalúa contra ese puerto                                                                                                                            |
+| Frontends           | **Un Worker de assets por frontend** (Cloudflare Workers, no Pages), sin `main` ni `_redirects`                                                                                                                                                                               |
+| Nombre del Worker   | **Idéntico** al `name` de su [`wrangler.jsonc`](frontend/wrangler.jsonc:1) y al del dashboard                                                                                                                                                                                 |
+| Build del Worker    | `npm run build:web:<FE>` (compila `shared` antes: Angular resuelve tipos desde `dist`)                                                                                                                                                                                        |
+| Deploy              | `npx wrangler deploy -c <FE>/wrangler.jsonc`; `wrangler` es devDependency **raíz**                                                                                                                                                                                            |
+| Config del frontend | `environment.production.ts` se compila: si cambia el host del backend, hay que reconstruir **ese** Worker                                                                                                                                                                     |
+| CORS                | `APP_BASE_URL` con **todos** los orígenes de los Workers, separados por comas                                                                                                                                                                                                 |
+| R2 del backend      | En el servicio de Railway: `R2_MODE=live`, `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` y `R2_PUBLIC_BASE_URL`. Cambiar cualquiera exige **redesplegar** el backend; el Worker de `shop` no se reconstruye porque la URL de la foto la emite la API |
+| CI/CD               | No hay workflows; la protección de rama es un paso manual del remoto                                                                                                                                                                                                          |
 
 - Son **tres** Workers de assets —`mudanzapp`, `mudanzapp-shop` y `mudanzapp-wiki`— y cada uno
   publica desde `main` con su propio `build:web:<FE>`; el backend se redespliega después del primer

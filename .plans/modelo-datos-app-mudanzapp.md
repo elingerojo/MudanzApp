@@ -3,8 +3,9 @@
 > **Estado:** seis tablas del corte de identidad del ciclo 1, con su DDL en
 > [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1) y el corte de la invitación
 > canjeable en [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1),
-> más las dos tablas del corte de captura del ciclo 3a en
-> [`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1).
+> las dos tablas del corte de captura del ciclo 3a en
+> [`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1) y la tabla de publicación del ciclo 3c en
+> [`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1).
 > Este documento es la fuente única del modelo; el DDL debe coincidir con él.
 > **Dueño:** Architect / Backend. **Disparador de revisión:** nueva tabla, migración o cambio de
 > contrato.
@@ -13,9 +14,9 @@
 
 El corte de identidad del ciclo 1 introduce las seis primeras tablas de negocio. La invitación es una
 capacidad acotada —72 horas y cinco canjes— y admite sesiones de evento sin identidad
-(`decisiones` §30). El corte de captura del ciclo 3a agrega el artículo y su foto: el artículo nace
-sin estado de publicación y la foto se lee solo con sesión del evento hasta que `publish` abra la
-lectura pública (decisión §26).
+(`decisiones` §30). El corte de captura del ciclo 3a agrega el artículo y su foto. El corte de
+publicación del ciclo 3c agrega `app.listing`: el estado publicado vive ahí y no en `app.item`, y la
+foto de un artículo publicado se lee **sin sesión** desde la base pública del almacén (decisión §26).
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
@@ -27,6 +28,7 @@ lectura pública (decisión §26).
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
 | `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `created_at` |
 | `app.item_photo` | Foto de un artículo, una por posición | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
+| `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `created_at` |
 
 Restricciones que van con el DDL:
 
@@ -49,16 +51,26 @@ Restricciones que van con el DDL:
   único y hay una sola fila por `(item_id, position)`; borrar el artículo borra sus fotos
   (`ON DELETE CASCADE`). Los bytes viven en el almacén de objetos detrás de `R2_MODE`, no en la base;
 - `app.item` no guarda estado de publicación, precio ni moneda: el estado publicado es
-  `app.listing`, en el ciclo 3c (`publish`).
+  `app.listing`. Un artículo sin fila en `app.listing` no está publicado;
+- `app.listing.item_id` es **único**: publicar es idempotente y republicar devuelve la misma fila y la
+  misma URL. `slug` es único y su `CHECK` exige entre 3 y 140 caracteres con el patrón
+  `^[a-z0-9]+(-[a-z0-9]+)*$`. El `slug` se deriva del título más seis caracteres del `itemId` y **no**
+  se reescribe al cambiar el título: una URL compartida es un hecho publicado (`plan-ciclo-3c` §3);
+- publicar exige foto: `app.listing` no lo impone por DDL —la foto puede llegar después en otro
+  ciclo—, así que la regla vive en el borde (`listing_photo_required`, 409) y en su ciclo;
+- la **retención** aprobada es «la foto vive mientras exista el `listing`»: `app.item_photo` cae en
+  cascada con el artículo, pero el objeto del bucket **no**. El barrido de huérfanos es manual y hoy
+  no tiene script (`plan-ciclo-3c` §10).
 
 El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
 [`backend/sql/001_init.sql`](../backend/sql/001_init.sql). Las seis tablas del corte de identidad
-viven en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1) y las del artículo en
-[`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1), escritos con la forma de §9: aditivos,
-idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción propia. El archivo
-aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
+viven en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1), las del artículo en
+[`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1) y la publicación en
+[`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1), escritos con la forma de §9:
+aditivos, idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción propia. El
+archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
 
-Candidatas sin compromiso, cada una con su ciclo: `app.listing`, `app.sale`, `app.packing_step`,
+Candidatas sin compromiso, cada una con su ciclo: `app.sale`, `app.packing_step`,
 `app.packing_material` y `app.receive_check`. `app.reservation` no figura: la decisión §25 del
 apartado declara que no hay fila propia.
 
@@ -158,3 +170,5 @@ apartado declara que no hay fila propia.
 | Convención de migración | Architect | Cambio de runner o de base |
 | Derivación de URLs | Architect | Cambio de host, rol o convención |
 | Matriz local/remota y comandos de migración | Architect | Cambio de topología o de runner |
+| Retención de la foto publicada («mientras exista el `listing`», barrido manual de huérfanos) | Architect / Backend | Primer borrado, costo de almacenamiento visible o política de retención nueva |
+| `slug` publicado (`CHECK` y derivación desde el título) | Architect / Backend | Necesidad de `slug` editable o de estabilidad entre cambios de título |

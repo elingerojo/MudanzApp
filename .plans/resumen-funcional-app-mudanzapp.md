@@ -29,8 +29,9 @@ compartible. La aplicación tiene tres superficies:
 | `wiki` | Público interesado en el proyecto | Dossier técnico: cómo funciona, decisiones, ejemplos y justificación |
 
 `frontend`, `shop` y `wiki` existen en el monorepo, cada uno con su workspace, sus scripts y su
-Worker. `shop` nació en el ciclo 3b como **bootstrap** —workspace, shell, puerto y Worker— y todavía
-no contiene catálogo: sus capacidades llegan con `publish` (3c) y `reserve` (4) (decisión §20 de
+Worker. `shop` nació en el ciclo 3b como **bootstrap** —workspace, shell, puerto y Worker— y desde el
+ciclo 3c sirve la **primera página pública de producto** (la ficha de un artículo publicado); el
+catálogo y la navegación llegan con `reserve` (4) (decisión §20 de
 [`decisiones-tecnicas-app-mudanzapp.md`](decisiones-tecnicas-app-mudanzapp.md)).
 
 Vocabulario de acceso:
@@ -90,7 +91,7 @@ Vocabulario de acceso:
 | `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: vincula el sujeto y añade una sesión de cuenta. Es aditivo: no cierra el enlace ni revoca otras sesiones. No es obligatorio para documentar; es el camino de regreso |
 | `invite-device` | En alcance del ciclo 2 (cerrado) | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
 | `capture` | En alcance del ciclo 3a | Foto y datos mínimos del artículo; la foto se lee solo con sesión del evento hasta `publish` |
-| `publish` | Tentativa, ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto (decisión §26) |
+| `publish` | En alcance del ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto resuelta en `R2_MODE` (decisión §26). Sin precio ni moneda; publicar exige foto y no hay despublicar ni `slug` editable |
 | `ai-draft` | Tentativa, ciclo 3d | Ficha borrador con salida validada; la IA no fija dimensiones ni peso definitivos |
 | `reserve` | Tentativa, ciclo 4 | Bloqueo de 15 minutos por visitante con cuenta |
 | `settle-sale` | Tentativa, ciclo 4 | El vendedor marca `Vendido` en cualquier estado |
@@ -118,6 +119,10 @@ Vocabulario de acceso:
 Nada de lo no listado en este documento se considera aprobado, aunque exista en el stack o en el
 código de referencia.
 
+- **Resuelto en el ciclo 3c:** la lectura pública de fotos y su política de retención. La foto forma
+  parte de `R2_MODE` (decisión §26), la URL la emite el backend desde la base pública y la retención
+  aprobada es «mientras exista el `listing`», con barrido manual de objetos huérfanos (decisión §31).
+
 ## 6. Hechos pendientes de dueño
 
 | Hecho | Dueño | Disparador de revisión |
@@ -125,7 +130,6 @@ código de referencia.
 | Umbral de identidad: si documentar sin cuenta se corta en el artículo 21 y con qué código falla | Architect con el usuario | Apertura de `account-upgrade` (ciclo 5); el ciclo 3a no impone umbral |
 | Semántica de `APP_MODE` frente a publicación propia | Architect con el usuario | Antes de construir cualquier adaptador APP |
 | Monto registrado al cerrar una venta | Architect con el usuario | Antes de `settle-sale` |
-| Lectura pública de fotos y su política de retención | Architect / Backend | Antes de `publish` (ciclo 3c) |
 | Alcance del dossier en `wiki` | Architect | Apertura del ciclo que lo toque |
 | Dependencia de verificación de tokens OIDC | Architect con el usuario | Al abrir el ciclo que implemente `account-link`; su aprobación explícita se registra en el stack §12, en su propio commit `deps` |
 

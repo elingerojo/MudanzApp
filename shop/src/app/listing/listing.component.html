@@ -1,0 +1,57 @@
+@if (loading()) {
+  <p class="text-sm text-slate-600" data-testid="listing-loading">Cargando…</p>
+} @else if (notFound()) {
+  <section class="space-y-2" data-testid="listing-not-found">
+    <h2 class="text-lg font-semibold text-slate-900">Este enlace no está disponible</h2>
+    <p class="text-sm text-slate-600">
+      Puede que el artículo ya no esté publicado. Pide un enlace nuevo a quien te lo compartió.
+    </p>
+  </section>
+} @else if (failed()) {
+  <p class="text-sm text-red-600" data-testid="listing-error">
+    No se pudo cargar el artículo. Recarga la página.
+  </p>
+} @else if (value(); as listing) {
+  <article class="space-y-4" data-testid="listing">
+    <header class="space-y-1">
+      <h1 class="text-xl font-semibold text-slate-900" data-testid="listing-title">
+        {{ listing.title }}
+      </h1>
+
+      <p class="text-sm text-slate-600" data-testid="listing-event">
+        {{ listing.event.originCity }} → {{ listing.event.destinationCity }}
+      </p>
+    </header>
+
+    @if (listing.photo; as photo) {
+      <img
+        [ngSrc]="photo.url"
+        width="640"
+        height="640"
+        priority
+        alt=""
+        class="w-full rounded-lg bg-slate-100 object-cover"
+        data-testid="listing-photo"
+      />
+    }
+
+    @if (listing.widthCm !== null && listing.heightCm !== null && listing.depthCm !== null) {
+      <p class="text-sm text-slate-700" data-testid="listing-measures">
+        {{ listing.widthCm }} × {{ listing.heightCm }} × {{ listing.depthCm }} cm
+        @if (listing.weightKg !== null) {
+          · {{ listing.weightKg }} kg
+        }
+      </p>
+    } @else if (listing.weightKg !== null) {
+      <p class="text-sm text-slate-700" data-testid="listing-measures">{{ listing.weightKg }} kg</p>
+    }
+
+    @if (listing.note; as note) {
+      <p class="text-sm text-slate-700" data-testid="listing-note">{{ note }}</p>
+    }
+
+    <p class="text-xs text-slate-500" data-testid="listing-published-at">
+      Publicado el {{ listing.publishedAt.slice(0, 10) }}
+    </p>
+  </article>
+}

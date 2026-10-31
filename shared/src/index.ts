@@ -18,6 +18,8 @@ export {
   redeemInvitationSchema,
 } from './identity.js';
 export { ITEM_LIMITS, ITEM_PHOTO_CONTENT_TYPES, createItemSchema } from './item.js';
+export { LISTING_LIMITS, LISTING_SLUG_PATTERN, listingSlugSchema } from './listing.js';
+export type { PublicListing, PublicListingPhoto, PublishedListing } from './listing.js';
 export type {
   CreatedItem,
   CreateItemRequest,

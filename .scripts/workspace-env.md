@@ -72,3 +72,25 @@ derivados, no hechos de plataforma. Ningún valor de esta tabla es una credencia
   navegador bloquea `GET /health` con «No 'Access-Control-Allow-Origin' header is present». Se
   resuelve al fijar la variable y redesplegar; el orden del manual no cambia
   ([`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md) §19).
+
+## 6. Hechos observados — bucket de R2 (cierre del ciclo 3c)
+
+Se anotan aquí los **hechos de plataforma** del almacén de objetos, no las credenciales: el nombre del
+bucket, la base de lectura pública y el endpoint S3 son direcciones, no secretos. `R2_ACCESS_KEY_ID` y
+`R2_SECRET_ACCESS_KEY` **no** se escriben en ningún archivo versionado: viven en `backend/.env.local` y
+en el dashboard de Railway (`.roo/rules/07-secretos.md`).
+
+| Hecho                   | Valor     | Se obtuvo en                                            | Estado                      |
+| ----------------------- | --------- | ------------------------------------------------------- | --------------------------- |
+| `R2_BUCKET`             | `pending` | manual `Man-3.3` pasos 1–3                              | pendiente del cierre remoto |
+| `R2_PUBLIC_BASE_URL`    | `pending` | manual `Man-3.3` paso 2 (`r2.dev`, temporal)            | pendiente del cierre remoto |
+| `R2_ENDPOINT`           | `pending` | manual `Man-3.3` paso 3 (dashboard → Settings → S3 API) | pendiente del cierre remoto |
+| Fecha de la observación | `pending` | cierre del ciclo 3c (`plan-ciclo-3c` §13)               | pendiente                   |
+
+- El `r2.dev` es un dominio de **desarrollo**: rate-limited, sin SLA y no recomendado para producción;
+  su sustitución por un dominio propio es una variable de entorno y un redespliegue del backend, sin
+  reconstruir el Worker de `shop` (`plan-ciclo-3c` §10).
+- El paso 4 de `Man-3.3` (CORS del bucket) **no** se ejecuta: la subida va por el backend y la lectura
+  pública es un `GET` de `<img>`, que no negocia CORS.
+- Los valores se escriben en `backend/.env.local` (local) y en Railway (remoto). `.env.example` recibe
+  solo los **nombres**.

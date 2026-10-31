@@ -21,6 +21,13 @@ const ROOT = join(tmpdir(), 'mudanzapp-fake-objects');
 const CONTENT_TYPE_SUFFIX = '.content-type';
 
 /**
+ * Base pública del doble. Es **fija** a propósito: no se lee `R2_PUBLIC_BASE_URL`, así que un
+ * `.env.local` con la base real no altera lo que ve la prueba. La URL es determinista, pero no
+ * descargable: el píxel es un hecho `live`, no de gate (`plan-ciclo-3c` §7).
+ */
+const PUBLIC_BASE_URL = 'https://fake.r2.local';
+
+/**
  * Una clave la genera el backend (`newObjectKey`), no el cliente. Aun así se rechaza cualquier forma
  * que pueda escapar del directorio raíz: el doble no es el lugar donde descubrir un recorrido de
  * rutas.
@@ -69,6 +76,11 @@ export function createFileObjectStore(root: string = ROOT): ObjectStore {
         // Un objeto ausente y un temporal limpiado se leen igual: no hay foto.
         return null;
       }
+    },
+
+    // Misma composición que el adaptador `live`, con la base propia del doble.
+    publicUrl(key: string): string {
+      return `${PUBLIC_BASE_URL}/${key.replace(/^\/+/, '')}`;
     },
   };
 }

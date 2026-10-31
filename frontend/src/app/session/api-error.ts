@@ -25,5 +25,6 @@ export function apiErrorCode(error: unknown): string | null {
 export const INVITATION_INVALID = 'invitation_invalid';
 export const PHOTO_INVALID = 'photo_invalid';
 export const ITEM_NOT_FOUND = 'item_not_found';
+export const LISTING_PHOTO_REQUIRED = 'listing_photo_required';
 export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';

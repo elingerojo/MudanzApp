@@ -43,7 +43,8 @@ export async function startTestApp(
   });
 
   // Doble en memoria del almacén: el humo no escribe fotos, y un almacén real aquí haría que la
-  // prueba dependiera del sistema de archivos.
+  // prueba dependiera del sistema de archivos. La base pública es propia del doble, igual que en
+  // `r2-fake`, para que ninguna corrida dependa de R2 (`plan-ciclo-3c` §7).
   const objects = new Map<string, { readonly bytes: Buffer; readonly contentType: string }>();
   const storage: ObjectStore = {
     put: (key, bytes, contentType) => {
@@ -51,6 +52,7 @@ export async function startTestApp(
       return Promise.resolve();
     },
     get: (key) => Promise.resolve(objects.get(key) ?? null),
+    publicUrl: (key) => `https://fake.r2.local/${key}`,
   };
 
   const server = createApp({

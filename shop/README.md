@@ -4,21 +4,27 @@ SPA **pública e indexable** del catálogo por enlace (Angular v22 standalone, z
 plantillas `.html` separadas) del monorepo MudanzApp. Es la tercera superficie: `frontend` es la
 privada del administrador y de los co-dispositivos del evento, y `wiki` es el dossier técnico.
 
-Este workspace es un **bootstrap**: existe como artefacto desplegable, con su Worker, su puerto y su
-`project` en el arnés, y todavía **no** contiene capacidades de catálogo. El catálogo y la página
-pública de cada artículo llegan con `publish` (ciclo 3c) y `reserve` (ciclo 4).
+Este workspace arrancó como **bootstrap** y desde el ciclo 3c sirve la **primera página pública de
+producto**. Todavía **no** hay catálogo ni navegación: eso llega con `reserve` (ciclo 4).
 
 ## Rutas
 
 - `/` — `StatusComponent`: humo del arranque; proceso y base desde `/health`.
+- `/:slug` — `ListingComponent`: ficha pública de un artículo publicado, leída de
+  `GET /public/listings/:slug` **sin sesión**.
 - `**` — redirección a `/`: fallback de la SPA.
 
 Reglas del mapa:
 
-- Crece **una ruta por ciclo**. `publish` sustituye `/` por la primera página publicada y abre la
-  ruta por artículo; `reserve` añade catálogo y apartado.
-- Mientras dure el arranque, `/` es pública e indexable a propósito: es la prueba de que el Worker
-  sirve la shell y el backend responde cross-origin. No es una pantalla de producto.
+- Crece **una ruta por ciclo**. `publish` (3c) abre la ruta por artículo; `reserve` (4) añade catálogo
+  y apartado, y sustituye `/`.
+- `/` sigue siendo pública e indexable a propósito: es la prueba de que el Worker sirve la shell y el
+  backend responde cross-origin. Su sustitución por la primera página de catálogo está aplazada al
+  ciclo 4 y es deuda declarada, no un defecto.
+- `/:slug` no emite metadatos por ruta: WhatsApp no ejecuta la SPA y la vista previa sigue siendo la
+  del sitio (decisión §28). El componente solo fija el título del documento.
+- La foto pública la descarga el navegador del almacén (`R2_PUBLIC_BASE_URL`), no del backend
+  (decisión §26); el contrato entrega la URL ya compuesta.
 - No hay sesión de visitante en este corte: el alcance `shop` existe en el modelo de sesiones, pero
   este workspace no lo emite ni lo consume.
 

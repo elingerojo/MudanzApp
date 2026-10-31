@@ -3,11 +3,13 @@ import type {
   EventSummary,
   IdentityUser,
   ItemSummary,
+  PublicListing,
   SessionSummary,
 } from '@mudanzapp/shared';
 
 import type { EventRecord, EventSessionRecord, UserRecord } from '../store/identity-store.js';
 import type { ItemWithPhotoRecord } from '../store/item-store.js';
+import type { ListingWithItemRecord } from '../store/listing-store.js';
 
 /**
  * Traducción fila → contrato. Es el único lugar donde el `snake_case` de la base se convierte en
@@ -72,5 +74,37 @@ export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
     weightKg: item.weightKg,
     photo,
     createdAt: item.createdAt.toISOString(),
+  };
+}
+
+/**
+ * La ficha pública (`publish`, ciclo 3c). No expone `eventId`, `itemId` ni `object_key`: la
+ * autorización vive en la escritura y el contrato público no publica identificadores internos
+ * (`decisiones` §24). La URL de la foto la compone el almacén, no este mapeo, para que la base
+ * pública siga siendo una sola fuente (`plan-ciclo-3c` §3).
+ */
+export function toPublicListing(
+  listing: ListingWithItemRecord,
+  publicUrl: (objectKey: string) => string,
+): PublicListing {
+  const photo =
+    listing.photoObjectKey === null || listing.photoContentType === null
+      ? null
+      : { url: publicUrl(listing.photoObjectKey), contentType: listing.photoContentType };
+
+  return {
+    slug: listing.slug,
+    title: listing.title,
+    note: listing.note,
+    widthCm: listing.widthCm,
+    heightCm: listing.heightCm,
+    depthCm: listing.depthCm,
+    weightKg: listing.weightKg,
+    photo,
+    event: {
+      originCity: listing.originCity,
+      destinationCity: listing.destinationCity,
+    },
+    publishedAt: listing.publishedAt.toISOString(),
   };
 }

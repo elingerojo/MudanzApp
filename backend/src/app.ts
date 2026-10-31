@@ -10,6 +10,7 @@ import { createAuthRouter } from './routes/auth-router.js';
 import type { IdentityDeps } from './routes/dependencies.js';
 import { createEventsRouter } from './routes/events-router.js';
 import { createItemsRouter } from './routes/items-router.js';
+import { createListingsRouter, createPublicListingsRouter } from './routes/listings-router.js';
 import type { ObjectStore } from './storage/object-store.js';
 
 /** El bootstrap inyecta las dependencias; las pruebas pasan dobles deterministas. */
@@ -57,16 +58,23 @@ export function createApp({
     response.status(state === 'ok' ? 200 : 503).json(payload);
   });
 
-  // 5. Identidad del ciclo 1: canje, sesión por dispositivo y administración.
+  // 5. Ficha pública del ciclo 3c (`publish`): sin credencial y montada antes de los routers con
+  //    middleware de sesión, para que el enlace compartido no dependa de ningún estado de sesión.
+  app.use(createPublicListingsRouter(identity));
+
+  // 6. Identidad del ciclo 1: canje, sesión por dispositivo y administración.
   app.use(createAuthRouter(identity));
   app.use(createEventsRouter(identity));
 
-  // 6. Artículos y fotos del ciclo 3a (`capture`).
+  // 7. Artículos y fotos del ciclo 3a (`capture`).
   app.use(createItemsRouter(identity));
+
+  // 8. Publicación con sesión del evento (`publish`, ciclo 3c).
+  app.use(createListingsRouter(identity));
 
   app.use('/admin', createAdminRouter(identity));
 
-  // 6. Último: captura el AppError de cualquier ruta.
+  // 9. Último: captura el AppError de cualquier ruta.
   app.use(handleErrors);
 
   return app;

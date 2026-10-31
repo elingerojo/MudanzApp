@@ -479,7 +479,15 @@ Reglas del crecimiento:
 - **Consecuencia aceptada:** el modo de almacenamiento condiciona la página pública; su política de
   retención se revisa con él ([`resumen-funcional-app-mudanzapp.md`](resumen-funcional-app-mudanzapp.md)
   §6).
-- **Disparador de revisión:** cambio de proveedor de almacenamiento o de retención.
+- **Revisión fechada (2026-10-31, ciclo 3c):** la lectura pública **se ejerce** en `publish`. La URL
+  de la foto la emite el backend desde `R2_PUBLIC_BASE_URL` y el navegador la descarga del almacén,
+  sin pasar por el backend ni por el bundle; el adaptador `live` implementa la operación detrás de
+  `ObjectStore.publicUrl`, de modo que `fake` sustituye también la URL. La base pública es `r2.dev`
+  como valor **temporal** —rate-limited, sin SLA y no recomendada para producción— y la retención
+  aprobada es «la foto vive mientras exista el `listing`», con barrido **manual** de objetos
+  huérfanos. Ver §31.
+- **Disparador de revisión:** cambio de proveedor de almacenamiento o de retención; dominio propio o
+  primer tráfico real para sustituir `r2.dev`.
 
 ## 27. Riesgo de XSS en `localStorage` aceptado con mitigación (2026-10-30)
 
@@ -571,3 +579,36 @@ Reglas del crecimiento:
 - **Revisa a:** §22 y §23. **Revisada por:** el corte del ciclo 2 (`invite-device`).
 - **Disparador de revisión:** aparición de un dato personal, incidente con un enlace reenviado, o el
   corte que fije el umbral de identidad del artículo 21.
+
+## 31. Publicar: URL emitida por el backend, `slug` derivado y foto obligatoria (2026-10-31)
+
+- **Decisión:** publicar un artículo escribe una fila en `app.listing` con un `slug` **derivado** del
+  título más seis caracteres del `itemId`, exige foto y devuelve `/<slug>`. La URL pública de la foto
+  la compone el **backend** desde `R2_PUBLIC_BASE_URL` y viaja en el contrato (`photo.url`); ningún
+  frontend compone orígenes de almacén. La clave del objeto conserva `eventId/itemId/uuid`.
+- **Motivo:** el enlace se comparte por WhatsApp y se abre sin sesión, así que la página no puede
+  depender de nada que el visitante no tenga. Una sola fuente por hecho —el backend— evita que
+  `shop` compile la base pública y que un cambio de base obligue a reconstruir el Worker. El `slug`
+  derivado da una URL legible sin abrir un editor que este ciclo no necesita.
+- **Alternativa descartada — `slug` editable:** añade una ruta, una validación de colisiones y un
+  formulario para un hecho que todavía no se corrige a mano.
+- **Alternativa descartada — publicar sin foto y añadirla después:** la hipótesis del ciclo es la foto
+  compartida; publicar sin ella no la responde. Un artículo sin foto responde
+  `listing_photo_required` (409).
+- **Alternativa descartada — servir la foto desde el backend:** contradice §26 (ancho de banda, caché
+  y autorización propios en el camino crítico).
+- **Consecuencia aceptada:** un cambio de título no cambia la URL publicada; si dos títulos son
+  idénticos, el sufijo del `itemId` desempata. No hay ruta para despublicar ni para cambiar el
+  `slug`: la corrección es una ruta nueva, no una migración.
+- **Consecuencia aceptada:** la URL de la imagen revela identificadores internos del evento y del
+  artículo. Se acepta porque no hay dato personal (§24) y porque la dirección que se comparte es la
+  página, no la imagen.
+- **Consecuencia aceptada:** la foto vive mientras exista el `listing`; borrar el artículo borra sus
+  filas pero **no** los bytes del bucket. El barrido de huérfanos es manual y hoy no tiene script.
+- **Artefactos:** [`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1),
+  [`backend/src/domain/listing.ts`](../backend/src/domain/listing.ts:1),
+  [`backend/src/routes/listings-router.ts`](../backend/src/routes/listings-router.ts:1) y
+  [`backend/src/storage/r2-live.ts`](../backend/src/storage/r2-live.ts:1).
+- **Revisa a:** §26. **Revisada por:** el corte del ciclo 3c (`publish`).
+- **Disparador de revisión:** primer artículo publicado por error, necesidad de `slug` editable o
+  estable entre cambios de título, y costo de almacenamiento visible.
