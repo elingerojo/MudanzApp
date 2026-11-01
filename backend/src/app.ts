@@ -70,10 +70,11 @@ export function createApp({
   app.use(createAuthRouter(identity));
   app.use(createEventsRouter(identity));
 
-  // 7. Artículos y fotos del ciclo 3a (`capture`) y su revisión con `PATCH` (ciclo 3d).
+  // 7. Artículos y fotos del ciclo 3a (`capture`), con sus tres variantes desde 3c-optimizar.
   app.use(createItemsRouter(identity));
 
-  // 7.b Borrador de la ficha con IA (`ai-draft`, ciclo 3d): lee y no escribe.
+  // 7.b Borrador de la ficha con IA (`ai-draft`, ciclo 3d): recibe la mediana como cuerpo binario,
+  //     no conoce ningún artículo y no escribe.
   app.use(createAiRouter(identity));
 
   // 8. Publicación con sesión del evento (`publish`, ciclo 3c).

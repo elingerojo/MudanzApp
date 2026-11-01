@@ -322,7 +322,9 @@ test('a co-device opens the link and captures the first article from the browser
   await page.getByTestId('redeem-submit').click();
 
   await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
-  await expect(page.getByTestId('items-empty')).toBeVisible();
+  // Desde 3d la captura y la lista son pestañas distintas: el evento abre en `Captura`.
+  await expect(page.getByTestId('event-tab-capture')).toBeVisible();
+  await expect(page.getByTestId('event-tab-captured')).toContainText('Capturados (0)');
 
   const stored = await page.evaluate(() => localStorage.getItem('mudanzapp.session'));
   expect(stored).not.toBeNull();
@@ -341,7 +343,10 @@ test('a co-device opens the link and captures the first article from the browser
   await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
   await expect(page.getByTestId('item-photo-size-large')).toBeVisible();
 
-  await page.getByTestId('item-submit').click();
+  // La captura no publica: guarda la ficha privada y ofrece el enlace a `Capturados`.
+  await page.getByTestId('item-form-save-only').click();
+  await expect(page.getByTestId('capture-saved')).toBeVisible();
+  await page.getByTestId('capture-go-captured').click();
 
   // 3. Aparece en la lista con su miniatura, servida con la sesión del dispositivo.
   await expect(page.getByTestId('items-list')).toBeVisible();
@@ -352,5 +357,5 @@ test('a co-device opens the link and captures the first article from the browser
   await page.reload();
   await expect(page.getByTestId('item-title')).toHaveText('Mesa de comedor');
   await expect(page.getByTestId('item-photo')).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
+  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}/capturados$`));
 });

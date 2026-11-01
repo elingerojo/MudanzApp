@@ -92,6 +92,9 @@ export function toItemPhoto(photoId: string, variants: readonly PhotoVariantReco
 /**
  * El artículo con su foto opcional. `photo` es `null` mientras no se subió: el contrato no inventa
  * una URL ni un objeto vacío, porque en este corte la lectura de la foto exige sesión del evento.
+ *
+ * `publishedSlug` viene de `app.listing` y no de la memoria de la visita: es lo que permite que la
+ * pestaña `Capturados` distinga `en proceso` de `publicado` después de recargar (`plan-ciclo-3d` §5).
  */
 export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
   return {
@@ -104,6 +107,7 @@ export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
     depthCm: item.depthCm,
     weightKg: item.weightKg,
     photo: item.photoId === null ? null : { id: item.photoId, sizes: sizesOf(item.photoVariants) },
+    publishedSlug: item.publishedSlug,
     createdAt: item.createdAt.toISOString(),
   };
 }

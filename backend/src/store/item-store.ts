@@ -6,7 +6,7 @@ import type {
 } from '@mudanzapp/shared';
 
 import type { Queryable } from '../db.js';
-import type { ItemDraft, ItemPatch } from '../domain/item.js';
+import type { ItemDraft } from '../domain/item.js';
 
 /**
  * Acceso a datos del artículo, en SQL crudo y parametrizado (`modelo-datos` §2).
@@ -38,10 +38,14 @@ export type ItemRecord = {
 /** Las variantes presentes, por nombre: es lo que el presentador compone en los tres tamaños. */
 export type PhotoVariantSizes = Partial<Record<ItemPhotoVariant, PhotoSize>>;
 
-/** El artículo con su foto de posición 0, o con `photoId` y sus variantes en `null`. */
+/**
+ * El artículo con su foto de posición 0 —o con `photoId` y sus variantes en `null`— y el `slug` de su
+ * fila en `app.listing`, que es `null` mientras no está publicado.
+ */
 export type ItemWithPhotoRecord = ItemRecord & {
   readonly photoId: string | null;
   readonly photoVariants: PhotoVariantSizes | null;
+  readonly publishedSlug: string | null;
 };
 
 export type PhotoRecord = {
@@ -65,22 +69,19 @@ export type PhotoVariantRecord = {
 /** La foto con el evento al que pertenece: es lo que autoriza su lectura. */
 export type PhotoLookupRecord = PhotoRecord & { readonly eventId: string };
 
-/**
- * La foto de un artículo tal como la necesita el borrador: el artículo existe, su foto existe o no,
- * y sus variantes están todas en la misma respuesta.
- */
-export type DraftPhotoRecord = {
-  readonly itemId: string;
-  readonly photoId: string | null;
-  readonly variants: readonly PhotoVariantRecord[];
-};
-
 const ITEM_COLUMNS =
   'i.id, i.event_id AS "eventId", i.title, i.note, ' +
   'i.width_cm AS "widthCm", i.height_cm AS "heightCm", i.depth_cm AS "depthCm", ' +
-  'i.weight_kg::float8 AS "weightKg", i.created_at AS "createdAt"';
+  'i.weight_kg::float8 AS "weightKg", i.created_at AS "createdAt", ' +
+  'l.slug AS "publishedSlug"';
 
 const PHOTO_JOIN = 'LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0';
+
+/**
+ * El estado publicado se lee de `app.listing`, no de la memoria de la visita: publicar inserta la fila
+ * y recargar la lista lo conserva (`plan-ciclo-3d` §5). Un artículo sin fila está `en proceso`.
+ */
+const LISTING_JOIN = 'LEFT JOIN app.listing l ON l.item_id = i.id';
 
 /**
  * Las variantes se agregan en la misma consulta para no hacer una lectura por artículo ni por foto
@@ -143,6 +144,7 @@ export async function findItem(
     `SELECT ${ITEM_COLUMNS}, ${PHOTO_COLUMNS}
        FROM app.item i
        ${PHOTO_JOIN}
+       ${LISTING_JOIN}
       WHERE i.event_id = $1
         AND i.id = $2`,
     [eventId, itemId],
@@ -159,6 +161,7 @@ export async function listItemsForEvent(
     `SELECT ${ITEM_COLUMNS}, ${PHOTO_COLUMNS}
        FROM app.item i
        ${PHOTO_JOIN}
+       ${LISTING_JOIN}
       WHERE i.event_id = $1
       ORDER BY i.created_at DESC, i.id DESC`,
     [eventId],
@@ -259,100 +262,6 @@ export async function findPhotoVariants(
   );
 
   return rows;
-}
-
-/**
- * La foto del artículo para el borrador: **una sola** consulta autoriza (el `event_id` va en el
- * `WHERE`) y trae el artículo, su foto de posición 0 y todas sus variantes. Sin ella se podrían ver
- * dos estados distintos entre autorizar y elegir, y el ciclo ya tiene un `JOIN` barato.
- *
- * Distingue los tres casos que el borde tiene que distinguir: `null` si el artículo no es de ese
- * evento (`item_not_found`), `photoId` en `null` si no tiene foto (`item_photo_missing`) y la lista
- * de variantes vacía si la foto es anterior a 3c-optimizar.
- */
-export async function findPhotoForDraft(
-  database: Queryable,
-  eventId: string,
-  itemId: string,
-): Promise<DraftPhotoRecord | null> {
-  const { rows } = await database.query<{
-    readonly itemId: string;
-    readonly photoId: string | null;
-    readonly variant: ItemPhotoVariant | null;
-    readonly objectKey: string | null;
-    readonly contentType: ItemPhotoVariantContentType | null;
-    readonly widthPx: number | null;
-    readonly heightPx: number | null;
-  }>(
-    `SELECT i.id AS "itemId",
-            p.id AS "photoId",
-            v.variant,
-            v.object_key AS "objectKey",
-            v.content_type AS "contentType",
-            v.width_px AS "widthPx",
-            v.height_px AS "heightPx"
-       FROM app.item i
-       LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0
-       LEFT JOIN app.item_photo_variant v ON v.photo_id = p.id
-      WHERE i.event_id = $1
-        AND i.id = $2`,
-    [eventId, itemId],
-  );
-
-  const first = rows[0];
-  if (first === undefined) {
-    return null;
-  }
-
-  const variants: PhotoVariantRecord[] = [];
-  for (const row of rows) {
-    if (
-      row.variant === null ||
-      row.objectKey === null ||
-      row.contentType === null ||
-      row.widthPx === null ||
-      row.heightPx === null
-    ) {
-      continue;
-    }
-
-    variants.push({
-      photoId: first.photoId ?? '',
-      variant: row.variant,
-      objectKey: row.objectKey,
-      contentType: row.contentType,
-      widthPx: row.widthPx,
-      heightPx: row.heightPx,
-    });
-  }
-
-  return { itemId: first.itemId, photoId: first.photoId, variants };
-}
-
-/**
- * La revisión humana de 3d escribe **solo** `title` y `note`, y solo lo que vino: `COALESCE` deja el
- * título intacto cuando llega ausente y `CASE` distingue «no toqué la nota» de «la vacié», que son
- * cosas distintas. Medidas, foto y borrado siguen fuera del corte.
- *
- * El `event_id` va en el `WHERE` igual que en la lectura: un artículo de otro evento no se actualiza
- * por accidente. Devuelve si cambió alguna fila; el router relee con `findItem` para responder el
- * `ItemSummary` completo, con su foto, sin duplicar el presentador.
- */
-export async function updateItem(
-  database: Queryable,
-  input: { readonly eventId: string; readonly itemId: string; readonly patch: ItemPatch },
-): Promise<boolean> {
-  const { patch } = input;
-  const { rowCount } = await database.query(
-    `UPDATE app.item
-        SET title = COALESCE($3, title),
-            note = CASE WHEN $4 THEN $5 ELSE note END
-      WHERE event_id = $1
-        AND id = $2`,
-    [input.eventId, input.itemId, patch.title, patch.replaceNote, patch.note],
-  );
-
-  return (rowCount ?? 0) > 0;
 }
 
 /**

@@ -12,17 +12,26 @@ import {
   ITEM_LIMITS,
   ITEM_PHOTO_CONTENT_TYPES,
   ITEM_PHOTO_VARIANTS,
+  type AiDraftResult,
   type CreateItemRequest,
   type CreatedItem,
   type ItemPhotoVariant,
+  type PublishedListing,
 } from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
-import { PHOTO_INVALID, apiErrorCode } from '../session/api-error';
+import {
+  AI_NOT_CONFIGURED,
+  AI_OUTPUT_INVALID,
+  AI_UNAVAILABLE,
+  PHOTO_INVALID,
+  apiErrorCode,
+} from '../session/api-error';
 import { uiButtonClasses } from '../ui/ui-button/ui-button';
 import { sizeLabel } from './photo-encoding';
-import { optimizePhoto, type OptimizedPhoto } from './photo-optimizer';
+import type { OptimizedPhoto } from './photo-optimizer';
+import { PHOTO_OPTIMIZER } from './photo-optimizer.token';
 
 /** Error de la ficha, para distinguirlo de un fallo de red al capturarlo. */
 class DraftError extends Error {}
@@ -45,6 +54,21 @@ function parseMeasure(raw: string, label: string): number | null {
   return value;
 }
 
+/** Fallo al pedir el borrador, ramificado por `code` y nunca por el mensaje del borde. */
+function draftMessage(code: string | null): string {
+  switch (code) {
+    case AI_NOT_CONFIGURED:
+      return 'La IA no está configurada en este entorno. Escribe la ficha a mano.';
+    case AI_OUTPUT_INVALID:
+      return 'La IA devolvió una ficha que no se puede usar. Revísala y escríbela a mano.';
+    case PHOTO_INVALID:
+      return 'La foto no se pudo enviar. Repítela.';
+    case AI_UNAVAILABLE:
+    default:
+      return 'La IA no respondió. Escribe la ficha a mano y publícala igual.';
+  }
+}
+
 /** Tipos admitidos para el `accept` del input; la lista vive en el contrato compartido. */
 const ACCEPT_ATTRIBUTE = ITEM_PHOTO_CONTENT_TYPES.join(',');
 
@@ -54,26 +78,19 @@ const ACCEPT_ATTRIBUTE = ITEM_PHOTO_CONTENT_TYPES.join(',');
  */
 const UPLOAD_ORDER: readonly ItemPhotoVariant[] = ['large', 'medium', 'thumb'];
 
-/** Fila de la tarjeta de pesos: dimensiones y peso reales de la variante que el dispositivo produjo. */
-interface SizeEntry {
-  readonly variant: ItemPhotoVariant;
-  readonly widthPx: number;
-  readonly heightPx: number;
-  readonly byteSize: number;
-  readonly label: string;
-}
-
 /**
- * Captura de un artículo: foto y datos mínimos (`capture`, ciclo 3a; optimizada en el dispositivo
- * desde 3c-optimizar).
+ * Captura de un artículo con borrador de la IA y publicación en la misma pantalla (`ai-draft`, 3d).
  *
- * La foto se elige con un `<label for>` sobre el input de archivo, no con un botón: solo un label lo
- * activa de forma nativa y es lo que abre la cámara en el móvil. Al elegirla se **optimiza**, no al
- * guardar: la original se decodifica y se reescribe en tres tamaños dentro del teléfono, y el
- * formulario muestra el resultado antes de enviarlo.
+ * El recorrido es el del plan §6: la persona toma la foto, **pide** el borrador con un toque, edita
+ * sin prisa y decide entre **Publicar** y **Solo guardar**. Dos reglas ordenan el componente:
  *
- * Tres peticiones después de la ficha, una por tamaño. Si una falla, el artículo queda creado y el
- * usuario puede reintentar con otra, en vez de perder lo escrito.
+ * 1. El borrador nunca arranca solo: sin toque no hay llamada.
+ * 2. Nada de lo que hace el humano espera a la IA: `Publicar` y `Solo guardar` dependen de la foto y
+ *    del título, no de que el borrador haya vuelto.
+ *
+ * La petición del borrador envía **el mismo `Blob` de la variante `medium`** que después viaja a R2:
+ * sin `FileReader`, sin `btoa` y sin volver a codificar. El `base64` que el proveedor exige nace en el
+ * backend (`plan-ciclo-3d` §4).
  */
 @Component({
   selector: 'app-item-form',
@@ -83,9 +100,12 @@ interface SizeEntry {
 export class ItemFormComponent {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
+  private readonly optimize = inject(PHOTO_OPTIMIZER);
 
   readonly eventId = input.required<string>();
-  readonly created = output<void>();
+
+  /** `null` cuando solo se guardó; el `slug` cuando se publicó. */
+  readonly saved = output<string | null>();
 
   protected readonly accept = ACCEPT_ATTRIBUTE;
   protected readonly maxPhotoMiB = ITEM_LIMITS.photoBytes / (1024 * 1024);
@@ -101,15 +121,47 @@ export class ItemFormComponent {
   protected readonly preview = signal<string | null>(null);
   protected readonly sizes = signal<readonly SizeEntry[]>([]);
   protected readonly optimizing = signal(false);
-  protected readonly saving = signal(false);
+  protected readonly drafting = signal(false);
+  protected readonly publishing = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly busy = computed(() => this.saving() || this.optimizing());
+  protected readonly notice = signal<string | null>(null);
+
+  /** La última subida falló: el artículo existe y la foto se puede reintentar sin reescribir nada. */
+  protected readonly photoFailed = signal(false);
+
+  protected readonly busy = computed(() => this.optimizing() || this.publishing());
+
+  /** Sin foto optimizada no hay borrador ni hay artículo: es la compuerta de las tres acciones. */
+  protected readonly ready = computed(
+    () => this.photo() !== null && this.optimized().length > 0 && !this.optimizing(),
+  );
+
+  /** `Publicar` y `Solo guardar` no miran `drafting()`: la IA nunca bloquea al humano. */
+  protected readonly canSubmit = computed(
+    () => this.ready() && this.title().trim().length > 0 && !this.publishing(),
+  );
+
+  protected readonly canDraft = computed(
+    () => this.medium() !== null && !this.drafting() && !this.publishing(),
+  );
 
   protected readonly primaryClasses = uiButtonClasses('primary');
   protected readonly secondaryClasses = uiButtonClasses('secondary');
 
-  /** Lo que viaja: los tres blobs ya optimizados. El peso no se envía como dato. */
-  private optimized: readonly OptimizedPhoto[] = [];
+  /** Los tres blobs ya optimizados en el dispositivo; el peso no se envía como dato. */
+  private readonly optimized = signal<readonly OptimizedPhoto[]>([]);
+
+  /** La variante que viaja al borrador: la misma que después se sube a R2, sin recodificar. */
+  protected readonly medium = computed(
+    () => this.optimized().find((entry) => entry.variant === 'medium')?.blob ?? null,
+  );
+
+  /** Artículo ya creado en este formulario: evita un alta doble al reintentar. */
+  private readonly createdItemId = signal<string | null>(null);
+
+  /** Si el intento en curso pedía publicar, el reintento de la foto también publica. */
+  private readonly pendingPublish = signal(false);
+
   private objectUrl: string | null = null;
 
   protected onInput(target: 'title' | 'note' | 'widthCm' | 'heightCm' | 'depthCm' | 'weightKg') {
@@ -146,12 +198,13 @@ export class ItemFormComponent {
     }
 
     this.error.set(null);
+    this.notice.set(null);
     this.optimizing.set(true);
 
     try {
-      const optimized = await optimizePhoto(file);
+      const optimized = await this.optimize(file);
 
-      this.optimized = optimized;
+      this.optimized.set(optimized);
       this.photo.set(file);
       this.sizes.set(
         optimized.map((entry) => ({
@@ -163,6 +216,12 @@ export class ItemFormComponent {
         })),
       );
       this.replacePreview(optimized);
+
+      // Una foto nueva invalida el borrador anterior: el texto que ya hay se queda, pero el aviso
+      // deja de prometer que describe esta foto.
+      if (this.notice() !== null) {
+        this.notice.set('El borrador era de la foto anterior. Revísalo antes de publicar.');
+      }
     } catch {
       this.clearPhoto();
       input.value = '';
@@ -172,10 +231,93 @@ export class ItemFormComponent {
     }
   }
 
-  protected async submit(event: Event): Promise<void> {
-    event.preventDefault();
+  /**
+   * Pide el borrador con la variante `medium` ya codificada y rellena **solo los campos vacíos**: si
+   * la persona ya escribió, no se sobrescribe y el aviso lo dice.
+   */
+  protected async draft(): Promise<void> {
+    const blob = this.medium();
+    if (blob === null || !this.canDraft()) {
+      return;
+    }
 
-    if (this.busy()) {
+    this.drafting.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+
+    try {
+      const result = await firstValueFrom(
+        this.http.post<AiDraftResult>(
+          `${this.apiBaseUrl}/events/${this.eventId()}/ai/drafts`,
+          blob,
+          { headers: { 'Content-Type': blob.type } },
+        ),
+      );
+
+      const wroteTitle = this.title().trim().length > 0;
+      const wroteNote = this.note().trim().length > 0;
+      if (!wroteTitle) {
+        this.title.set(result.draft.title);
+      }
+      if (!wroteNote) {
+        this.note.set(result.draft.note);
+      }
+
+      this.notice.set(
+        wroteTitle || wroteNote
+          ? 'Borrador de la IA: se respetó lo que ya habías escrito. Revísalo antes de publicar.'
+          : 'Borrador de la IA: revísalo antes de publicar.',
+      );
+    } catch (error: unknown) {
+      this.error.set(draftMessage(apiErrorCode(error)));
+    } finally {
+      this.drafting.set(false);
+    }
+  }
+
+  /** El tap primario: crea el artículo, sube las tres variantes y publica. */
+  protected publish(event: Event): void {
+    event.preventDefault();
+    void this.send('publish');
+  }
+
+  /** La ficha queda privada en el evento y se publica después desde `Capturados`. */
+  protected saveOnly(): void {
+    void this.send('save');
+  }
+
+  /**
+   * Reintenta la foto de un artículo que ya se creó. La ficha no se pierde: no se vuelve a crear
+   * nada y, si el intento pedía publicar, se publica al terminar.
+   */
+  protected async retryPhoto(): Promise<void> {
+    const itemId = this.createdItemId();
+    if (itemId === null || this.publishing()) {
+      return;
+    }
+
+    this.publishing.set(true);
+    this.error.set(null);
+
+    try {
+      await this.uploadVariants(itemId);
+      this.photoFailed.set(false);
+      const slug = this.pendingPublish() ? await this.publishItem(itemId) : null;
+      this.saved.emit(slug);
+      this.reset();
+    } catch (error: unknown) {
+      this.error.set(
+        apiErrorCode(error) === PHOTO_INVALID
+          ? 'El servidor rechazó la foto. Vuelve a elegirla e inténtalo de nuevo.'
+          : 'No se pudo subir la foto. Inténtalo de nuevo.',
+      );
+    } finally {
+      this.publishing.set(false);
+    }
+  }
+
+  private async send(mode: 'publish' | 'save'): Promise<void> {
+    if (this.publishing() || this.optimizing()) {
       return;
     }
 
@@ -184,27 +326,66 @@ export class ItemFormComponent {
       return;
     }
 
-    this.saving.set(true);
+    this.publishing.set(true);
     this.error.set(null);
+    this.notice.set(null);
+    this.pendingPublish.set(mode === 'publish');
+
+    let step: 'create' | 'photo' | 'publish' = 'create';
 
     try {
-      const created = await firstValueFrom(
-        this.http.post<CreatedItem>(`${this.apiBaseUrl}/events/${this.eventId()}/items`, body),
-      );
+      const itemId = this.createdItemId() ?? (await this.create(body));
 
-      await this.uploadVariants(created.item.id);
+      step = 'photo';
+      await this.uploadVariants(itemId);
 
+      step = 'publish';
+      const slug = this.pendingPublish() ? await this.publishItem(itemId) : null;
+
+      this.saved.emit(slug);
       this.reset();
-      this.created.emit();
     } catch (error: unknown) {
-      this.error.set(
-        apiErrorCode(error) === PHOTO_INVALID
-          ? 'El servidor rechazó la foto. Vuelve a elegirla e inténtalo de nuevo.'
-          : 'No se pudo guardar el artículo. Inténtalo de nuevo.',
-      );
+      const code = apiErrorCode(error);
+
+      if (step === 'photo') {
+        // La quinta petición no se intenta: sin foto no hay publicación posible.
+        this.photoFailed.set(true);
+        this.error.set('El artículo se guardó, pero la foto no. Reinténtala.');
+      } else if (step === 'publish') {
+        this.error.set(
+          'El artículo se guardó, pero no se pudo publicar. Inténtalo desde «Capturados».',
+        );
+      } else {
+        this.error.set(
+          code === PHOTO_INVALID
+            ? 'El servidor rechazó la foto. Vuelve a elegirla e inténtalo de nuevo.'
+            : 'No se pudo guardar el artículo. Inténtalo de nuevo.',
+        );
+      }
     } finally {
-      this.saving.set(false);
+      this.publishing.set(false);
     }
+  }
+
+  /** Crea el artículo una sola vez por formulario y recuerda su identificador. */
+  private async create(body: CreateItemRequest): Promise<string> {
+    const created = await firstValueFrom(
+      this.http.post<CreatedItem>(`${this.apiBaseUrl}/events/${this.eventId()}/items`, body),
+    );
+
+    this.createdItemId.set(created.item.id);
+    return created.item.id;
+  }
+
+  private async publishItem(itemId: string): Promise<string> {
+    const listing = await firstValueFrom(
+      this.http.post<PublishedListing>(
+        `${this.apiBaseUrl}/events/${this.eventId()}/items/${itemId}/listing`,
+        {},
+      ),
+    );
+
+    return listing.slug;
   }
 
   /**
@@ -213,7 +394,7 @@ export class ItemFormComponent {
    */
   private async uploadVariants(itemId: string): Promise<void> {
     for (const variant of UPLOAD_ORDER) {
-      const entry = this.optimized.find((candidate) => candidate.variant === variant);
+      const entry = this.optimized().find((candidate) => candidate.variant === variant);
       if (entry === undefined) {
         continue;
       }
@@ -291,7 +472,7 @@ export class ItemFormComponent {
   }
 
   private clearPhoto(): void {
-    this.optimized = [];
+    this.optimized.set([]);
     this.photo.set(null);
     this.sizes.set([]);
     this.releasePreview();
@@ -313,6 +494,19 @@ export class ItemFormComponent {
     this.depthCm.set('');
     this.weightKg.set('');
     this.clearPhoto();
+    this.createdItemId.set(null);
+    this.pendingPublish.set(false);
+    this.photoFailed.set(false);
     this.error.set(null);
+    this.notice.set(null);
   }
+}
+
+/** Fila de la tarjeta de pesos: dimensiones y peso reales de la variante que el dispositivo produjo. */
+interface SizeEntry {
+  readonly variant: ItemPhotoVariant;
+  readonly widthPx: number;
+  readonly heightPx: number;
+  readonly byteSize: number;
+  readonly label: string;
 }

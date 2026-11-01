@@ -3,30 +3,32 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { canActOnEvent } from '../domain/account.js';
-import { draftPhotoVariant } from '../domain/item.js';
+import { photoVariantContentType } from '../domain/item.js';
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
-import { findPhotoForDraft } from '../store/item-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
+import { declaredContentType, readPhotoBody } from './raw-body.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 /**
  * Borrador de la ficha con IA (`ai-draft`, ciclo 3d).
  *
- * `POST /events/:eventId/items/:itemId/draft` **lee** y no escribe: el borrador no es estado, no hay
- * tabla, no hay historial, y publicar sigue siendo la acción explícita de 3c. Quien persiste es el
- * humano, con el `PATCH` de `items-router`, y solo lo que aprobó (`decisiones` §34).
+ * `POST /events/:eventId/ai/drafts` **lee** y no escribe: el borrador no es estado, no hay tabla, no
+ * hay historial, y publicar sigue siendo la acción explícita de 3c. Quien persiste es el humano, con
+ * el alta de `items-router` y su publicación (`decisiones` §34).
  *
- * La ruta no tiene cuerpo: no recibe bytes, así que el backend tampoco los reenvía. Lo único que hace
- * es resolver la variante guardada, componer su dirección pública con el almacén y llamar a la
- * costura. El `200` —y no `201`— es la diferencia explícita con `POST /items`: no se crea recurso.
+ * La ruta **no conoce ningún artículo**: recibe la variante `medium` que el dispositivo ya codificó
+ * como cuerpo binario crudo, la pasa a la costura y devuelve el borrador validado. Por eso no hay
+ * `itemId`, ni lectura de la base, ni `ObjectStore`, ni URL pública: el almacén no participa en el
+ * borrador (`plan-ciclo-3d` §4). El `200` —y no `201`— es la diferencia explícita con `POST /items`:
+ * no se crea recurso.
  *
- * La autorización se ejerce **antes** de cualquier lectura y con la misma regla que el resto del
- * evento (`canActOnEvent`): un evento ajeno responde `not_found` y no se distingue del inexistente
- * (`decisiones` §24).
+ * La autorización se ejerce **antes** de leer el cuerpo y con la misma regla que el resto del evento
+ * (`canActOnEvent`): un evento ajeno responde `not_found` y no se distingue del inexistente
+ * (`decisiones` §24). Así un `401` o un `404` no cuestan bytes de subida ni una llamada al proveedor.
  */
-const itemParamsSchema = z.object({ eventId: z.uuid(), itemId: z.uuid() });
+const eventParamsSchema = z.object({ eventId: z.uuid() });
 
 export function createAiRouter(deps: IdentityDeps): Router {
   const router = Router();
@@ -45,31 +47,28 @@ export function createAiRouter(deps: IdentityDeps): Router {
     );
   };
 
-  router.post('/events/:eventId/items/:itemId/draft', requireSession, (request, response, next) => {
+  router.post('/events/:eventId/ai/drafts', requireSession, (request, response, next) => {
     const handle = async (): Promise<void> => {
-      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+      const { eventId } = parseOrThrow(eventParamsSchema, request.params);
       const identity = identityOf(request);
 
       if (!(await canAct(identity, eventId))) {
         throw new AppError('not_found');
       }
 
-      const photo = await findPhotoForDraft(deps.database, eventId, itemId);
-      if (photo === null) {
-        throw new AppError('item_not_found');
+      // Solo la salida del codificador del dispositivo: un tipo que el almacén no admite no es una
+      // foto del corte, y el cliente ya sabe explicar este código (`plan-ciclo-3c-optimizar` §5).
+      const contentType = photoVariantContentType(declaredContentType(request));
+      if (contentType === null) {
+        throw new AppError('photo_invalid');
       }
 
-      // Una foto anterior a 3c-optimizar no tiene variante y por tanto no tiene dirección pública que
-      // el proveedor pueda descargar: es el mismo caso que no tener foto, no un fallo del proveedor.
-      const variant = draftPhotoVariant(photo.variants);
-      if (photo.photoId === null || variant === null) {
-        throw new AppError('item_photo_missing');
+      const bytes = await readPhotoBody(request);
+      if (bytes.length === 0) {
+        throw new AppError('photo_invalid');
       }
 
-      const draft = await deps.ai.draft({
-        imageUrl: deps.storage.publicUrl(variant.objectKey),
-        mimeType: variant.contentType,
-      });
+      const draft = await deps.ai.draft({ bytes, contentType });
 
       const payload: AiDraftResult = { draft };
       response.status(200).json(payload);

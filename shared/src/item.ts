@@ -98,26 +98,6 @@ export const createItemSchema = z.strictObject({
 
 export type CreateItemRequest = z.infer<typeof createItemSchema>;
 
-/**
- * `PATCH /events/:eventId/items/:itemId`: la revisión humana de una ficha ya capturada (ciclo 3d).
- *
- * Solo `title` y `note`, que son los dos campos que el borrador de la IA puede proponer; medidas,
- * foto y borrado siguen fuera, con su disparador propio (`plan-ciclo-3d` §2). La nota admite la
- * cadena vacía porque **limpiar** una nota es una corrección legítima; el título vacío no, porque un
- * título vacío no es un título. Al menos un campo tiene que venir: un cuerpo vacío no revisa nada.
- */
-export const updateItemSchema = z
-  .strictObject({
-    title: title.optional(),
-    note: note.optional(),
-  })
-  .refine((value) => value.title !== undefined || value.note !== undefined, {
-    message: 'at least one field is required',
-    path: ['title'],
-  });
-
-export type UpdateItemRequest = z.infer<typeof updateItemSchema>;
-
 /** Nombre de la variante que pide o sube el cliente. */
 export const photoVariantSchema = z.enum(ITEM_PHOTO_VARIANTS);
 
@@ -159,7 +139,14 @@ export interface ItemPhoto {
   readonly sizes: Readonly<Record<ItemPhotoVariant, PhotoSize | null>>;
 }
 
-/** Artículo tal como lo lee la superficie privada. `photo` es `null` mientras no se subió. */
+/**
+ * Artículo tal como lo lee la superficie privada.
+ *
+ * `photo` es `null` mientras no se subió. `publishedSlug` es `null` mientras el artículo no está
+ * publicado y, cuando existe, es la dirección pública con la que se comparte: se lee de
+ * `app.listing`, no de la memoria de la visita, así que recargar no lo pierde
+ * (`plan-ciclo-3d` §5).
+ */
 export interface ItemSummary {
   readonly id: string;
   readonly eventId: string;
@@ -170,6 +157,7 @@ export interface ItemSummary {
   readonly depthCm: number | null;
   readonly weightKg: number | null;
   readonly photo: ItemPhoto | null;
+  readonly publishedSlug: string | null;
   readonly createdAt: string;
 }
 

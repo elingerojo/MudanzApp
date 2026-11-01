@@ -1,7 +1,7 @@
 <article class="space-y-6" data-testid="foto-a-ficha">
   <header class="space-y-2">
     <h1 class="text-2xl font-semibold text-slate-900">
-      Foto a ficha: contrato de la IA y revisión humana
+      Foto a ficha: contrato de la IA, revisión y publicación
     </h1>
     <p class="text-sm text-slate-600">
       La promesa del producto es simple: tomas una foto de un mueble y aparece una ficha que puedes
@@ -14,9 +14,10 @@
     <h2 class="text-lg font-semibold text-slate-900">Qué se le pide</h2>
     <p class="text-sm text-slate-700">
       Una sola cosa: una foto. Y no la original: viaja la <strong>variante mediana</strong> que el
-      teléfono ya preparó al capturarla, la de 768 píxeles de lado mayor. La foto no se copia a otro
-      sitio: el backend compone su dirección pública y el proveedor la descarga. La original y la
-      grande nunca salen hacia la IA.
+      teléfono ya preparó al capturarla, la de 768 píxeles de lado mayor. Viaja como
+      <strong>bytes binarios</strong> —el mismo archivo que después se guarda en el almacén— y el
+      backend la convierte a base64 solo para el proveedor. No hay dirección pública de por medio:
+      el borrador no depende del almacén y la original nunca sale del teléfono.
     </p>
   </section>
 
@@ -63,8 +64,10 @@
     <p class="text-sm text-slate-700">
       Porque el artículo se comparte por WhatsApp: una ficha equivocada no se queda en pantalla, se
       reenvía a quien va a cargar el camión. El borrador rellena lo vacío y <strong>nunca</strong>
-      sobrescribe lo que la persona ya escribió; lo que se guarda es exactamente lo que ella dejó
-      escrito, y solo entonces entra al inventario del evento.
+      sobrescribe lo que la persona ya escribió. La revisión ocurre en la misma pantalla de la
+      captura y sin temporizador: cuando la ficha dice lo que la persona quiere, pulsa
+      <strong>Publicar</strong> y comparte el enlace; si prefiere pensarlo,
+      <strong>Solo guardar</strong> deja el artículo en proceso dentro del evento.
     </p>
   </section>
 </article>

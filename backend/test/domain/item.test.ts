@@ -1,11 +1,9 @@
 import { ITEM_PHOTO_SIZES } from '@mudanzapp/shared';
 
 import {
-  draftPhotoVariant,
   hasEveryVariant,
   isAcceptedVariant,
   normalizeItemDraft,
-  normalizeItemPatch,
   photoVariantContentType,
 } from '../../src/domain/item.js';
 
@@ -106,53 +104,5 @@ describe('hasEveryVariant', () => {
     expect(hasEveryVariant({ thumb: size, medium: size, large: size })).toBe(true);
     expect(hasEveryVariant({ thumb: size, medium: null, large: size })).toBe(false);
     expect(hasEveryVariant(null)).toBe(false);
-  });
-});
-
-describe('draftPhotoVariant', () => {
-  const thumb = { variant: 'thumb' } as const;
-  const medium = { variant: 'medium' } as const;
-  const large = { variant: 'large' } as const;
-
-  it('sends the medium size, which is the one reserved for the draft', () => {
-    expect(draftPhotoVariant([thumb, large, medium])).toBe(medium);
-  });
-
-  it('falls back to the largest available when the medium size is missing', () => {
-    expect(draftPhotoVariant([thumb, large])).toBe(large);
-  });
-
-  it('falls back to the thumb when that is all the photo has', () => {
-    expect(draftPhotoVariant([thumb])).toBe(thumb);
-  });
-
-  it('returns null when the photo has no variant at all', () => {
-    expect(draftPhotoVariant([])).toBeNull();
-  });
-});
-
-describe('normalizeItemPatch', () => {
-  it('marks an absent field as untouched and keeps only what arrived', () => {
-    expect(normalizeItemPatch({ title: '  Silla blanca  ' })).toEqual({
-      title: 'Silla blanca',
-      note: null,
-      replaceNote: false,
-    });
-  });
-
-  it('distinguishes an emptied note from a note that was not touched', () => {
-    expect(normalizeItemPatch({ note: '' })).toEqual({
-      title: null,
-      note: null,
-      replaceNote: true,
-    });
-  });
-
-  it('normalizes both fields when both arrive', () => {
-    expect(normalizeItemPatch({ title: 'Mesa', note: 'Roble' })).toEqual({
-      title: 'Mesa',
-      note: 'Roble',
-      replaceNote: true,
-    });
   });
 });

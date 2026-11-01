@@ -4,7 +4,6 @@ import {
   type AiDraftResult,
   type CreatedEvent,
   type CreatedInvitation,
-  type CreatedItem,
   type IssuedSession,
 } from '@mudanzapp/shared';
 import pg from 'pg';
@@ -14,13 +13,14 @@ import { ADMIN_TOKEN, BACKEND_URL, testDatabaseUrl } from './support/harness.js'
 const { Client } = pg;
 
 /**
- * Evidencia del ciclo 3d (`ai-draft`, `plan-ciclo-3d` §8, forma A): el borrador se pide sobre un
- * artículo ya capturado, **no escribe** nada, y solo lo que el humano deja escrito llega a la base.
+ * Evidencia del ciclo 3d (`ai-draft`, `plan-ciclo-3d` §9, forma B): el borrador se pide **desde el
+ * formulario de captura, antes de que el artículo exista**, con los bytes de la variante mediana; no
+ * escribe nada; y el humano publica o guarda desde la misma pantalla.
  *
- * Tres suites: la de API corre una vez, la de interfaz abre la superficie privada en un navegador
- * real y la del dossier corre en el project `wiki`. El backend va con `AI_MODE=fake` (lo compone
- * `backendEnv()`), así que aquí se demuestra contrato, validación, prefill y revisión humana —**no**
- * la calidad del borrador ni la llamada al proveedor— (`06` §4).
+ * Tres suites: la de API corre una vez, la de interfaz abre la superficie privada en un navegador real
+ * y la del dossier corre en el `project` de `wiki`. El backend va con `AI_MODE=fake` (lo compone
+ * `backendEnv()`), así que aquí se demuestra contrato, validación, relleno y publicación —**no** la
+ * calidad del borrador ni la llamada al proveedor— (`06` §4).
  */
 const adminHeaders = { Authorization: `Bearer ${ADMIN_TOKEN}` };
 
@@ -38,15 +38,12 @@ const PNG = Buffer.from(
   'base64',
 );
 
-/** Las tres variantes con sus dimensiones reales: es la foto completa que el borrador necesita. */
-const VARIANTS = [
-  { variant: 'large', w: 1_440, h: 960 },
-  { variant: 'medium', w: 768, h: 512 },
-  { variant: 'thumb', w: 320, h: 213 },
-] as const;
-
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
+}
+
+function draftUrl(eventId: string): string {
+  return `${BACKEND_URL}/events/${eventId}/ai/drafts`;
 }
 
 async function eventWithSession(
@@ -81,43 +78,6 @@ async function eventWithSession(
   return { event, invitation, session };
 }
 
-async function captureItem(
-  request: APIRequestContext,
-  eventId: string,
-  sessionToken: string,
-  title: string,
-): Promise<string> {
-  const created = await request.post(`${BACKEND_URL}/events/${eventId}/items`, {
-    headers: bearer(sessionToken),
-    data: { title },
-  });
-  expect(created.status()).toBe(201);
-  const { item } = (await created.json()) as CreatedItem;
-  return item.id;
-}
-
-async function uploadVariants(
-  request: APIRequestContext,
-  eventId: string,
-  itemId: string,
-  sessionToken: string,
-): Promise<void> {
-  for (const variant of VARIANTS) {
-    const uploaded = await request.put(
-      `${BACKEND_URL}/events/${eventId}/items/${itemId}/photo?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
-      {
-        headers: { ...bearer(sessionToken), 'Content-Type': 'image/jpeg' },
-        data: JPEG,
-      },
-    );
-    expect(uploaded.status()).toBe(200);
-  }
-}
-
-function draftUrl(eventId: string, itemId: string): string {
-  return `${BACKEND_URL}/events/${eventId}/items/${itemId}/draft`;
-}
-
 /** Conteos del evento: la aserción de que el borrador es efímero se hace contra la base. */
 async function eventCounts(eventId: string): Promise<{ items: number; photos: number }> {
   const client = new Client({ connectionString: testDatabaseUrl() });
@@ -144,34 +104,20 @@ async function eventCounts(eventId: string): Promise<{ items: number; photos: nu
   }
 }
 
-test('the draft is ephemeral and only the human review writes', async ({ request }, testInfo) => {
+test('the draft is ephemeral, needs no article and only the human publishes', async ({
+  request,
+}, testInfo) => {
   test.skip(testInfo.project.name !== 'frontend', 'API-level draft suite runs once');
 
   const own = await eventWithSession(request, 'Bogotá', 'Ciudad de México');
   const foreign = await eventWithSession(request, 'Lima', 'Santiago');
 
-  // 1. Un artículo **sin foto** no puede tener borrador: 409 con su propio código.
-  const bare = await captureItem(request, own.event.id, own.session.sessionToken, 'Caja sin foto');
-
-  const withoutPhoto = await request.post(draftUrl(own.event.id, bare), {
-    headers: bearer(own.session.sessionToken),
-  });
-  expect(withoutPhoto.status()).toBe(409);
-  await expect(withoutPhoto.json()).resolves.toEqual({ error: 'item_photo_missing' });
-
-  // 2. Con su foto, el borrador vuelve validado y dentro de los límites del contrato.
-  const item = await captureItem(
-    request,
-    own.event.id,
-    own.session.sessionToken,
-    'Título de trabajo',
-  );
-  await uploadVariants(request, own.event.id, item, own.session.sessionToken);
-
   const before = await eventCounts(own.event.id);
 
-  const draftResponse = await request.post(draftUrl(own.event.id, item), {
-    headers: bearer(own.session.sessionToken),
+  // 1. El borrador vuelve validado, dentro de los límites del contrato y **sin artículo previo**.
+  const draftResponse = await request.post(draftUrl(own.event.id), {
+    headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
+    data: JPEG,
   });
   expect(draftResponse.status()).toBe(200);
 
@@ -181,114 +127,127 @@ test('the draft is ephemeral and only the human review writes', async ({ request
   expect(draft.note.length).toBeGreaterThan(0);
   expect(draft.note.length).toBeLessThanOrEqual(AI_DRAFT_LIMITS.note);
 
-  // 3. El borrador **no escribe**: ni artículo, ni foto, ni fila alguna.
+  // 2. El borrador **no escribe**: ni artículo, ni foto, ni fila alguna.
   await expect(eventCounts(own.event.id)).resolves.toEqual(before);
 
-  // 4. Los bordes de siempre: sin credencial, evento ajeno y artículo inexistente.
-  const anonymous = await request.post(draftUrl(own.event.id, item));
+  // 3. Los bordes: sin credencial, evento ajeno, tipo no admitido y cuerpo demasiado grande.
+  const anonymous = await request.post(draftUrl(own.event.id), {
+    headers: { 'Content-Type': 'image/jpeg' },
+    data: JPEG,
+  });
   expect(anonymous.status()).toBe(401);
   await expect(anonymous.json()).resolves.toEqual({ error: 'unauthorized' });
 
-  const foreignAttempt = await request.post(draftUrl(own.event.id, item), {
-    headers: bearer(foreign.session.sessionToken),
+  const foreignAttempt = await request.post(draftUrl(own.event.id), {
+    headers: { ...bearer(foreign.session.sessionToken), 'Content-Type': 'image/jpeg' },
+    data: JPEG,
   });
   expect(foreignAttempt.status()).toBe(404);
   await expect(foreignAttempt.json()).resolves.toEqual({ error: 'not_found' });
 
-  const missingItem = await request.post(
-    draftUrl(own.event.id, '00000000-0000-4000-8000-000000000000'),
-    { headers: bearer(own.session.sessionToken) },
-  );
-  expect(missingItem.status()).toBe(404);
-  await expect(missingItem.json()).resolves.toEqual({ error: 'item_not_found' });
-
-  // 5. La revisión humana sí escribe, y solo los campos que envió.
-  const patched = await request.patch(`${BACKEND_URL}/events/${own.event.id}/items/${item}`, {
-    headers: bearer(own.session.sessionToken),
-    data: { title: 'Silla blanca', note: 'Barniz claro' },
+  const wrongType = await request.post(draftUrl(own.event.id), {
+    headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'text/plain' },
+    data: 'no soy una foto',
   });
-  expect(patched.status()).toBe(200);
+  expect(wrongType.status()).toBe(400);
+  await expect(wrongType.json()).resolves.toEqual({ error: 'photo_invalid' });
 
-  const storedItem = (await patched.json()) as { item: { title: string; note: string | null } };
-  expect(storedItem.item.title).toBe('Silla blanca');
-  expect(storedItem.item.note).toBe('Barniz claro');
-
-  const emptyPatch = await request.patch(`${BACKEND_URL}/events/${own.event.id}/items/${item}`, {
-    headers: bearer(own.session.sessionToken),
-    data: {},
+  const tooBig = await request.post(draftUrl(own.event.id), {
+    headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
+    data: Buffer.alloc(6 * 1024 * 1024),
   });
-  expect(emptyPatch.status()).toBe(400);
-  await expect(emptyPatch.json()).resolves.toEqual({ error: 'validation_failed' });
-
-  const client = new Client({ connectionString: testDatabaseUrl() });
-  await client.connect();
-  try {
-    const rows = await client.query<{ title: string; note: string | null }>(
-      'SELECT title, note FROM app.item WHERE id = $1',
-      [item],
-    );
-    expect(rows.rows[0]).toEqual({ title: 'Silla blanca', note: 'Barniz claro' });
-
-    // La foto no cambió: la revisión no toca medidas ni foto.
-    const photos = await client.query('SELECT 1 FROM app.item_photo WHERE item_id = $1', [item]);
-    expect(photos.rowCount).toBe(1);
-  } finally {
-    await client.end();
-  }
+  expect(tooBig.status()).toBe(400);
+  await expect(tooBig.json()).resolves.toEqual({ error: 'photo_invalid' });
 });
 
-test('the human reviews the draft in the browser and saves the ficha', async ({
+test('the human reviews the draft in the form and publishes from the same screen', async ({
   page,
   request,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'frontend', 'UI review suite opens the private surface');
+  test.skip(testInfo.project.name !== 'frontend', 'UI draft suite opens the private surface');
 
   const own = await eventWithSession(request, 'Bogotá', 'Ciudad de México');
 
-  // 1. Canje y captura con foto: el artículo existe antes que el borrador (forma A).
+  // 1. Canje, foto y borrador: nada existe todavía en la base.
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
   await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
 
-  await page.getByTestId('item-title-input').fill('Título de trabajo');
   await page.setInputFiles('[data-testid="item-photo-input"]', {
     name: 'silla.png',
     mimeType: 'image/png',
     buffer: PNG,
   });
   await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
-  await page.getByTestId('item-submit').click();
-  await expect(page.getByTestId('items-list')).toBeVisible();
 
-  // 2. Revisar → Borrador con IA → el humano corrige → guardar.
-  await page.getByTestId('item-review-open').first().click();
-  await expect(page.getByTestId('item-review-form')).toBeVisible();
-
-  await page.getByTestId('item-review-draft').click();
-  await expect(page.getByTestId('item-review-draft-notice')).toContainText(
-    'revísalo antes de guardar',
+  await page.getByTestId('item-form-draft').click();
+  await expect(page.getByTestId('item-form-draft-notice')).toContainText(
+    'revísalo antes de publicar',
   );
 
-  await page.getByTestId('item-review-title').fill('Silla blanca');
-  await page.getByTestId('item-review-save').click();
+  // 2. El humano corrige el título y publica: el enlace aparece en la misma pantalla.
+  await page.getByTestId('item-title-input').fill('Silla blanca');
+  await page.getByTestId('item-form-publish').click();
 
-  // 3. La lista muestra **la palabra del humano**, no la del borrador.
+  await expect(page.getByTestId('capture-saved')).toBeVisible();
+  await expect(page.getByTestId('capture-published-link')).toBeVisible();
+
+  // 3. La pestaña de capturados lo muestra como publicado, y recargar no lo pierde.
+  await page.getByTestId('event-tab-captured').click();
   await expect(page.getByTestId('item-title')).toHaveText('Silla blanca');
-  await expect(page.getByTestId('item-review-form')).toHaveCount(0);
+  await expect(page.getByTestId('item-status')).toHaveText('publicado');
+
+  await page.reload();
+  await expect(page.getByTestId('item-status')).toHaveText('publicado');
 
   const client = new Client({ connectionString: testDatabaseUrl() });
   await client.connect();
   try {
-    const rows = await client.query<{ title: string }>(
-      `SELECT i.title
+    // 4. Lo publicado es **la palabra del humano**, y la fila de `app.listing` existe.
+    const rows = await client.query<{ title: string; slug: string | null }>(
+      `SELECT i.title, l.slug
          FROM app.item i
+         LEFT JOIN app.listing l ON l.item_id = i.id
         WHERE i.event_id = $1`,
       [own.event.id],
     );
-    expect(rows.rows.map((row) => row.title)).toEqual(['Silla blanca']);
+
+    expect(rows.rows).toHaveLength(1);
+    expect(rows.rows[0]?.title).toBe('Silla blanca');
+    expect(rows.rows[0]?.slug).not.toBeNull();
   } finally {
     await client.end();
   }
+});
+
+test('saving without publishing leaves the article en proceso and the row can publish it', async ({
+  page,
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'UI save-only suite opens the private surface');
+
+  const own = await eventWithSession(request, 'Cali', 'Medellín');
+
+  await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
+  await page.getByTestId('redeem-submit').click();
+  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
+
+  await page.setInputFiles('[data-testid="item-photo-input"]', {
+    name: 'caja.png',
+    mimeType: 'image/png',
+    buffer: PNG,
+  });
+  await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
+
+  await page.getByTestId('item-title-input').fill('Caja de cartón');
+  await page.getByTestId('item-form-save-only').click();
+  await expect(page.getByTestId('capture-saved')).toContainText('en proceso');
+
+  await page.getByTestId('event-tab-captured').click();
+  await expect(page.getByTestId('item-status')).toHaveText('en proceso');
+
+  await page.getByTestId('item-publish').click();
+  await expect(page.getByTestId('item-status')).toHaveText('publicado');
 });
 
 test('the dossier explains the contract and the mandatory review', async ({ page }, testInfo) => {

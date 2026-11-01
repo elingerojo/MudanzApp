@@ -1,0 +1,115 @@
+<app-ui-card title="Capturados">
+  @if (store.loading()) {
+    <p class="text-sm text-slate-600" data-testid="items-loading">Cargando…</p>
+  } @else if (store.failed()) {
+    <p class="text-sm text-red-600" data-testid="items-error">
+      No se pudieron cargar los artículos. Recarga la página.
+    </p>
+  } @else if (store.items().length === 0) {
+    <p class="text-sm text-slate-600" data-testid="items-empty">
+      Todavía no hay artículos. Toma la primera foto en «Captura».
+    </p>
+  } @else {
+    <ul class="divide-y divide-slate-200" data-testid="items-list">
+      @for (item of store.items(); track item.id) {
+        <li class="py-3" [attr.data-testid]="'item-' + item.id">
+          <div class="flex flex-wrap items-center gap-3">
+            @if (item.photo; as photo) {
+              <app-item-photo [photoId]="photo.id" />
+            } @else {
+              <span
+                class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+                data-testid="item-photo-missing"
+              >
+                sin foto
+              </span>
+            }
+
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-slate-900" data-testid="item-title">
+                {{ item.title }}
+              </p>
+
+              @if (item.widthCm !== null && item.heightCm !== null && item.depthCm !== null) {
+                <p class="text-xs text-slate-600">
+                  {{ item.widthCm }} × {{ item.heightCm }} × {{ item.depthCm }} cm
+                  @if (item.weightKg !== null) {
+                    · {{ item.weightKg }} kg
+                  }
+                </p>
+              } @else if (item.weightKg !== null) {
+                <p class="text-xs text-slate-600">{{ item.weightKg }} kg</p>
+              }
+
+              @if (item.note; as note) {
+                <p class="truncate text-xs text-slate-500">{{ note }}</p>
+              }
+
+              @if (item.photo === null) {
+                <p class="text-xs text-amber-700" data-testid="item-photo-pending">
+                  Falta la foto: sin ella no se puede publicar.
+                </p>
+              }
+            </div>
+
+            <div class="flex shrink-0 flex-col items-end gap-1">
+              <span
+                class="rounded-full px-2 py-0.5 text-xs"
+                [class]="
+                  item.publishedSlug === null
+                    ? 'bg-amber-100 text-amber-900'
+                    : 'bg-emerald-100 text-emerald-900'
+                "
+                data-testid="item-status"
+              >
+                {{ item.publishedSlug === null ? 'en proceso' : 'publicado' }}
+              </span>
+
+              @if (linkFor(item); as link) {
+                <a
+                  [href]="link"
+                  target="_blank"
+                  rel="noopener"
+                  class="max-w-64 truncate text-sm text-slate-700 underline"
+                  data-testid="item-listing-link"
+                >
+                  {{ link }}
+                </a>
+
+                <button
+                  type="button"
+                  [class]="secondaryClasses"
+                  (click)="store.copyLink(item)"
+                  data-testid="item-copy-link"
+                >
+                  {{ store.copiedId() === item.id ? 'Copiado' : 'Copiar enlace' }}
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  [class]="secondaryClasses"
+                  [disabled]="store.publishingId() !== null"
+                  (click)="store.publish(item)"
+                  data-testid="item-publish"
+                >
+                  Publicar
+                </button>
+              }
+
+              @if (store.publishFailure(); as failure) {
+                @if (failure.itemId === item.id) {
+                  <p
+                    class="max-w-64 text-right text-xs text-red-600"
+                    data-testid="item-listing-error"
+                  >
+                    {{ failure.message }}
+                  </p>
+                }
+              }
+            </div>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</app-ui-card>

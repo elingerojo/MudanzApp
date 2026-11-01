@@ -1,0 +1,35 @@
+<div class="space-y-6">
+  <app-ui-card title="Agregar un artículo">
+    <app-item-form [eventId]="eventId" (saved)="onSaved($event)" />
+  </app-ui-card>
+
+  @if (last() !== undefined) {
+    <div
+      class="space-y-1 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900"
+      data-testid="capture-saved"
+    >
+      @if (publishedLink(); as link) {
+        <p>Publicado. El enlace ya se puede compartir.</p>
+        <a
+          [href]="link"
+          target="_blank"
+          rel="noopener"
+          class="block break-all underline"
+          data-testid="capture-published-link"
+        >
+          {{ link }}
+        </a>
+      } @else {
+        <p>Guardado. Está en «Capturados» como en proceso.</p>
+      }
+
+      <a
+        [routerLink]="capturedPath"
+        class="inline-block underline"
+        data-testid="capture-go-captured"
+      >
+        Ver capturados
+      </a>
+    </div>
+  }
+</div>

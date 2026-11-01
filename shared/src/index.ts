@@ -29,7 +29,6 @@ export {
   createItemSchema,
   photoVariantSchema,
   photoVariantUploadSchema,
-  updateItemSchema,
 } from './item.js';
 export { LISTING_LIMITS, LISTING_SLUG_PATTERN, listingSlugSchema } from './listing.js';
 export type {
@@ -49,7 +48,6 @@ export type {
   ItemSummary,
   PhotoSize,
   PhotoVariantUpload,
-  UpdateItemRequest,
 } from './item.js';
 export type {
   ClaimEventRequest,

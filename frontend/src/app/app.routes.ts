@@ -5,11 +5,15 @@ import { RedeemComponent } from './session/redeem.component';
 import { requireSession } from './session/session.guard';
 
 /**
- * Mapa de rutas del ciclo 3a.
+ * Mapa de rutas del ciclo 3 (`plan-ciclo-3d` §5).
  *
  * Tres clases de pantalla, como el marco del referente: el inicio público (`/`) que sirve incluso sin
  * sesión, el canje público (`/invitacion`, que recibe el token por `?token=`) y la sección del evento,
  * perezosa y con guard. `**` vuelve al inicio.
+ *
+ * Desde 3d la sección del evento tiene **dos pestañas**, y son **dos rutas hijas**: la pestaña es
+ * enlazable, el botón «atrás» del teléfono hace lo obvio y el e2e puede abrir cada una sin simular
+ * toques. `''` es la captura, que es la que abre por defecto.
  */
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -18,6 +22,18 @@ export const routes: Routes = [
     path: 'eventos/:eventId',
     loadComponent: () => import('./events/event.component').then((module) => module.EventComponent),
     canActivate: [requireSession],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./events/capture.component').then((module) => module.CaptureComponent),
+      },
+      {
+        path: 'capturados',
+        loadComponent: () =>
+          import('./items/item-list.component').then((module) => module.ItemListComponent),
+      },
+    ],
   },
   { path: '**', redirectTo: '' },
 ];

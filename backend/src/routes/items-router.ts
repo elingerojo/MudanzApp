@@ -1,25 +1,17 @@
 import {
-  ITEM_LIMITS,
   createItemSchema,
   photoVariantSchema,
   photoVariantUploadSchema,
-  updateItemSchema,
   type CreatedItem,
   type ItemList,
   type ItemPhoto,
   type ItemPhotoVariant,
-  type ItemSummary,
 } from '@mudanzapp/shared';
-import { Router, type Request } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 
 import { canActOnEvent } from '../domain/account.js';
-import {
-  isAcceptedVariant,
-  normalizeItemDraft,
-  normalizeItemPatch,
-  photoVariantContentType,
-} from '../domain/item.js';
+import { isAcceptedVariant, normalizeItemDraft, photoVariantContentType } from '../domain/item.js';
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
 import {
@@ -28,7 +20,6 @@ import {
   findPhotoVariants,
   insertItem,
   listItemsForEvent,
-  updateItem,
   upsertItemPhoto,
   upsertPhotoVariant,
   type PhotoVariantRecord,
@@ -37,6 +28,7 @@ import { newObjectKey } from '../storage/object-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
 import { toItemPhoto, toItemSummary } from './presenters.js';
+import { declaredContentType, readPhotoBody } from './raw-body.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
@@ -48,41 +40,6 @@ const photoQuerySchema = z.object({ variant: photoVariantSchema.optional() });
 
 /** De mayor a menor: es el orden de la caída cuando la variante pedida no existe. */
 const FALLBACK_ORDER: readonly ItemPhotoVariant[] = ['large', 'medium', 'thumb'];
-
-/**
- * El tipo declarado, sin parámetros: `image/jpeg; charset=…` y `IMAGE/JPEG` son el mismo tipo.
- * Se lee de la cabecera y no del parser porque aquí no hay parser: la foto llega como cuerpo crudo.
- */
-function declaredContentType(request: Request): string {
-  const header = request.headers['content-type'] ?? '';
-  const [first] = header.split(';');
-  return (first ?? '').trim().toLowerCase();
-}
-
-/**
- * Lee el cuerpo binario con un tope propio. No se usa un parser de Express porque su rechazo por
- * tamaño se convertiría en un 500 del manejador genérico; aquí el exceso es `photo_invalid`, que es
- * lo que el cliente sabe interpretar (`05` §2).
- *
- * El tope es **cordura de transporte**, no una regla de peso de la imagen: una variante optimizada
- * nunca se acerca a 5 MiB y una foto pesada entra igual si el codificador no la bajó del objetivo
- * (`plan-ciclo-3c-optimizar` §5).
- */
-async function readPhotoBody(request: Request): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  let total = 0;
-
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
-    total += buffer.length;
-    if (total > ITEM_LIMITS.photoBytes) {
-      throw new AppError('photo_invalid');
-    }
-    chunks.push(buffer);
-  }
-
-  return Buffer.concat(chunks);
-}
 
 /**
  * La variante pedida o, si no existe, la mayor disponible. Es la degradación declarada para las
@@ -157,8 +114,10 @@ export function createItemsRouter(deps: IdentityDeps): Router {
         draft: normalizeItemDraft(input),
       });
 
+      // Un artículo recién creado no tiene foto ni fila en `app.listing`: ambos hechos son `null` y
+      // la pestaña `Capturados` lo pinta como `en proceso` hasta que se publique.
       const payload: CreatedItem = {
-        item: toItemSummary({ ...item, photoId: null, photoVariants: null }),
+        item: toItemSummary({ ...item, photoId: null, photoVariants: null, publishedSlug: null }),
       };
       response.status(201).json(payload);
     };
@@ -198,48 +157,6 @@ export function createItemsRouter(deps: IdentityDeps): Router {
       }
 
       response.json({ item: toItemSummary(item) });
-    };
-
-    void handle().catch(next);
-  });
-
-  /**
-   * Revisión humana de una ficha ya capturada (`ai-draft`, ciclo 3d). Acepta `title` y `note` y exige
-   * al menos uno: es la escritura con la que el humano aprueba lo que la IA propuso, y por eso es la
-   * única ruta que crea la ficha definitiva.
-   *
-   * Autoriza con la misma regla que la lectura y escribe **solo** esos dos campos: medidas, foto y
-   * borrado siguen fuera del corte (`plan-ciclo-3d` §2). Un artículo de otro evento responde
-   * `item_not_found`, no `404 not_found`, porque el evento sí es suyo.
-   */
-  router.patch('/events/:eventId/items/:itemId', requireSession, (request, response, next) => {
-    const handle = async (): Promise<void> => {
-      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
-      const identity = identityOf(request);
-
-      if (!(await canAct(identity, eventId))) {
-        throw new AppError('not_found');
-      }
-
-      const input = parseOrThrow(updateItemSchema, request.body);
-      const updated = await updateItem(deps.database, {
-        eventId,
-        itemId,
-        patch: normalizeItemPatch(input),
-      });
-      if (!updated) {
-        throw new AppError('item_not_found');
-      }
-
-      // Se relee para responder el `ItemSummary` completo, con su foto: el presentador se escribe una
-      // sola vez, en la lectura, y no se duplica aquí.
-      const item = await findItem(deps.database, eventId, itemId);
-      if (item === null) {
-        throw new AppError('item_not_found');
-      }
-
-      const payload: { readonly item: ItemSummary } = { item: toItemSummary(item) };
-      response.status(200).json(payload);
     };
 
     void handle().catch(next);

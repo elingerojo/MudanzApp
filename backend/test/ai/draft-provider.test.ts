@@ -10,9 +10,10 @@ import { createAiDraftProvider } from '../../src/ai/draft-provider.js';
 const noFetch = (): Promise<Response> =>
   Promise.reject(new Error('the fake must not use the network'));
 
+/** La petición es la variante ya codificada: bytes y su tipo, sin URL y sin almacén. */
 const REQUEST = {
-  imageUrl: 'https://pub-test.r2.dev/event/item/photo-medium',
-  mimeType: 'image/webp',
+  bytes: Buffer.from([0x52, 0x49, 0x46, 0x46]),
+  contentType: 'image/webp',
 } as const;
 
 describe('createAiDraftProvider', () => {

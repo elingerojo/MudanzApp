@@ -2,8 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import type { ItemSummary } from '@mudanzapp/shared';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { SessionStore } from '../session/session.store';
@@ -11,29 +10,27 @@ import { SHOP_BASE_URL } from '../shop-base-url.token';
 import { EventComponent } from './event.component';
 
 /**
- * La publicación desde la superficie privada (`plan-ciclo-3c` §7): el enlace se compone con el
- * origen compilado de `shop` y el `slug` que devuelve el backend, un artículo sin foto se explica por
- * su código y una sesión sin acceso no rompe la lista.
+ * El marco de la sección (`plan-ciclo-3d` §5): dos pestañas enlazables y el contador de `Capturados`,
+ * que sale del mismo recurso que pinta la lista.
  *
- * La sesión se sustituye por un doble: lo que se prueba es el componente, y su `SessionStore` haría
- * una petición de identidad que aquí no aporta nada.
+ * La sesión se sustituye por un doble: lo que se prueba es el marco, y su `SessionStore` haría una
+ * petición de identidad que aquí no aporta nada.
  */
-const ITEM: ItemSummary = {
+const ITEM = {
   id: 'item-1',
   eventId: 'event-1',
   title: 'Mesa de roble',
-  note: 'De madera',
-  widthCm: 120,
-  heightCm: 75,
-  depthCm: 60,
-  weightKg: 35,
+  note: null,
+  widthCm: null,
+  heightCm: null,
+  depthCm: null,
+  weightKg: null,
   photo: null,
+  publishedSlug: null,
   createdAt: '2026-10-31T00:00:00.000Z',
 };
 
-const LISTING_URL = '/api/events/event-1/items/item-1/listing';
-
-describe('EventComponent publishing', () => {
+describe('EventComponent', () => {
   let httpTesting: HttpTestingController;
   let identityFailed: ReturnType<typeof signal<boolean>>;
 
@@ -45,6 +42,7 @@ describe('EventComponent publishing', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: API_BASE_URL, useValue: '/api' },
         { provide: SHOP_BASE_URL, useValue: 'http://shop.test' },
         {
@@ -63,7 +61,6 @@ describe('EventComponent publishing', () => {
 
   afterEach(() => {
     httpTesting.verify();
-    localStorage.clear();
   });
 
   function render() {
@@ -72,74 +69,41 @@ describe('EventComponent publishing', () => {
     return fixture;
   }
 
-  function loadItems(): void {
+  it('offers the two tabs of the section', () => {
+    const fixture = render();
+    httpTesting.expectOne('/api/events/event-1/items').flush({ items: [] });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="event-tab-capture"]')).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="event-tab-captured"]'),
+    ).not.toBeNull();
+  });
+
+  it('counts the articles in the Capturados tab from the same read as the list', async () => {
+    const fixture = render();
     httpTesting.expectOne('/api/events/event-1/items').flush({ items: [ITEM] });
-  }
-
-  it('publishes the article and paints the link with the compiled shop origin', async () => {
-    const fixture = render();
-    loadItems();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const button = fixture.nativeElement.querySelector(
-      '[data-testid="item-publish"]',
-    ) as HTMLButtonElement;
-    button.click();
-
-    const request = httpTesting.expectOne(LISTING_URL);
-    expect(request.request.method).toBe('POST');
-    request.flush({ slug: 'mesa-de-roble-3f9a2c', path: '/mesa-de-roble-3f9a2c' });
 
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const link = fixture.nativeElement.querySelector(
-      '[data-testid="item-listing-link"]',
-    ) as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('http://shop.test/mesa-de-roble-3f9a2c');
-    expect(link.textContent).toContain('mesa-de-roble-3f9a2c');
-    expect(fixture.nativeElement.querySelector('[data-testid="item-publish"]')).toBeNull();
-  });
-
-  it('explains a missing photo next to the article instead of a generic error', async () => {
-    const fixture = render();
-    loadItems();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const button = fixture.nativeElement.querySelector(
-      '[data-testid="item-publish"]',
-    ) as HTMLButtonElement;
-    button.click();
-
-    httpTesting
-      .expectOne(LISTING_URL)
-      .flush({ error: 'listing_photo_required' }, { status: 409, statusText: 'Conflict' });
-
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const error = fixture.nativeElement.querySelector(
-      '[data-testid="item-listing-error"]',
+    const captured = fixture.nativeElement.querySelector(
+      '[data-testid="event-tab-captured"]',
     ) as HTMLElement;
-    expect(error.textContent).toContain('foto');
-    expect(fixture.nativeElement.querySelector('[data-testid="item-listing-link"]')).toBeNull();
+    expect(captured.textContent).toContain('Capturados (1)');
   });
 
-  it('keeps the list readable when the session is no longer valid', async () => {
+  it('keeps the warning visible when the session is no longer valid', async () => {
     identityFailed.set(true);
 
     const fixture = render();
-    loadItems();
+    httpTesting.expectOne('/api/events/event-1/items').flush({ items: [ITEM] });
+
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(
       fixture.nativeElement.querySelector('[data-testid="event-session-invalid"]'),
     ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('[data-testid="item-title"]')?.textContent,
-    ).toContain('Mesa de roble');
   });
 });

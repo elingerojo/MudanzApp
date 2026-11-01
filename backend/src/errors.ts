@@ -79,11 +79,6 @@ export const ERROR_CATALOG = {
     status: 404,
     message: 'Item not found',
   },
-  item_photo_missing: {
-    code: 'item_photo_missing',
-    status: 409,
-    message: 'Item has no photo yet',
-  },
   photo_invalid: {
     code: 'photo_invalid',
     status: 400,

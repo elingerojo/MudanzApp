@@ -7,9 +7,9 @@ import { DRAFT_INSTRUCTION } from './prompt.js';
 /**
  * Adaptador `live` del borrador: Google Gemini por su API REST (ciclo 3d, decisión §34).
  *
- * La foto viaja como `file_data.file_uri` con la **dirección pública** de la variante ya guardada, y
- * el proveedor la descarga. El backend no reenvía bytes y no guarda nada: la foto no se mueve de
- * donde 3a y 3c-optimizar la dejaron.
+ * La foto viaja como **bytes**: el cuerpo binario que el navegador envió se convierte aquí a base64 y
+ * se manda en `inline_data`. Es el único lugar del sistema donde ese string existe —el navegador
+ * nunca lo construye, el almacén no participa y nada del cuerpo se registra— (`plan-ciclo-3d` §4).
  *
  * Hechos que fija el adaptador y **no** una variable de entorno:
  * - el host y la versión (`v1beta`) son del proveedor;
@@ -88,7 +88,12 @@ export function createGeminiDraftProvider({
           {
             role: 'user',
             parts: [
-              { file_data: { mime_type: request.mimeType, file_uri: request.imageUrl } },
+              {
+                inline_data: {
+                  mime_type: request.contentType,
+                  data: request.bytes.toString('base64'),
+                },
+              },
               { text: DRAFT_INSTRUCTION },
             ],
           },

@@ -12,19 +12,22 @@ import { createGeminiDraftProvider } from './gemini-draft.js';
  * [`object-store.ts`](../storage/object-store.ts:59) y [`oauth.ts`](../identity/oauth.ts:19). El
  * router no conoce al proveedor, no compone prompts y no lee `process.env`.
  *
- * La entrada es **la dirección pública** de la variante ya guardada (forma A del plan §5): el
- * proveedor la descarga y el backend no reenvía bytes. Por eso el `DraftRequest` de este corte no
- * lleva un `Buffer`, y quien lo arma es el adaptador `live` a partir de la variante resuelta, nunca
- * el router.
+ * La entrada son **los bytes** de la variante `medium` que el dispositivo ya codificó (forma B del
+ * plan §6): el navegador envía el mismo `Blob` que después viaja a R2, el router lo lee como cuerpo
+ * binario y el adaptador `live` lo convierte a base64. El almacén no participa en el borrador.
  *
  * Los fallos lanzan `AppError` con los códigos del catálogo del borde: `ai_mode_invalid`,
  * `ai_not_configured`, `ai_unavailable` y `ai_output_invalid`.
  */
 
-/** Lo que el adaptador recibe: la dirección pública de la foto y el tipo real del objeto. */
+/**
+ * Lo que el adaptador recibe: la variante ya codificada, con el tipo real que produjo el codificador
+ * del dispositivo. Sin `Buffer` en el router y sin URL: el `base64` que el protocolo del proveedor
+ * exige nace y muere dentro del adaptador `live`.
+ */
 export interface DraftRequest {
-  readonly imageUrl: string;
-  readonly mimeType: ItemPhotoVariantContentType;
+  readonly bytes: Buffer;
+  readonly contentType: ItemPhotoVariantContentType;
 }
 
 export interface AiDraftProvider {

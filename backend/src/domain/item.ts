@@ -6,7 +6,6 @@ import {
   type ItemPhotoVariant,
   type ItemPhotoVariantContentType,
   type PhotoSize,
-  type UpdateItemRequest,
 } from '@mudanzapp/shared';
 
 /**
@@ -36,18 +35,6 @@ export interface ItemDraft {
 }
 
 /**
- * Ficha de una revisión (`PATCH`, ciclo 3d): lo que el humano cambió y nada más.
- *
- * `null` significa «no se toca», no «vaciar». La nota necesita esa distinción porque **limpiarla** es
- * una corrección legítima; por eso viaja `replaceNote` en vez de un `null` ambiguo.
- */
-export interface ItemPatch {
-  readonly title: string | null;
-  readonly note: string | null;
-  readonly replaceNote: boolean;
-}
-
-/**
  * Normaliza lo que la frontera ya validó. El `trim` del título se repite aquí a propósito: la regla
  * «un título vacío no es un título» es del dominio, y el esquema solo acota la forma.
  */
@@ -62,45 +49,6 @@ export function normalizeItemDraft(input: CreateItemRequest): ItemDraft {
     depthCm: input.depthCm ?? null,
     weightKg: input.weightKg ?? null,
   };
-}
-
-/**
- * La revisión humana reutiliza la normalización del alta en vez de tener la suya: el título ausente
- * llega como cadena vacía solo para satisfacer la forma y **nunca** sale de aquí, porque la ausencia
- * se decide antes con `input.title === undefined`.
- */
-export function normalizeItemPatch(input: UpdateItemRequest): ItemPatch {
-  const normalized = normalizeItemDraft({ title: input.title ?? '', note: input.note });
-
-  return {
-    title: input.title === undefined ? null : normalized.title,
-    note: normalized.note,
-    replaceNote: input.note !== undefined,
-  };
-}
-
-/**
- * El orden en que el borrador elige la foto: la **mediana** que `decisiones` §33 reservó para 3d y,
- * si falta —fotos anteriores a 3c-optimizar o una subida interrumpida—, la mayor disponible. La
- * original nunca viaja al proveedor.
- */
-export const DRAFT_VARIANT_ORDER: readonly ItemPhotoVariant[] = ['medium', 'large', 'thumb'];
-
-/**
- * La variante que se envía al proveedor, o `null` si la foto no tiene ninguna. Puro: recibe las filas
- * y devuelve la elegida, así que la regla se prueba sin base ni red.
- */
-export function draftPhotoVariant<T extends { readonly variant: ItemPhotoVariant }>(
-  variants: readonly T[],
-): T | null {
-  for (const candidate of DRAFT_VARIANT_ORDER) {
-    const found = variants.find((variant) => variant.variant === candidate);
-    if (found !== undefined) {
-      return found;
-    }
-  }
-
-  return null;
 }
 
 /**

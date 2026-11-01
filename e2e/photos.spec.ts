@@ -211,7 +211,9 @@ test('the device optimizes a heavy photo into three sizes and the original never
     );
   }
 
-  await page.getByTestId('item-submit').click();
+  await page.getByTestId('item-form-save-only').click();
+  await expect(page.getByTestId('capture-saved')).toBeVisible();
+  await page.getByTestId('capture-go-captured').click();
 
   // 4. Se subieron exactamente tres cuerpos y ninguno se acerca al peso de la original.
   await expect(page.getByTestId('items-list')).toBeVisible();
