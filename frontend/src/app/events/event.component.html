@@ -42,81 +42,104 @@
     } @else {
       <ul class="divide-y divide-slate-200" data-testid="items-list">
         @for (item of items(); track item.id) {
-          <li class="flex flex-wrap items-center gap-3 py-3" [attr.data-testid]="'item-' + item.id">
-            @if (item.photo; as photo) {
-              <app-item-photo [photoId]="photo.id" />
-            } @else {
-              <span
-                class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
-              >
-                sin foto
-              </span>
-            }
-
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-slate-900" data-testid="item-title">
-                {{ item.title }}
-              </p>
-
-              @if (item.widthCm !== null && item.heightCm !== null && item.depthCm !== null) {
-                <p class="text-xs text-slate-600">
-                  {{ item.widthCm }} × {{ item.heightCm }} × {{ item.depthCm }} cm
-                  @if (item.weightKg !== null) {
-                    · {{ item.weightKg }} kg
-                  }
-                </p>
-              } @else if (item.weightKg !== null) {
-                <p class="text-xs text-slate-600">{{ item.weightKg }} kg</p>
-              }
-
-              @if (item.note; as note) {
-                <p class="truncate text-xs text-slate-500">{{ note }}</p>
-              }
-            </div>
-
-            <div class="flex shrink-0 flex-col items-end gap-1">
-              @if (linkFor(item.id); as link) {
-                <a
-                  [href]="link"
-                  target="_blank"
-                  rel="noopener"
-                  class="max-w-64 truncate text-sm text-slate-700 underline"
-                  data-testid="item-listing-link"
-                >
-                  {{ link }}
-                </a>
-
-                <button
-                  type="button"
-                  [class]="secondaryClasses"
-                  (click)="copyLink(item.id)"
-                  data-testid="item-copy-link"
-                >
-                  {{ copiedId() === item.id ? 'Copiado' : 'Copiar enlace' }}
-                </button>
+          <li class="py-3" [attr.data-testid]="'item-' + item.id">
+            <div class="flex flex-wrap items-center gap-3">
+              @if (item.photo; as photo) {
+                <app-item-photo [photoId]="photo.id" />
               } @else {
+                <span
+                  class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+                >
+                  sin foto
+                </span>
+              }
+
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-slate-900" data-testid="item-title">
+                  {{ item.title }}
+                </p>
+
+                @if (item.widthCm !== null && item.heightCm !== null && item.depthCm !== null) {
+                  <p class="text-xs text-slate-600">
+                    {{ item.widthCm }} × {{ item.heightCm }} × {{ item.depthCm }} cm
+                    @if (item.weightKg !== null) {
+                      · {{ item.weightKg }} kg
+                    }
+                  </p>
+                } @else if (item.weightKg !== null) {
+                  <p class="text-xs text-slate-600">{{ item.weightKg }} kg</p>
+                }
+
+                @if (item.note; as note) {
+                  <p class="truncate text-xs text-slate-500">{{ note }}</p>
+                }
+              </div>
+
+              <div class="flex shrink-0 flex-col items-end gap-1">
+                @if (linkFor(item.id); as link) {
+                  <a
+                    [href]="link"
+                    target="_blank"
+                    rel="noopener"
+                    class="max-w-64 truncate text-sm text-slate-700 underline"
+                    data-testid="item-listing-link"
+                  >
+                    {{ link }}
+                  </a>
+
+                  <button
+                    type="button"
+                    [class]="secondaryClasses"
+                    (click)="copyLink(item.id)"
+                    data-testid="item-copy-link"
+                  >
+                    {{ copiedId() === item.id ? 'Copiado' : 'Copiar enlace' }}
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    [class]="secondaryClasses"
+                    [disabled]="publishingId() !== null"
+                    (click)="publish(item)"
+                    data-testid="item-publish"
+                  >
+                    Publicar
+                  </button>
+                }
+
                 <button
                   type="button"
                   [class]="secondaryClasses"
                   [disabled]="publishingId() !== null"
-                  (click)="publish(item)"
-                  data-testid="item-publish"
+                  (click)="openReview(item.id)"
+                  data-testid="item-review-open"
                 >
-                  Publicar
+                  Revisar
                 </button>
-              }
 
-              @if (publishFailure(); as failure) {
-                @if (failure.itemId === item.id) {
-                  <p
-                    class="max-w-64 text-right text-xs text-red-600"
-                    data-testid="item-listing-error"
-                  >
-                    {{ failure.message }}
-                  </p>
+                @if (publishFailure(); as failure) {
+                  @if (failure.itemId === item.id) {
+                    <p
+                      class="max-w-64 text-right text-xs text-red-600"
+                      data-testid="item-listing-error"
+                    >
+                      {{ failure.message }}
+                    </p>
+                  }
                 }
-              }
+              </div>
             </div>
+
+            @if (reviewItemId() === item.id) {
+              <div class="mt-3 rounded-lg border border-slate-200 p-3" data-testid="item-review">
+                <app-item-review
+                  [eventId]="eventId"
+                  [item]="item"
+                  (saved)="onReviewed()"
+                  (closed)="closeReview()"
+                />
+              </div>
+            }
           </li>
         }
       </ul>

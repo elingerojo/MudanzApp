@@ -79,6 +79,11 @@ export const ERROR_CATALOG = {
     status: 404,
     message: 'Item not found',
   },
+  item_photo_missing: {
+    code: 'item_photo_missing',
+    status: 409,
+    message: 'Item has no photo yet',
+  },
   photo_invalid: {
     code: 'photo_invalid',
     status: 400,
@@ -103,6 +108,26 @@ export const ERROR_CATALOG = {
     code: 'r2_unavailable',
     status: 503,
     message: 'Object storage is unavailable',
+  },
+  ai_mode_invalid: {
+    code: 'ai_mode_invalid',
+    status: 500,
+    message: 'AI mode is not valid',
+  },
+  ai_not_configured: {
+    code: 'ai_not_configured',
+    status: 503,
+    message: 'AI integration is not configured',
+  },
+  ai_unavailable: {
+    code: 'ai_unavailable',
+    status: 503,
+    message: 'AI provider is unavailable',
+  },
+  ai_output_invalid: {
+    code: 'ai_output_invalid',
+    status: 502,
+    message: 'AI output did not match the contract',
   },
   listing_photo_required: {
     code: 'listing_photo_required',

@@ -6,9 +6,10 @@ crece una ruta por ciclo.
 
 ## Rutas
 
-| Ruta | Página            | Qué es                                            |
-| ---- | ----------------- | ------------------------------------------------- |
-| `/`  | `StatusComponent` | Humo del arranque: proceso y base desde `/health` |
+| Ruta            | Página                | Qué es                                                     |
+| --------------- | --------------------- | ---------------------------------------------------------- |
+| `/`             | `StatusComponent`     | Humo del arranque: proceso y base desde `/health`          |
+| `/foto-a-ficha` | `FotoAFichaComponent` | Dossier §3: contrato de la IA y revisión humana (ciclo 3d) |
 
 - **Dev**: `npm run dev -w wiki -- --port 4201` desde la raíz. El puerto `4200` lo usa
   `frontend`; el segundo frontend queda en `4201`. El proxy `/api` apunta al backend local en
@@ -28,7 +29,7 @@ mismo ciclo que produce el hecho que explica.
 | ----- | ----------------------------------------------------------------------------- | --------- |
 | 1     | Identidad: dos factores y por qué el enlace de invitación muere al primer uso | Propuesta |
 | 2     | Roles y superficies: por qué tres frontends y no uno                          | Propuesta |
-| 3     | Foto a ficha: contrato de la IA y revisión humana                             | Propuesta |
+| 3     | Foto a ficha: contrato de la IA y revisión humana                             | Escrita   |
 | 4     | Catálogo público: indexación, bloqueo de 15 minutos y venta fuera de banda    | Propuesta |
 | 5     | La regla 4/11/21 como función pura y su justificación económica               | Propuesta |
 | 6     | Empaque y cotización: de la estimación burda al dato verificable              | Propuesta |

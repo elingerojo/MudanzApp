@@ -1,3 +1,4 @@
+import { createAiDraftProvider } from './ai/draft-provider.js';
 import { createApp } from './app.js';
 import { config } from './config.js';
 import { createDatabase } from './db.js';
@@ -13,6 +14,9 @@ for (const warning of config.warnings) {
 const database = createDatabase(config.databaseUrl);
 const oauth = createOAuthVerifier(config.oauth);
 const storage = createObjectStore(config.storage);
+// El proveedor se crea **una sola vez**, como `oauth` y `storage`. `fetch` se pasa sin atarlo a
+// `globalThis` para que el adaptador se pueda probar sin red.
+const ai = createAiDraftProvider(config.ai, { fetch: (input, init) => fetch(input, init) });
 const app = createApp({
   database,
   appBaseUrl: config.appBaseUrl,
@@ -20,6 +24,7 @@ const app = createApp({
   adminToken: config.adminToken,
   now: () => new Date(),
   storage,
+  ai,
 });
 
 const server = app.listen(config.port, () => {

@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../api-base-url.token';
 import { ItemFormComponent } from '../items/item-form.component';
 import { ItemPhotoComponent } from '../items/item-photo.component';
+import { ItemReviewComponent } from '../items/item-review.component';
 import { LISTING_PHOTO_REQUIRED, apiErrorCode } from '../session/api-error';
 import { SessionStore } from '../session/session.store';
 import { SHOP_BASE_URL } from '../shop-base-url.token';
@@ -34,7 +35,13 @@ function publishMessage(code: string | null): string {
  */
 @Component({
   selector: 'app-event',
-  imports: [RouterLink, ItemFormComponent, ItemPhotoComponent, UiCardComponent],
+  imports: [
+    RouterLink,
+    ItemFormComponent,
+    ItemPhotoComponent,
+    ItemReviewComponent,
+    UiCardComponent,
+  ],
   templateUrl: './event.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -76,6 +83,9 @@ export class EventComponent {
 
   protected readonly copiedId = signal<string | null>(null);
 
+  /** Artículo cuya revisión está abierta. Solo uno a la vez, para no perder lo escrito. */
+  protected readonly reviewItemId = signal<string | null>(null);
+
   protected readonly secondaryClasses = uiButtonClasses('secondary');
 
   /** Enlace público del artículo, o `null` mientras no se haya publicado en esta visita. */
@@ -87,6 +97,23 @@ export class EventComponent {
   /** Una captura nueva invalida la lista: el estado anterior ya no es la verdad. */
   protected reload(): void {
     this.itemsResource.reload();
+  }
+
+  protected openReview(itemId: string): void {
+    this.reviewItemId.set(itemId);
+  }
+
+  protected closeReview(): void {
+    this.reviewItemId.set(null);
+  }
+
+  /**
+   * La ficha aprobada por el humano se guardó: se cierra la revisión y se recarga la lista. Lo que
+   * queda en pantalla es lo que el humano dejó, no el borrador (`plan-ciclo-3d` §5).
+   */
+  protected onReviewed(): void {
+    this.reviewItemId.set(null);
+    this.reload();
   }
 
   protected async publish(item: ItemSummary): Promise<void> {

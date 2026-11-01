@@ -2,6 +2,7 @@ import type { AddressInfo } from 'node:net';
 
 import type { DatabaseState } from '@mudanzapp/shared';
 
+import { createFakeDraftProvider } from '../../src/ai/gemini-fake.js';
 import { createApp } from '../../src/app.js';
 import type { Database } from '../../src/db.js';
 import { createOAuthVerifier } from '../../src/identity/oauth.js';
@@ -62,6 +63,8 @@ export async function startTestApp(
     adminToken: options.adminToken ?? null,
     now: () => new Date(),
     storage,
+    // La IA va en `fake`, como OAUTH: el gate no depende del proveedor (regla del gate).
+    ai: createFakeDraftProvider(),
   }).listen(0);
 
   await new Promise<void>((resolve) => {

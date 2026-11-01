@@ -685,3 +685,61 @@ Reglas del crecimiento:
   el arranque de 3d (el borrador de IA consume la mediana, nunca la original).
 - **Disparador de revisión:** que 400 KB deje de ser suficiente para el zoom, o que aparezca un
   catálogo con decenas de tarjetas.
+
+## 34. El borrador de la IA es efímero, se valida en la frontera y solo el humano escribe (2026-11-01)
+
+- **Decisión:** la IA propone **solo** `title` y `note`. El borrador **no es estado**: no hay tabla, ni
+  historial, ni versiones; se valida en la frontera contra `aiDraftSchema` (`shared/src/ai.ts`) y lo
+  único que llega a `app.item` es lo que el humano confirma con `PATCH`. La IA **nunca** decide
+  medidas, peso, precio ni destino. Al proveedor viaja la **variante `medium`** que §33 reservó para
+  este corte —nunca la original ni la `large`—, y viaja como **dirección pública del objeto**: el
+  backend compone la URL y el proveedor la descarga, así que los bytes de la foto no vuelven a cruzar
+  el borde. La foto sale del sistema hacia un tercero **antes** de publicarse, y el envío lo inicia
+  siempre una persona con una acción explícita.
+- **Veredicto del experimento de transporte (2026-11-01): verde.** Una sola llamada en `live` sobre la
+  URL pública real de un objeto del almacén (`image/webp`, `200`, 51 404 B) devolvió un JSON que
+  cumplió `aiDraftSchema`: `titleLength` 27 ≤ 120 y `noteLength` 169 ≤ 500. El proveedor **descarga**
+  la URL pública, así que el corte es la forma A de `plan-ciclo-3d` §5 y el adaptador `live` usa
+  `file_data.file_uri`. La rama del experimento se descartó al cerrarlo: sobrevive el veredicto en
+  §16 del plan, y la costura y el adaptador se reescribieron como producto.
+- **Motivo:** la hipótesis de 3d es que «la ficha borrador de la IA se revisa en vez de escribirse»
+  (`resumen-funcional` §3). Eso exige tres cosas a la vez: que el borrador no pueda convertirse en
+  dato sin una persona, que su forma sea la única que el artículo admite, y que falle ruidosamente
+  cuando el modelo devuelve algo que no cumple. Las tres están en la costura y en el esquema, no en el
+  prompt.
+- **Alternativa descartada — persistir el borrador en `app.ai_draft`:** una tabla, un estado y una
+  limpieza que este corte no aprende a usar; contradice `.guidelines/06` §1. Su disparador es que el
+  dueño pida recuperar un borrador tras recargar.
+- **Alternativa descartada — que la IA cree el artículo y la foto:** elimina la revisión humana, que
+  **es** la hipótesis, y mete un error en un artículo que se comparte por WhatsApp.
+- **Alternativa descartada — mandar la foto en `inline_data` (base64):** era la forma B, prevista solo
+  si el transporte por URL salía rojo. Con el veredicto verde, duplicaría los bytes de la variante y
+  no compra nada; queda registrada como camino de vuelta si la descarga pública deja de funcionar.
+- **Alternativa descartada — usar el SDK oficial del proveedor:** dependencia de runtime con su commit
+  `deps`. El corte cabe con `fetch` nativo y `AbortSignal.timeout`. Disparador: subida por referencia o
+  streaming.
+- **Consecuencia aceptada — en la forma A el humano escribe un título de trabajo antes del borrador:**
+  `app.item` y `createItemSchema` exigen título no vacío, así que el artículo ya existe cuando se pide
+  el borrador. El formulario de revisión arranca vacío, muestra la ficha guardada como contexto y **no**
+  sobrescribe lo que la persona escribió. Si la primera tanda real muestra que el título de trabajo
+  condiciona la revisión, se reconsidera la forma B.
+- **Consecuencia aceptada — coste sin control de cuota:** una llamada por clic, `maxOutputTokens`
+  acotado, una sola tentativa y sin reintentos automáticos. Sin tope por evento ni por sesión en este
+  ciclo; el hecho queda pendiente en `resumen-funcional` §6.
+- **Consecuencia aceptada — la foto sale hacia un tercero antes de publicarse:** la política de datos
+  del proveedor es del dueño y queda registrada como hecho pendiente con disparador. La mitigación del
+  ciclo es que el envío lo inicia un humano, y que la foto que viaja es la mediana.
+- **Consecuencia aceptada — sin observabilidad de fallos de IA:** no se registran cuerpos, prompts ni
+  URL; solo códigos. Disparador: el primer «no funciona» sin evidencia.
+- **Artefactos:** [`shared/src/ai.ts`](../shared/src/ai.ts:1),
+  [`backend/src/ai/draft-provider.ts`](../backend/src/ai/draft-provider.ts:1),
+  [`backend/src/ai/gemini-draft.ts`](../backend/src/ai/gemini-draft.ts:1),
+  [`backend/src/routes/ai-router.ts`](../backend/src/routes/ai-router.ts:1),
+  [`backend/src/domain/item.ts`](../backend/src/domain/item.ts:1),
+  [`frontend/src/app/items/item-review.component.ts`](../frontend/src/app/items/item-review.component.ts:1) y
+  [`wiki/src/app/foto-a-ficha/foto-a-ficha.component.ts`](../wiki/src/app/foto-a-ficha/foto-a-ficha.component.ts:1).
+- **Revisa a:** §26 y §33 (la mediana reservada y la URL pública que el borrador consume). **Revisada
+  por:** el corte del ciclo 3d y su cierre `live` en remoto.
+- **Disparador de revisión:** primera factura inesperada, cambio de política del proveedor, aparición
+  de un dato personal en una foto enviada, o una tanda de capturas reales en la que el borrador obligue
+  a reescribir todo.

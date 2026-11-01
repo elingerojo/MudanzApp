@@ -12,6 +12,7 @@ import { z } from 'zod';
 const DEFAULT_PORT = 3000;
 const DEFAULT_OAUTH_MODE = 'live';
 const DEFAULT_R2_MODE = 'live';
+const DEFAULT_AI_MODE = 'live';
 const portSchema = z.coerce.number().int().min(1).max(65_535);
 
 /**
@@ -43,6 +44,19 @@ export interface StorageConfig {
   readonly publicBaseUrl: string | null;
 }
 
+/**
+ * Generación de la ficha borrador (`AI_MODE`, ciclo 3d).
+ *
+ * Gobierna **solo** las credenciales de esta integración: el modelo se parametriza porque el
+ * proveedor los retira, y la clave no sale del proceso. El host del proveedor **no** es una variable:
+ * es un hecho del proveedor y vive en el adaptador `live` (`decisiones` §34).
+ */
+export interface AiConfig {
+  readonly mode: string;
+  readonly model: string | null;
+  readonly apiKey: string | null;
+}
+
 export interface Config {
   readonly port: number;
   readonly nodeEnv: string;
@@ -51,6 +65,7 @@ export interface Config {
   readonly adminToken: string | null;
   readonly oauth: OAuthConfig;
   readonly storage: StorageConfig;
+  readonly ai: AiConfig;
   readonly warnings: readonly string[];
 }
 
@@ -142,6 +157,26 @@ if (storage.mode !== 'live' && storage.mode !== 'fake') {
   );
 }
 
+// La capacidad de borrador existe desde el ciclo 3d. Se avisa de lo que falta sin imprimir ningún
+// valor, con el mismo patrón que OAUTH y R2: el primer fallo tiene que ser diagnosticable al arrancar.
+const ai: AiConfig = {
+  mode: readOptional('AI_MODE') ?? DEFAULT_AI_MODE,
+  model: readOptional('AI_MODEL'),
+  apiKey: readOptional('AI_API_KEY'),
+};
+
+if (ai.mode !== 'live' && ai.mode !== 'fake') {
+  warnings.push('AI_MODE is not live or fake; the first draft request will report ai_mode_invalid');
+} else if (ai.mode === 'fake') {
+  warnings.push(
+    'AI_MODE is fake: drafts come from a deterministic double and no provider is called',
+  );
+} else if (ai.model === null || ai.apiKey === null) {
+  warnings.push(
+    'AI_MODE is live but its configuration is incomplete; the first draft request will report ai_not_configured',
+  );
+}
+
 export const config: Config = {
   port: readPort(warnings),
   nodeEnv: readOptional('NODE_ENV') ?? 'development',
@@ -150,5 +185,6 @@ export const config: Config = {
   adminToken,
   oauth,
   storage,
+  ai,
   warnings,
 };

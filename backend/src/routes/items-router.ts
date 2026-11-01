@@ -3,16 +3,23 @@ import {
   createItemSchema,
   photoVariantSchema,
   photoVariantUploadSchema,
+  updateItemSchema,
   type CreatedItem,
   type ItemList,
   type ItemPhoto,
   type ItemPhotoVariant,
+  type ItemSummary,
 } from '@mudanzapp/shared';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 
 import { canActOnEvent } from '../domain/account.js';
-import { isAcceptedVariant, normalizeItemDraft, photoVariantContentType } from '../domain/item.js';
+import {
+  isAcceptedVariant,
+  normalizeItemDraft,
+  normalizeItemPatch,
+  photoVariantContentType,
+} from '../domain/item.js';
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
 import {
@@ -21,6 +28,7 @@ import {
   findPhotoVariants,
   insertItem,
   listItemsForEvent,
+  updateItem,
   upsertItemPhoto,
   upsertPhotoVariant,
   type PhotoVariantRecord,
@@ -190,6 +198,48 @@ export function createItemsRouter(deps: IdentityDeps): Router {
       }
 
       response.json({ item: toItemSummary(item) });
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Revisión humana de una ficha ya capturada (`ai-draft`, ciclo 3d). Acepta `title` y `note` y exige
+   * al menos uno: es la escritura con la que el humano aprueba lo que la IA propuso, y por eso es la
+   * única ruta que crea la ficha definitiva.
+   *
+   * Autoriza con la misma regla que la lectura y escribe **solo** esos dos campos: medidas, foto y
+   * borrado siguen fuera del corte (`plan-ciclo-3d` §2). Un artículo de otro evento responde
+   * `item_not_found`, no `404 not_found`, porque el evento sí es suyo.
+   */
+  router.patch('/events/:eventId/items/:itemId', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+      const identity = identityOf(request);
+
+      if (!(await canAct(identity, eventId))) {
+        throw new AppError('not_found');
+      }
+
+      const input = parseOrThrow(updateItemSchema, request.body);
+      const updated = await updateItem(deps.database, {
+        eventId,
+        itemId,
+        patch: normalizeItemPatch(input),
+      });
+      if (!updated) {
+        throw new AppError('item_not_found');
+      }
+
+      // Se relee para responder el `ItemSummary` completo, con su foto: el presentador se escribe una
+      // sola vez, en la lectura, y no se duplica aquí.
+      const item = await findItem(deps.database, eventId, itemId);
+      if (item === null) {
+        throw new AppError('item_not_found');
+      }
+
+      const payload: { readonly item: ItemSummary } = { item: toItemSummary(item) };
+      response.status(200).json(payload);
     };
 
     void handle().catch(next);

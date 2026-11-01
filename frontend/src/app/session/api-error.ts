@@ -25,6 +25,12 @@ export function apiErrorCode(error: unknown): string | null {
 export const INVITATION_INVALID = 'invitation_invalid';
 export const PHOTO_INVALID = 'photo_invalid';
 export const ITEM_NOT_FOUND = 'item_not_found';
+export const ITEM_PHOTO_MISSING = 'item_photo_missing';
 export const LISTING_PHOTO_REQUIRED = 'listing_photo_required';
 export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';
+
+/** Fallos de la integración de IA (`ai-draft`, ciclo 3d), cada uno con su mensaje en la revisión. */
+export const AI_UNAVAILABLE = 'ai_unavailable';
+export const AI_OUTPUT_INVALID = 'ai_output_invalid';
+export const AI_NOT_CONFIGURED = 'ai_not_configured';

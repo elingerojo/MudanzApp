@@ -86,7 +86,7 @@
 | APP (primaria, reemplaza Wix) | `APP_MODE` | `live` | solo backend; `APP_MODE` gobierna solo las de esta integración | Live con credenciales válidas; fake determinista para tests |
 | OAUTH (identidad de cuenta) | `OAUTH_MODE` | `live` | solo backend: `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET` | `OAUTH_ISSUER` se parametriza igual que `AI_MODEL`; con `fake` emite un subject fijo para e2e |
 | R2 (almacenamiento de objetos) | `R2_MODE` | `live` | solo backend: `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BASE_URL` | La capacidad existe desde `capture` (3a) y la **lectura pública** es parte del modo desde `publish` (3c, decisión §26); `live` exige las cinco piezas, `fake` compone su propia base y no lee ninguna |
-| AI | `AI_MODE` + `AI_MODEL` | `live` | `AI_API_KEY` en backend | El ID del modelo no se cablea |
+| AI (borrador de la ficha) | `AI_MODE` + `AI_MODEL` | `live` | solo backend: `AI_API_KEY` | **Ya no es condicional**: la capacidad existe desde `ai-draft` (ciclo 3d, decisión §34). `live` exige modelo y clave; `fake` devuelve un doble determinista sin red. El ID del modelo **se parametriza** y nunca se cablea, y el host de la API es un hecho del proveedor que vive en el adaptador, no en una variable |
 
 - `live` exige credenciales válidas. `fake` es el doble determinista de pruebas mientras se
   consiguen las credenciales. Una variable vacía cuenta como ausente; solo `live` y `fake` son
@@ -141,6 +141,11 @@
 Toda dependencia de runtime nueva se registra aquí en el mismo commit `deps`, con fecha, motivo,
 alternativa descartada y evidencia/aprobación. El bootstrap puede agrupar dependencias con el
 scaffold (nota E3 en `.roo/rules/05-deps.md`).
+
+> **La integración AI no añade fila.** El borrador de 3d usa el `fetch` nativo de Node y
+> `AbortSignal.timeout`: no hay SDK, no hay dependencia de runtime nueva y por tanto no hay commit
+> `deps`. El SDK oficial del proveedor queda descartado **por ahora**, con disparador: entra si el
+> corte necesitara subida por referencia o streaming, y entonces cumple `05-deps`.
 
 | Dependencia | Versión | Tipo | Fecha | Motivo | Alternativa descartada | Evidencia/Aprobación |
 | --- | --- | --- | --- | --- | --- | --- |

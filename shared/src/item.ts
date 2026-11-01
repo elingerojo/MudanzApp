@@ -98,6 +98,26 @@ export const createItemSchema = z.strictObject({
 
 export type CreateItemRequest = z.infer<typeof createItemSchema>;
 
+/**
+ * `PATCH /events/:eventId/items/:itemId`: la revisión humana de una ficha ya capturada (ciclo 3d).
+ *
+ * Solo `title` y `note`, que son los dos campos que el borrador de la IA puede proponer; medidas,
+ * foto y borrado siguen fuera, con su disparador propio (`plan-ciclo-3d` §2). La nota admite la
+ * cadena vacía porque **limpiar** una nota es una corrección legítima; el título vacío no, porque un
+ * título vacío no es un título. Al menos un campo tiene que venir: un cuerpo vacío no revisa nada.
+ */
+export const updateItemSchema = z
+  .strictObject({
+    title: title.optional(),
+    note: note.optional(),
+  })
+  .refine((value) => value.title !== undefined || value.note !== undefined, {
+    message: 'at least one field is required',
+    path: ['title'],
+  });
+
+export type UpdateItemRequest = z.infer<typeof updateItemSchema>;
+
 /** Nombre de la variante que pide o sube el cliente. */
 export const photoVariantSchema = z.enum(ITEM_PHOTO_VARIANTS);
 

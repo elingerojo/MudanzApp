@@ -20,7 +20,9 @@ publicación del ciclo 3c agrega `app.listing`: el estado publicado vive ahí y 
 foto de un artículo publicado se lee **sin sesión** desde la base pública del almacén (decisión §26).
 El corte 3c-optimizar agrega `app.item_photo_variant`: la foto se guarda en tres tamaños estándar
 —`thumb` 320 px, `medium` 768 px y `large` 1440 px de lado mayor— y el peso **no** entra al modelo
-(decisión §33).
+(decisión §33). El corte de `ai-draft` (ciclo 3d) **no agrega ninguna tabla ni columna**: el borrador
+de la IA es efímero —se valida en la frontera y no se persiste— y `app.item` solo cambia de contenido
+cuando el humano confirma la revisión con `PATCH`, sobre las mismas columnas (decisión §34).
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |

@@ -1,0 +1,70 @@
+<article class="space-y-6" data-testid="foto-a-ficha">
+  <header class="space-y-2">
+    <h1 class="text-2xl font-semibold text-slate-900">
+      Foto a ficha: contrato de la IA y revisión humana
+    </h1>
+    <p class="text-sm text-slate-600">
+      La promesa del producto es simple: tomas una foto de un mueble y aparece una ficha que puedes
+      revisar. Esta sección explica qué se le pide exactamente al modelo, qué se hace con su
+      respuesta y por qué ninguna ficha se guarda sin que una persona la apruebe.
+    </p>
+  </header>
+
+  <section class="space-y-2" data-testid="foto-a-ficha-pide">
+    <h2 class="text-lg font-semibold text-slate-900">Qué se le pide</h2>
+    <p class="text-sm text-slate-700">
+      Una sola cosa: una foto. Y no la original: viaja la <strong>variante mediana</strong> que el
+      teléfono ya preparó al capturarla, la de 768 píxeles de lado mayor. La foto no se copia a otro
+      sitio: el backend compone su dirección pública y el proveedor la descarga. La original y la
+      grande nunca salen hacia la IA.
+    </p>
+  </section>
+
+  <section class="space-y-2" data-testid="foto-a-ficha-devuelve">
+    <h2 class="text-lg font-semibold text-slate-900">Qué devuelve</h2>
+    <p class="text-sm text-slate-700">
+      Solo dos campos: un <strong>título</strong> de hasta {{ titleLimit }} caracteres y una
+      <strong>nota</strong> de hasta {{ noteLimit }} caracteres. Nada más viaja de vuelta ni se
+      publica, y el borrador no se guarda en ninguna tabla: no hay historial ni versiones.
+    </p>
+  </section>
+
+  <section class="space-y-2" data-testid="foto-a-ficha-no-decide">
+    <h2 class="text-lg font-semibold text-slate-900">Qué no decide nunca</h2>
+    <p class="text-sm text-slate-700">
+      La IA no propone <strong>medidas, peso, precio ni destino</strong>. Son datos del humano y del
+      negocio: un número inventado por un modelo entraría directo a una cotización. Las medidas se
+      escriben a mano cuando se conocen.
+    </p>
+  </section>
+
+  <section class="space-y-2" data-testid="foto-a-ficha-valida">
+    <h2 class="text-lg font-semibold text-slate-900">Cómo se valida la salida</h2>
+    <p class="text-sm text-slate-700">
+      La respuesta se valida en el borde del backend contra un esquema estricto: dos claves, los
+      límites de longitud y ninguna clave de más. Un texto que no es JSON, un campo extra o un
+      título demasiado largo fallan con un código estable (<code>ai_output_invalid</code>). No se
+      «repara» la salida: un dato a medias es peor que un fallo claro.
+    </p>
+  </section>
+
+  <section class="space-y-2" data-testid="foto-a-ficha-falla">
+    <h2 class="text-lg font-semibold text-slate-900">Qué ocurre cuando falla</h2>
+    <p class="text-sm text-slate-700">
+      La pantalla sigue siendo usable: el mensaje llega por código —sin proveedor disponible, sin
+      configuración o salida inválida— y la ficha se escribe a mano y se guarda igual. Una sola
+      tentativa por clic, sin reintentos automáticos y sin coste escondido. La promesa del producto
+      no depende de un tercero.
+    </p>
+  </section>
+
+  <section class="space-y-2" data-testid="foto-a-ficha-revision">
+    <h2 class="text-lg font-semibold text-slate-900">Por qué la revisión humana es obligatoria</h2>
+    <p class="text-sm text-slate-700">
+      Porque el artículo se comparte por WhatsApp: una ficha equivocada no se queda en pantalla, se
+      reenvía a quien va a cargar el camión. El borrador rellena lo vacío y <strong>nunca</strong>
+      sobrescribe lo que la persona ya escribió; lo que se guarda es exactamente lo que ella dejó
+      escrito, y solo entonces entra al inventario del evento.
+    </p>
+  </section>
+</article>

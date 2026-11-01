@@ -5,6 +5,8 @@
  * necesita. `zod` vive en `dependencies` y se usa en la frontera del backend; los esquemas del
  * corte de identidad del ciclo 1 se exportan aquí y son la fuente única de su forma.
  */
+export { AI_DRAFT_LIMITS, aiDraftSchema } from './ai.js';
+export type { AiDraft, AiDraftResult } from './ai.js';
 export { health } from './health.js';
 export type { DatabaseState, Health } from './health.js';
 export { brand } from './brand.js';
@@ -27,6 +29,7 @@ export {
   createItemSchema,
   photoVariantSchema,
   photoVariantUploadSchema,
+  updateItemSchema,
 } from './item.js';
 export { LISTING_LIMITS, LISTING_SLUG_PATTERN, listingSlugSchema } from './listing.js';
 export type {
@@ -46,6 +49,7 @@ export type {
   ItemSummary,
   PhotoSize,
   PhotoVariantUpload,
+  UpdateItemRequest,
 } from './item.js';
 export type {
   ClaimEventRequest,

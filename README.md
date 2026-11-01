@@ -116,6 +116,9 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 | `backend/.env.local`           | `R2_ENDPOINT`                               | Endpoint S3 del bucket (`https://<account-id>.r2.cloudflarestorage.com`), sin el bucket                                                                                                               |
 | `backend/.env.local`           | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Token S3 limitado al bucket; solo se exige en `live`                                                                                                                                                  |
 | `backend/.env.local`           | `R2_PUBLIC_BASE_URL`                        | Origen de la **lectura pública** (`https://pub-<hash>.r2.dev`): sin el segmento del bucket, sin la clave y sin barra final. `r2.dev` sirve `/<object_key>`, así que el backend solo le añade la clave |
+| `backend/.env.local`           | `AI_MODE`                                   | `live`/`fake`; pruebas y arnés en `fake`; default `live`                                                                                                                                              |
+| `backend/.env.local`           | `AI_MODEL`                                  | ID del modelo del proveedor de IA; **parametrizado**, nunca cableado en el código                                                                                                                     |
+| `backend/.env.local`           | `AI_API_KEY`                                | Clave del proveedor de IA; solo backend, viaja en `x-goog-api-key` y nunca se imprime                                                                                                                 |
 | `backend/.env.migration.local` | `DATABASE_URL`                              | Cadena **directa** de Neon; solo comandos `db:migrate:remote*` y `db:ping:remote*`                                                                                                                    |
 
 - `process.env` se lee **una sola vez**, en [`backend/src/config.ts`](backend/src/config.ts:1). El
@@ -125,9 +128,13 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
   es opcional y el default del código es `3000`; en **Railway es obligatoria con valor `3000`**
   (§12). Una variable vacía cuenta como ausente, así que `PORT=` en Railway no fija nada: se
   escribe `PORT=3000`.
-- Las integraciones APP y AI (`APP_MODE`, `AI_MODE`, `AI_MODEL`) y sus credenciales se añaden
-  **cuando su capacidad exista**; hoy no se leen. En pruebas y arnés van en `fake`. Las integraciones
-  **OAUTH** (ciclo 1) y **R2** (ciclos 3a y 3c) sí tienen lector, con `live`/`fake` y default `live`.
+- **AI** tiene lector desde el ciclo 3d (decisión §34): `AI_MODE` con `live`/`fake` y default `live`,
+  `AI_MODEL` parametrizado y `AI_API_KEY` que no sale del backend. En `live` se exigen modelo y clave;
+  en `fake` el doble devuelve un borrador fijo sin red, así que el gate nunca llama al proveedor. El
+  host de la API no es variable: es un hecho del proveedor y vive en el adaptador `live`.
+- La integración APP (`APP_MODE`) sigue sin lector: se añade **cuando su capacidad exista**. Las
+  integraciones **OAUTH** (ciclo 1), **R2** (ciclos 3a y 3c) y **AI** (ciclo 3d) ya lo tienen, con
+  `live`/`fake` y default `live`.
 - **R2** cubre la escritura de la foto y su **lectura pública** (decisión §26). En `live` exige las
   cinco piezas —bucket, endpoint, las dos claves y la base pública—; en `fake` el doble compone su
   propia base y **no lee** ninguna, así que configurar R2 no cambia una sola corrida local. El gate
@@ -255,6 +262,21 @@ npm run db:migrate:branch:test
 - Códigos nuevos y estables: `listing_photo_required` (409) y `r2_unavailable` (503). Un fallo de
   credencial de R2 se ve como `r2_not_configured` o `r2_unavailable`, nunca como una foto en blanco
   silenciosa.
+
+### Borrador del ciclo 3d
+
+| Ruta                                        | Credencial        | Respuesta                                                                                                                                                                             |
+| ------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /events/:eventId/items/:itemId/draft` | Sesión del evento | `200` con `{ draft: { title, note } }` ya validado; `404 not_found` si el evento es ajeno; `404 item_not_found` si el artículo no es de ese evento; `409 item_photo_missing` sin foto |
+| `PATCH /events/:eventId/items/:itemId`      | Sesión del evento | `200` con `{ item }`; acepta `title` y `note` y exige al menos uno; `400 validation_failed` si el cuerpo no cumple                                                                    |
+
+- El borrador **no escribe**: la ruta no tiene cuerpo, no hay tabla, no hay historial y no se toca el
+  almacén. Lo que persiste es exactamente lo que el humano deja escrito en el `PATCH` (decisión §34).
+- Al proveedor viaja la **URL pública de la variante `medium`** de la foto —o la mayor disponible si
+  falta—, nunca la original ni la `large`. El backend no reenvía bytes.
+- Códigos nuevos: `item_photo_missing` (409), `ai_unavailable` (503), `ai_not_configured` (503),
+  `ai_output_invalid` (502) y `ai_mode_invalid` (500). Cuando la IA falla, la ficha se escribe a mano y
+  se guarda igual: la pantalla nunca se bloquea.
 
 ### Identidad del ciclo 1
 
