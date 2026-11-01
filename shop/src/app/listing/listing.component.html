@@ -23,16 +23,106 @@
       </p>
     </header>
 
-    @if (listing.photo; as photo) {
-      <img
-        [ngSrc]="photo.url"
-        width="640"
-        height="640"
-        priority
-        alt=""
-        class="w-full rounded-lg bg-slate-100 object-cover"
-        data-testid="listing-photo"
-      />
+    @if (gallery(); as photo) {
+      <div class="space-y-3" data-testid="listing-gallery">
+        @if (photo.medium; as medium) {
+          <figure>
+            <button
+              #zoomTrigger
+              type="button"
+              class="block w-full cursor-zoom-in"
+              (click)="openZoom(zoomTrigger)"
+              data-testid="listing-photo-trigger"
+              aria-label="Ver la foto en tamaño grande"
+            >
+              @if (medium.widthPx > 0) {
+                <img
+                  [ngSrc]="medium.url"
+                  [width]="medium.widthPx"
+                  [height]="medium.heightPx"
+                  sizes="100vw"
+                  priority
+                  alt=""
+                  class="w-full rounded-lg bg-slate-100 object-cover"
+                  data-testid="listing-photo"
+                />
+              } @else {
+                <img
+                  [src]="medium.url"
+                  alt=""
+                  class="w-full rounded-lg bg-slate-100 object-cover"
+                  data-testid="listing-photo"
+                />
+              }
+            </button>
+
+            <figcaption class="mt-1 text-xs text-slate-500" data-testid="listing-photo-medium">
+              {{ medium.widthPx }} px
+            </figcaption>
+          </figure>
+        }
+
+        @if (photo.thumb; as thumb) {
+          <figure class="w-24">
+            @if (thumb.widthPx > 0) {
+              <img
+                [ngSrc]="thumb.url"
+                [width]="thumb.widthPx"
+                [height]="thumb.heightPx"
+                alt=""
+                class="w-full rounded-lg bg-slate-100 object-cover"
+                data-testid="listing-photo-thumb"
+              />
+            } @else {
+              <img
+                [src]="thumb.url"
+                alt=""
+                class="w-full rounded-lg bg-slate-100 object-cover"
+                data-testid="listing-photo-thumb"
+              />
+            }
+
+            <figcaption class="text-xs text-slate-500" data-testid="listing-photo-thumb-label">
+              {{ thumb.widthPx }} px
+            </figcaption>
+          </figure>
+        }
+      </div>
+
+      @if (zoomed() && photo.large; as large) {
+        <div
+          class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-900/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Foto ampliada"
+          data-testid="listing-photo-overlay"
+        >
+          <!-- El fondo es un botón de verdad: se cierra tocándolo y también con el teclado. -->
+          <button
+            type="button"
+            class="absolute inset-0 h-full w-full cursor-zoom-out"
+            (click)="closeZoom()"
+            aria-label="Cerrar la foto ampliada"
+            data-testid="listing-photo-backdrop"
+          ></button>
+
+          <img
+            [src]="large.url"
+            alt=""
+            class="relative max-h-[80vh] w-auto rounded-lg"
+            data-testid="listing-photo-large"
+          />
+
+          <button
+            type="button"
+            class="relative rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-900"
+            (click)="closeZoom()"
+            data-testid="listing-photo-close"
+          >
+            Cerrar
+          </button>
+        </div>
+      }
     }
 
     @if (listing.widthCm !== null && listing.heightCm !== null && listing.depthCm !== null) {

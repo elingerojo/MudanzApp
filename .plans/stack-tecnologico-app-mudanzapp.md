@@ -153,6 +153,8 @@ scaffold (nota E3 en `.roo/rules/05-deps.md`).
 | Tailwind CSS | v4 | dev | 2026-10-19 | Estilos utilitarios | CSS propio | Stack §3 |
 | Vitest | ^4.0.8 | dev | 2026-10-19 | Pruebas unitarias | Jest | Stack §8 y decisión 9 |
 | Playwright | ^1.63.0 | dev | 2026-10-19 | E2E | Cypress | Stack §8 y decisión 11 |
+| *(ninguna)* | — | — | 2026-10-31 | La optimización de la foto del ciclo 3c-optimizar usa `canvas`, `toBlob` y `createImageBitmap`, **nativos del navegador** | `sharp` en el backend (dependencia de runtime nueva y obligaría a que la original viaje primero) | Decisión §33 y `plan-ciclo-3c-optimizar` §1 |
 
 > Las versiones son las del bootstrap; se actualizan aquí cuando cambien. Una dependencia nueva
-> no se considera autorizada hasta que aparezca en esta tabla.
+> no se considera autorizada hasta que aparezca en esta tabla. La fila `(ninguna)` registra un corte
+> que **no** añadió dependencias: existe para que la ausencia sea una decisión escrita y no un olvido.

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import type { ItemPhotoVariant } from '@mudanzapp/shared';
+
 import type { StorageConfig } from '../config.js';
 import { AppError } from '../errors.js';
 import { createFileObjectStore } from './r2-fake.js';
@@ -30,11 +32,13 @@ export interface ObjectStore {
 
 /**
  * Clave del objeto: identifica el evento y el artículo para que un volcado del almacén sea legible,
- * y añade un identificador aleatorio para que reemplazar una foto nunca sobrescriba otra. El
- * `object_key` es del almacén; la dirección estable que ve el cliente es `app.item_photo.id`.
+ * añade un identificador aleatorio para que reemplazar una foto nunca sobrescriba otra, y termina en
+ * el nombre de la variante, que es lo que hace legible un volcado del bucket
+ * (`plan-ciclo-3c-optimizar` §5). La unicidad la sigue dando el `uuid`; el `object_key` es del
+ * almacén y la dirección estable que ve el cliente es `app.item_photo.id`.
  */
-export function newObjectKey(eventId: string, itemId: string): string {
-  return `${eventId}/${itemId}/${randomUUID()}`;
+export function newObjectKey(eventId: string, itemId: string, variant: ItemPhotoVariant): string {
+  return `${eventId}/${itemId}/${randomUUID()}-${variant}`;
 }
 
 /** Almacén que siempre rechaza con el código que explica por qué no hay almacén. */

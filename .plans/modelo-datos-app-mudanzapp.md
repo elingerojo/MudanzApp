@@ -4,8 +4,9 @@
 > [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1) y el corte de la invitación
 > canjeable en [`backend/sql/003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:1),
 > las dos tablas del corte de captura del ciclo 3a en
-> [`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1) y la tabla de publicación del ciclo 3c en
-> [`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1).
+> [`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1), la tabla de publicación del ciclo 3c en
+> [`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1) y la de las tres variantes de la
+> foto en [`backend/sql/006_item_photo_variant.sql`](../backend/sql/006_item_photo_variant.sql:1).
 > Este documento es la fuente única del modelo; el DDL debe coincidir con él.
 > **Dueño:** Architect / Backend. **Disparador de revisión:** nueva tabla, migración o cambio de
 > contrato.
@@ -17,6 +18,9 @@ capacidad acotada —72 horas y cinco canjes— y admite sesiones de evento sin 
 (`decisiones` §30). El corte de captura del ciclo 3a agrega el artículo y su foto. El corte de
 publicación del ciclo 3c agrega `app.listing`: el estado publicado vive ahí y no en `app.item`, y la
 foto de un artículo publicado se lee **sin sesión** desde la base pública del almacén (decisión §26).
+El corte 3c-optimizar agrega `app.item_photo_variant`: la foto se guarda en tres tamaños estándar
+—`thumb` 320 px, `medium` 768 px y `large` 1440 px de lado mayor— y el peso **no** entra al modelo
+(decisión §33).
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
@@ -27,7 +31,8 @@ foto de un artículo publicado se lee **sin sesión** desde la base pública del
 | `app.event` | El evento de mudanza | `id`, `owner_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
 | `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `created_at` |
-| `app.item_photo` | Foto de un artículo, una por posición | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
+| `app.item_photo` | Foto de un artículo, una por posición; sus columnas describen el tamaño `large` | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
+| `app.item_photo_variant` | Objeto de cada tamaño estándar de la foto | `photo_id`, `variant`, `object_key`, `content_type`, `width_px`, `height_px`, `created_at` |
 | `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `created_at` |
 
 Restricciones que van con el DDL:
@@ -50,14 +55,28 @@ Restricciones que van con el DDL:
 - `app.item_photo.content_type` se limita a `image/jpeg`, `image/png` y `image/webp`; `object_key` es
   único y hay una sola fila por `(item_id, position)`; borrar el artículo borra sus fotos
   (`ON DELETE CASCADE`). Los bytes viven en el almacén de objetos detrás de `R2_MODE`, no en la base;
+- `app.item_photo_variant` tiene una fila por `(photo_id, variant)`, `object_key` único y
+  `variant` acotado a `thumb`, `medium` y `large`. Su `content_type` se limita a `image/jpeg` y
+  `image/webp`, que es la salida del codificador del dispositivo. Cae en cascada con la foto y
+  **no guarda el peso** (`plan-ciclo-3c-optimizar` §5);
+- **ninguna regla de peso ni de tamaño vive en la base:** el único límite de tamaño es
+  `ITEM_PHOTO_SIZES` en el código, compartido por el navegador y la frontera, y el único objetivo de
+  peso es el del codificador (`ITEM_PHOTO_ENCODING`). Ajustar un tamaño no exige migración y ninguna
+  variante se rechaza por su peso;
+- `app.item_photo` **no cambia de forma**: sus columnas heredadas —`object_key`, `content_type` y
+  `byte_size`— describen el tamaño `large` y siguen siendo obligatorias, así que la subida de ese
+  tamaño las rellena. `byte_size` sobrevive como peso del tamaño `large`: nadie lo lee y se retira con
+  la contracción (`backend/sql/contract/`) cuando el GC elimine las fotos anteriores al ciclo;
 - `app.item` no guarda estado de publicación, precio ni moneda: el estado publicado es
   `app.listing`. Un artículo sin fila en `app.listing` no está publicado;
 - `app.listing.item_id` es **único**: publicar es idempotente y republicar devuelve la misma fila y la
   misma URL. `slug` es único y su `CHECK` exige entre 3 y 140 caracteres con el patrón
   `^[a-z0-9]+(-[a-z0-9]+)*$`. El `slug` se deriva del título más seis caracteres del `itemId` y **no**
   se reescribe al cambiar el título: una URL compartida es un hecho publicado (`plan-ciclo-3c` §3);
-- publicar exige foto: `app.listing` no lo impone por DDL —la foto puede llegar después en otro
-  ciclo—, así que la regla vive en el borde (`listing_photo_required`, 409) y en su ciclo;
+- publicar exige foto **en sus tres tamaños**: `app.listing` no lo impone por DDL —la foto y sus
+  variantes se suben por separado—, así que la regla vive en el borde (`listing_photo_required`, 409)
+  y en su ciclo. Una foto anterior a 3c-optimizar no tiene filas de variante y no puede publicarse por
+  primera vez; los ya publicados siguen respondiendo `200`;
 - la **retención** aprobada es «la foto vive mientras exista el `listing`»: `app.item_photo` cae en
   cascada con el artículo, pero el objeto del bucket **no**. El barrido de huérfanos es manual y hoy
   no tiene script (`plan-ciclo-3c` §10).
@@ -65,10 +84,12 @@ Restricciones que van con el DDL:
 El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
 [`backend/sql/001_init.sql`](../backend/sql/001_init.sql). Las seis tablas del corte de identidad
 viven en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1), las del artículo en
-[`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1) y la publicación en
-[`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1), escritos con la forma de §9:
-aditivos, idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción propia. El
-archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
+[`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1), la publicación en
+[`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1) y las variantes de la foto en
+[`backend/sql/006_item_photo_variant.sql`](../backend/sql/006_item_photo_variant.sql:1), escritos con
+la forma de §9: aditivos, idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin
+transacción propia. El archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro
+archivo.
 
 Candidatas sin compromiso, cada una con su ciclo: `app.sale`, `app.packing_step`,
 `app.packing_material` y `app.receive_check`. `app.reservation` no figura: la decisión §25 del
@@ -172,3 +193,4 @@ apartado declara que no hay fila propia.
 | Matriz local/remota y comandos de migración | Architect | Cambio de topología o de runner |
 | Retención de la foto publicada («mientras exista el `listing`», barrido manual de huérfanos) | Architect / Backend | Primer borrado, costo de almacenamiento visible o política de retención nueva |
 | `slug` publicado (`CHECK` y derivación desde el título) | Architect / Backend | Necesidad de `slug` editable o de estabilidad entre cambios de título |
+| Tamaños estándar de la foto y objetivo de peso (fuera de la base, en `ITEM_PHOTO_SIZES` e `ITEM_PHOTO_ENCODING`) | Architect / Frontend | 400 KB dejen de ser suficientes para el zoom, o aparezca un catálogo con decenas de tarjetas |

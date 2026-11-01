@@ -1,10 +1,15 @@
-import { ITEM_LIMITS } from '@mudanzapp/shared';
+import { ITEM_PHOTO_SIZES } from '@mudanzapp/shared';
 
-import { isSupportedPhoto, normalizeItemDraft, photoContentType } from '../../src/domain/item.js';
+import {
+  hasEveryVariant,
+  isAcceptedVariant,
+  normalizeItemDraft,
+  photoVariantContentType,
+} from '../../src/domain/item.js';
 
 /**
- * Núcleo puro del artículo: la evidencia unitaria del ciclo 3a (`resumen-funcional` §4, `capture`).
- * Sin base, sin HTTP y sin reloj.
+ * Núcleo puro del artículo: la evidencia unitaria del ciclo 3a (`resumen-funcional` §4, `capture`) y
+ * el veredicto de variante del ciclo 3c-optimizar. Sin base, sin HTTP y sin reloj.
  */
 
 describe('normalizeItemDraft', () => {
@@ -48,27 +53,56 @@ describe('normalizeItemDraft', () => {
   });
 });
 
-describe('isSupportedPhoto', () => {
-  it('accepts the three declared image types at the boundary size', () => {
-    expect(isSupportedPhoto('image/jpeg', ITEM_LIMITS.photoBytes)).toBe(true);
-    expect(isSupportedPhoto('image/png', 1)).toBe(true);
-    expect(isSupportedPhoto('image/webp', 1_024)).toBe(true);
+describe('isAcceptedVariant', () => {
+  it('accepts the encoder output at the boundary of its own size', () => {
+    expect(isAcceptedVariant('thumb', 'image/webp', ITEM_PHOTO_SIZES.thumb.maxEdgePx, 180)).toBe(
+      true,
+    );
+    expect(isAcceptedVariant('medium', 'image/jpeg', ITEM_PHOTO_SIZES.medium.maxEdgePx, 512)).toBe(
+      true,
+    );
+    expect(isAcceptedVariant('large', 'image/webp', 1_080, ITEM_PHOTO_SIZES.large.maxEdgePx)).toBe(
+      true,
+    );
   });
 
-  it('rejects a type that is not declared', () => {
-    expect(isSupportedPhoto('image/gif', 1_024)).toBe(false);
-    expect(isSupportedPhoto('application/pdf', 1_024)).toBe(false);
+  it('accepts a photo smaller than its size without enlarging it', () => {
+    expect(isAcceptedVariant('large', 'image/webp', 400, 300)).toBe(true);
   });
 
-  it('rejects an empty file and one byte over the limit', () => {
-    expect(isSupportedPhoto('image/jpeg', 0)).toBe(false);
-    expect(isSupportedPhoto('image/jpeg', ITEM_LIMITS.photoBytes + 1)).toBe(false);
+  it('rejects a declared type that is not the encoder output', () => {
+    expect(isAcceptedVariant('medium', 'image/png', 768, 512)).toBe(false);
+    expect(isAcceptedVariant('medium', 'image/gif', 768, 512)).toBe(false);
+  });
+
+  it('rejects an edge that exceeds the size of its own variant', () => {
+    expect(
+      isAcceptedVariant('thumb', 'image/webp', ITEM_PHOTO_SIZES.thumb.maxEdgePx + 1, 100),
+    ).toBe(false);
+    expect(isAcceptedVariant('medium', 'image/webp', 1_024, 768)).toBe(false);
+  });
+
+  it('rejects zero, negative and fractional dimensions', () => {
+    expect(isAcceptedVariant('thumb', 'image/webp', 0, 100)).toBe(false);
+    expect(isAcceptedVariant('thumb', 'image/webp', 100, -1)).toBe(false);
+    expect(isAcceptedVariant('thumb', 'image/webp', 100.5, 100)).toBe(false);
   });
 });
 
-describe('photoContentType', () => {
-  it('narrows a declared type and refuses anything else', () => {
-    expect(photoContentType('image/png')).toBe('image/png');
-    expect(photoContentType('image/gif')).toBeNull();
+describe('photoVariantContentType', () => {
+  it('narrows the encoder output and refuses anything else', () => {
+    expect(photoVariantContentType('image/webp')).toBe('image/webp');
+    expect(photoVariantContentType('image/jpeg')).toBe('image/jpeg');
+    expect(photoVariantContentType('image/png')).toBeNull();
+  });
+});
+
+describe('hasEveryVariant', () => {
+  it('is true only when the three sizes exist', () => {
+    const size = { widthPx: 320, heightPx: 180 };
+
+    expect(hasEveryVariant({ thumb: size, medium: size, large: size })).toBe(true);
+    expect(hasEveryVariant({ thumb: size, medium: null, large: size })).toBe(false);
+    expect(hasEveryVariant(null)).toBe(false);
   });
 });

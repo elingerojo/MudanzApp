@@ -1,12 +1,15 @@
 import {
-  ITEM_LIMITS,
-  ITEM_PHOTO_CONTENT_TYPES,
+  ITEM_PHOTO_SIZES,
+  ITEM_PHOTO_VARIANTS,
+  ITEM_PHOTO_VARIANT_CONTENT_TYPES,
   type CreateItemRequest,
-  type ItemPhotoContentType,
+  type ItemPhotoVariant,
+  type ItemPhotoVariantContentType,
+  type PhotoSize,
 } from '@mudanzapp/shared';
 
 /**
- * Núcleo puro del artículo (ciclo 3a, `capture`).
+ * Núcleo puro del artículo (ciclo 3a, `capture`; revisado por 3c-optimizar).
  *
  * No conoce HTTP, base de datos, reloj ni red (`03` §3): recibe la petición ya validada por la
  * frontera y devuelve la forma que el almacén escribe, o un veredicto sobre una foto. Los límites
@@ -16,7 +19,9 @@ import {
  * Hechos que implementa, con su fuente:
  * - la ficha mínima es título, nota y medidas opcionales; la nota vacía es ausencia, no una cadena
  *   vacía (`resumen-funcional` §4, `capture`);
- * - la foto solo se acepta en los tres tipos declarados y por debajo del límite del corte.
+ * - una variante solo se acepta con la salida del codificador del dispositivo, con dimensiones
+ *   positivas y dentro del lado mayor de **su** tamaño; el peso no se juzga (`plan-ciclo-3c-optimizar`
+ *   §3 y §4).
  */
 
 /** Ficha lista para escribir: la nota ausente es `null`, nunca `''`. */
@@ -47,20 +52,50 @@ export function normalizeItemDraft(input: CreateItemRequest): ItemDraft {
 }
 
 /**
- * Veredicto sobre una foto recibida: el tipo debe estar declarado y el tamaño ser positivo y no
- * superar el límite. Se comprueba en el borde, antes de tocar el almacén, para que un archivo
- * rechazado no deje objeto huérfano.
+ * Veredicto sobre una variante recibida: el tipo debe ser la salida del codificador, las dimensiones
+ * ser positivas y el lado mayor no superar el de esa variante. Se comprueba en el borde, antes de
+ * tocar el almacén, para que un archivo rechazado no deje objeto huérfano.
+ *
+ * **El peso no se juzga**: no hay presupuesto en el borde. El objetivo de 400 KB es del codificador
+ * del dispositivo (decisión §33) y una variante más pesada entra igual.
  */
-export function isSupportedPhoto(contentType: string, byteSize: number): boolean {
-  if (byteSize <= 0 || byteSize > ITEM_LIMITS.photoBytes) {
+export function isAcceptedVariant(
+  variant: ItemPhotoVariant,
+  contentType: string,
+  widthPx: number,
+  heightPx: number,
+): boolean {
+  if (photoVariantContentType(contentType) === null) {
     return false;
   }
 
-  return (ITEM_PHOTO_CONTENT_TYPES as readonly string[]).includes(contentType);
+  if (!Number.isInteger(widthPx) || !Number.isInteger(heightPx)) {
+    return false;
+  }
+
+  if (widthPx <= 0 || heightPx <= 0) {
+    return false;
+  }
+
+  return Math.max(widthPx, heightPx) <= ITEM_PHOTO_SIZES[variant].maxEdgePx;
 }
 
-/** Estrecha un tipo ya aceptado por `isSupportedPhoto`; evita un `cast` en el borde. */
-export function photoContentType(contentType: string): ItemPhotoContentType | null {
-  const found = ITEM_PHOTO_CONTENT_TYPES.find((candidate) => candidate === contentType);
+/** Estrecha el tipo de una variante ya aceptada; evita un `cast` en el borde. */
+export function photoVariantContentType(contentType: string): ItemPhotoVariantContentType | null {
+  const found = ITEM_PHOTO_VARIANT_CONTENT_TYPES.find((candidate) => candidate === contentType);
   return found ?? null;
+}
+
+/**
+ * ¿Están las tres variantes? Es la regla de publicar: un artículo con una foto heredada —sin tabla de
+ * variantes— no puede publicarse por primera vez, porque la ficha se comparte por sus tamaños.
+ */
+export function hasEveryVariant(
+  sizes: Readonly<Partial<Record<ItemPhotoVariant, PhotoSize | null>>> | null,
+): boolean {
+  if (sizes === null) {
+    return false;
+  }
+
+  return ITEM_PHOTO_VARIANTS.every((variant) => (sizes[variant] ?? null) !== null);
 }

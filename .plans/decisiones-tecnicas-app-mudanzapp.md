@@ -623,3 +623,60 @@ Reglas del crecimiento:
 - **Revisa a:** §26. **Revisada por:** el corte del ciclo 3c (`publish`).
 - **Disparador de revisión:** primer artículo publicado por error, necesidad de `slug` editable o
   estable entre cambios de título, y costo de almacenamiento visible.
+
+## 33. La foto se optimiza en el dispositivo, se guarda en tres tamaños y el peso no se persiste (2026-10-31)
+
+- **Decisión:** la foto de un artículo se **decodifica y se recomprime en el dispositivo** antes de
+  cualquier petición, y se guarda en tres tamaños estándar —`thumb` 320 px, `medium` 768 px y `large`
+  1440 px de lado mayor, todos con la proporción original, sin recorte y sin ampliar—. La codificación
+  arranca en calidad 0.8 y **solo baja la calidad** hasta 0.5 si el resultado rebasa el objetivo de
+  400 KB; la escala no cambia nunca para cumplir el peso. Los tres tamaños viven en
+  `ITEM_PHOTO_SIZES` e `ITEM_PHOTO_ENCODING` (`shared/src/item.ts`), son la misma fuente para el
+  navegador y para la frontera, y **ninguna regla de peso ni de tamaño vive en la base de datos**: el
+  peso no entra al modelo nuevo y `byte_size` sobrevive en `app.item_photo` solo como herencia que
+  describe el tamaño `large`.
+- **Motivo:** el enlace se comparte por WhatsApp y se abre en datos móviles; una foto de cámara de
+  varios megabytes no se puede abrir así. Optimizar en el origen es lo único que cumple las dos
+  condiciones a la vez: la original **nunca viaja** —ni al backend ni a la IA de 3d— y lo guardado
+  persigue un objetivo de peso sin imponer un recorte al encuadre que el usuario vio.
+- **Alternativa descartada — redimensionar en el servidor con `sharp`:** es dependencia de runtime
+  nueva y, además, obliga a que la original viaje primero, que es exactamente lo que la hipótesis
+  prohíbe. `canvas` y `toBlob` son nativos: cero dependencias y cero bytes de original en la red.
+- **Alternativa descartada — subir la original y transformar en el CDN de imágenes:** ata el producto
+  a un proveedor de transformación, exige el archivo grande en el almacén y deja el peso fuera del
+  control del ciclo. Su disparador sería un catálogo con decenas de tarjetas (`srcset` responsivo y
+  CDN de imágenes quedan fuera de este ciclo).
+- **Alternativa descartada — bajar la escala para cumplir el objetivo de peso:** cambiaría el encuadre
+  por una razón invisible para el usuario. El tamaño lo fija la variante; el peso solo mueve la
+  calidad.
+- **Alternativa descartada — guardar el peso en el modelo nuevo:** obliga a mantener un estado que
+  nadie usa para decidir nada. Sin columna no hay nada que pueda contradecir lo que la foto pesa.
+- **Consecuencia aceptada — nadie verifica el peso después de codificar:** no hay control en el borde,
+  ni en la base, ni en la lectura. Si una versión futura del codificador se equivoca, entra una foto
+  pesada sin que nada la detenga. Es el precio de no mantener el peso como estado.
+- **Consecuencia aceptada — una foto muy ruidosa puede no llegar al objetivo:** con la calidad en el
+  piso se guarda la mejor codificación obtenida, el formulario muestra su peso real y la captura
+  sigue. Nada se bloquea y nada se rechaza.
+- **Consecuencia aceptada — tres objetos por foto y columnas heredadas duplicadas:** el almacén crece
+  en número de objetos y `app.item_photo` sigue guardando la clave, el tipo y el peso del tamaño
+  `large`, que también viven en la tabla nueva. Es deuda declarada con disparador —el ciclo de GC— y
+  el precio de no tocar el DDL de la tabla principal.
+- **Consecuencia aceptada — ruptura del contrato de la foto:** `ItemPhoto` y `PublicListingPhoto`
+  pasan de una URL a tres tamaños con URL y dimensiones, y el peso desaparece de todos los contratos.
+  No hay consumidor fuera del monorepo y los tres workspaces se compilan en el gate.
+- **Consecuencia aceptada — el navegador decide el codificador:** WebP primero y JPEG como respaldo
+  con el mismo presupuesto de peso; `content_type` guardado dice la verdad. Si el navegador no sabe
+  decodificar lo que entrega la cámara (HEIC), el optimizador falla con un mensaje explícito y no sube
+  nada: fallo ruidoso, no degradación silenciosa.
+- **Artefactos:** [`shared/src/item.ts`](../shared/src/item.ts:1),
+  [`shared/src/listing.ts`](../shared/src/listing.ts:1),
+  [`backend/sql/006_item_photo_variant.sql`](../backend/sql/006_item_photo_variant.sql:1),
+  [`backend/src/domain/item.ts`](../backend/src/domain/item.ts:1),
+  [`backend/src/routes/items-router.ts`](../backend/src/routes/items-router.ts:1),
+  [`frontend/src/app/items/photo-optimizer.ts`](../frontend/src/app/items/photo-optimizer.ts:1) y
+  [`shop/src/app/listing/listing.component.ts`](../shop/src/app/listing/listing.component.ts:1).
+- **Revisa a:** §26 y §31 (la URL pública deja de ser una y pasan a ser tres, emitidas por el mismo
+  `ObjectStore.publicUrl`). **Revisada por:** el corte del ciclo 3c-optimizar y, como hecho heredado,
+  el arranque de 3d (el borrador de IA consume la mediana, nunca la original).
+- **Disparador de revisión:** que 400 KB deje de ser suficiente para el zoom, o que aparezca un
+  catálogo con decenas de tarjetas.

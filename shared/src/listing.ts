@@ -1,15 +1,16 @@
 import { z } from 'zod';
 
-import type { ItemPhotoContentType } from './item.js';
+import type { ItemPhotoVariant, PhotoSize } from './item.js';
 
 /**
- * Contrato del corte de publicación del ciclo 3c (`publish`, `resumen-funcional` §3 y §4).
+ * Contrato del corte de publicación del ciclo 3c (`publish`, `resumen-funcional` §3 y §4) y de la
+ * optimización de la foto del ciclo 3c-optimizar.
  *
  * Un artículo capturado recibe una URL pública legible (`/<slug>`) y cualquiera la abre sin sesión
  * desde WhatsApp. La autorización sigue viviendo en la escritura, nunca en la URL (`decisiones` §24),
  * de modo que el contrato público no publica identificadores internos: ni `eventId`, ni `itemId`, ni
- * el `object_key` del almacén. El `slug` es la dirección y la foto llega como URL absoluta, compuesta
- * por el backend desde la base pública de `R2_MODE` (decisión §26).
+ * el `object_key` del almacén. El `slug` es la dirección y cada tamaño de la foto llega como URL
+ * absoluta, compuesta por el backend desde la base pública de `R2_MODE` (decisión §26).
  */
 
 /** Límites del corte, en un solo lugar: el `CHECK` de la tabla y el contrato usan el mismo número. */
@@ -34,10 +35,17 @@ export const listingSlugSchema = z
   .max(LISTING_LIMITS.slug)
   .regex(new RegExp(LISTING_SLUG_PATTERN));
 
-/** Foto de la ficha pública: la URL la emite el backend y el navegador la descarga del almacén. */
-export interface PublicListingPhoto {
+/**
+ * Un tamaño de la ficha pública: la URL la emite el backend, el navegador la descarga del almacén, y
+ * las dimensiones son las **reales** del objeto, para que la ficha reserve la caja correcta.
+ */
+export interface PublicPhotoSize extends PhotoSize {
   readonly url: string;
-  readonly contentType: ItemPhotoContentType;
+}
+
+/** La foto pública en sus tres tamaños. Un tamaño ausente es `null`, no un objeto vacío. */
+export interface PublicListingPhoto {
+  readonly sizes: Readonly<Record<ItemPhotoVariant, PublicPhotoSize | null>>;
 }
 
 /**

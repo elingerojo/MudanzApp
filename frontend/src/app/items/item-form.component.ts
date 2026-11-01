@@ -1,16 +1,28 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import {
   ITEM_LIMITS,
   ITEM_PHOTO_CONTENT_TYPES,
+  ITEM_PHOTO_VARIANTS,
   type CreateItemRequest,
   type CreatedItem,
+  type ItemPhotoVariant,
 } from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { PHOTO_INVALID, apiErrorCode } from '../session/api-error';
 import { uiButtonClasses } from '../ui/ui-button/ui-button';
+import { sizeLabel } from './photo-encoding';
+import { optimizePhoto, type OptimizedPhoto } from './photo-optimizer';
 
 /** Error de la ficha, para distinguirlo de un fallo de red al capturarlo. */
 class DraftError extends Error {}
@@ -37,15 +49,31 @@ function parseMeasure(raw: string, label: string): number | null {
 const ACCEPT_ATTRIBUTE = ITEM_PHOTO_CONTENT_TYPES.join(',');
 
 /**
- * Captura de un artículo: foto y datos mínimos (`capture`, ciclo 3a).
+ * Orden de subida: de mayor a menor, para que `large` cree la foto y las otras dos solo añadan su
+ * fila (`plan-ciclo-3c-optimizar` §5).
+ */
+const UPLOAD_ORDER: readonly ItemPhotoVariant[] = ['large', 'medium', 'thumb'];
+
+/** Fila de la tarjeta de pesos: dimensiones y peso reales de la variante que el dispositivo produjo. */
+interface SizeEntry {
+  readonly variant: ItemPhotoVariant;
+  readonly widthPx: number;
+  readonly heightPx: number;
+  readonly byteSize: number;
+  readonly label: string;
+}
+
+/**
+ * Captura de un artículo: foto y datos mínimos (`capture`, ciclo 3a; optimizada en el dispositivo
+ * desde 3c-optimizar).
  *
  * La foto se elige con un `<label for>` sobre el input de archivo, no con un botón: solo un label lo
- * activa de forma nativa y es lo que abre la cámara en el móvil. Se valida el tipo y el tamaño en el
- * cliente para no subir un archivo que el servidor va a rechazar, y se vuelve a validar en la
- * frontera porque el cliente no es la regla.
+ * activa de forma nativa y es lo que abre la cámara en el móvil. Al elegirla se **optimiza**, no al
+ * guardar: la original se decodifica y se reescribe en tres tamaños dentro del teléfono, y el
+ * formulario muestra el resultado antes de enviarlo.
  *
- * Dos peticiones en orden: primero la ficha, después la foto. Si la foto falla, el artículo queda
- * creado y el usuario puede reintentar con otra, en vez de perder lo escrito.
+ * Tres peticiones después de la ficha, una por tamaño. Si una falla, el artículo queda creado y el
+ * usuario puede reintentar con otra, en vez de perder lo escrito.
  */
 @Component({
   selector: 'app-item-form',
@@ -71,12 +99,17 @@ export class ItemFormComponent {
 
   protected readonly photo = signal<File | null>(null);
   protected readonly preview = signal<string | null>(null);
+  protected readonly sizes = signal<readonly SizeEntry[]>([]);
+  protected readonly optimizing = signal(false);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly busy = computed(() => this.saving() || this.optimizing());
 
   protected readonly primaryClasses = uiButtonClasses('primary');
   protected readonly secondaryClasses = uiButtonClasses('secondary');
 
+  /** Lo que viaja: los tres blobs ya optimizados. El peso no se envía como dato. */
+  private optimized: readonly OptimizedPhoto[] = [];
   private objectUrl: string | null = null;
 
   protected onInput(target: 'title' | 'note' | 'widthCm' | 'heightCm' | 'depthCm' | 'weightKg') {
@@ -87,10 +120,10 @@ export class ItemFormComponent {
   }
 
   /**
-   * Acepta la foto elegida y la previsualiza. Un archivo rechazado no reemplaza al que ya estaba:
-   * el mensaje explica el motivo y la captura sigue siendo válida.
+   * Acepta la foto elegida, la optimiza en el dispositivo y la previsualiza. Un archivo rechazado no
+   * reemplaza al que ya estaba: el mensaje explica el motivo y la captura sigue siendo válida.
    */
-  protected onPhoto(event: Event): void {
+  protected async onPhoto(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const [file] = Array.from(input.files ?? []);
     if (file === undefined) {
@@ -104,6 +137,8 @@ export class ItemFormComponent {
       return;
     }
 
+    // El tope es del **archivo de la cámara**, no de lo que viaja: la original nunca sale del
+    // dispositivo. Un archivo mayor se rechaza aquí, sin tocar la red.
     if (file.size > ITEM_LIMITS.photoBytes) {
       this.error.set(`La foto supera el límite de ${String(this.maxPhotoMiB)} MB.`);
       input.value = '';
@@ -111,14 +146,36 @@ export class ItemFormComponent {
     }
 
     this.error.set(null);
-    this.photo.set(file);
-    this.replacePreview(file);
+    this.optimizing.set(true);
+
+    try {
+      const optimized = await optimizePhoto(file);
+
+      this.optimized = optimized;
+      this.photo.set(file);
+      this.sizes.set(
+        optimized.map((entry) => ({
+          variant: entry.variant,
+          widthPx: entry.widthPx,
+          heightPx: entry.heightPx,
+          byteSize: entry.blob.size,
+          label: sizeLabel(entry, entry.blob.size),
+        })),
+      );
+      this.replacePreview(optimized);
+    } catch {
+      this.clearPhoto();
+      input.value = '';
+      this.error.set('No se pudo procesar esta foto. Elige otra o toma una nueva.');
+    } finally {
+      this.optimizing.set(false);
+    }
   }
 
   protected async submit(event: Event): Promise<void> {
     event.preventDefault();
 
-    if (this.saving()) {
+    if (this.busy()) {
       return;
     }
 
@@ -135,27 +192,40 @@ export class ItemFormComponent {
         this.http.post<CreatedItem>(`${this.apiBaseUrl}/events/${this.eventId()}/items`, body),
       );
 
-      const photo = this.photo();
-      if (photo !== null) {
-        await firstValueFrom(
-          this.http.put<{ readonly photo: { readonly id: string } }>(
-            `${this.apiBaseUrl}/events/${this.eventId()}/items/${created.item.id}/photo`,
-            photo,
-            { headers: { 'Content-Type': photo.type } },
-          ),
-        );
-      }
+      await this.uploadVariants(created.item.id);
 
       this.reset();
       this.created.emit();
     } catch (error: unknown) {
       this.error.set(
         apiErrorCode(error) === PHOTO_INVALID
-          ? 'El servidor rechazó la foto. Prueba con otra imagen más pequeña.'
+          ? 'El servidor rechazó la foto. Vuelve a elegirla e inténtalo de nuevo.'
           : 'No se pudo guardar el artículo. Inténtalo de nuevo.',
       );
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  /**
+   * Sube los tres tamaños en orden `large`, `medium`, `thumb`, cada uno con la variante y sus
+   * dimensiones reales en la URL. El tipo va en la cabecera, tal como lo produjo el codificador.
+   */
+  private async uploadVariants(itemId: string): Promise<void> {
+    for (const variant of UPLOAD_ORDER) {
+      const entry = this.optimized.find((candidate) => candidate.variant === variant);
+      if (entry === undefined) {
+        continue;
+      }
+
+      await firstValueFrom(
+        this.http.put<{ readonly photo: unknown }>(
+          `${this.apiBaseUrl}/events/${this.eventId()}/items/${itemId}/photo` +
+            `?variant=${variant}&w=${String(entry.widthPx)}&h=${String(entry.heightPx)}`,
+          entry.blob,
+          { headers: { 'Content-Type': entry.blob.type } },
+        ),
+      );
     }
   }
 
@@ -191,19 +261,48 @@ export class ItemFormComponent {
     }
   }
 
-  private replacePreview(file: File): void {
+  /**
+   * Vista previa de la **mediana**, que es el tamaño que se ve en la mayoría de los casos. Se pinta
+   * desde el blob optimizado, no desde la original: lo que el usuario ve es lo que se guarda.
+   */
+  private replacePreview(optimized: readonly OptimizedPhoto[]): void {
+    const medium =
+      optimized.find((entry) => entry.variant === 'medium') ??
+      optimized.find((entry) => entry.variant === ITEM_PHOTO_VARIANTS[0]);
+
     if (this.objectUrl !== null) {
       URL.revokeObjectURL(this.objectUrl);
     }
 
+    if (medium === undefined) {
+      this.objectUrl = null;
+      this.preview.set(null);
+      return;
+    }
+
     try {
-      this.objectUrl = URL.createObjectURL(file);
+      this.objectUrl = URL.createObjectURL(medium.blob);
       this.preview.set(this.objectUrl);
     } catch {
-      // Sin vista previa la captura sigue sirviendo: el archivo ya está elegido.
+      // Sin vista previa la captura sigue sirviendo: la foto ya está optimizada.
       this.objectUrl = null;
       this.preview.set(null);
     }
+  }
+
+  private clearPhoto(): void {
+    this.optimized = [];
+    this.photo.set(null);
+    this.sizes.set([]);
+    this.releasePreview();
+  }
+
+  private releasePreview(): void {
+    if (this.objectUrl !== null) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
+    this.preview.set(null);
   }
 
   private reset(): void {
@@ -213,16 +312,7 @@ export class ItemFormComponent {
     this.heightCm.set('');
     this.depthCm.set('');
     this.weightKg.set('');
-    this.photo.set(null);
-    this.replacePreviewReset();
+    this.clearPhoto();
     this.error.set(null);
-  }
-
-  private replacePreviewReset(): void {
-    if (this.objectUrl !== null) {
-      URL.revokeObjectURL(this.objectUrl);
-      this.objectUrl = null;
-    }
-    this.preview.set(null);
   }
 }

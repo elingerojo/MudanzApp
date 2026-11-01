@@ -1,33 +1,45 @@
 import {
   ITEM_LIMITS,
   createItemSchema,
+  photoVariantSchema,
+  photoVariantUploadSchema,
   type CreatedItem,
   type ItemList,
   type ItemPhoto,
+  type ItemPhotoVariant,
 } from '@mudanzapp/shared';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 
 import { canActOnEvent } from '../domain/account.js';
-import { isSupportedPhoto, normalizeItemDraft, photoContentType } from '../domain/item.js';
+import { isAcceptedVariant, normalizeItemDraft, photoVariantContentType } from '../domain/item.js';
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
 import {
   findItem,
   findPhotoById,
+  findPhotoVariants,
   insertItem,
   listItemsForEvent,
   upsertItemPhoto,
+  upsertPhotoVariant,
+  type PhotoVariantRecord,
 } from '../store/item-store.js';
 import { newObjectKey } from '../storage/object-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
-import { toItemSummary } from './presenters.js';
+import { toItemPhoto, toItemSummary } from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
 const itemParamsSchema = z.object({ eventId: z.uuid(), itemId: z.uuid() });
 const photoParamsSchema = z.object({ photoId: z.uuid() });
+
+/** `GET /photos/:photoId?variant=…`: la variante es opcional y su ausencia significa `large`. */
+const photoQuerySchema = z.object({ variant: photoVariantSchema.optional() });
+
+/** De mayor a menor: es el orden de la caída cuando la variante pedida no existe. */
+const FALLBACK_ORDER: readonly ItemPhotoVariant[] = ['large', 'medium', 'thumb'];
 
 /**
  * El tipo declarado, sin parámetros: `image/jpeg; charset=…` y `IMAGE/JPEG` son el mismo tipo.
@@ -43,6 +55,10 @@ function declaredContentType(request: Request): string {
  * Lee el cuerpo binario con un tope propio. No se usa un parser de Express porque su rechazo por
  * tamaño se convertiría en un 500 del manejador genérico; aquí el exceso es `photo_invalid`, que es
  * lo que el cliente sabe interpretar (`05` §2).
+ *
+ * El tope es **cordura de transporte**, no una regla de peso de la imagen: una variante optimizada
+ * nunca se acerca a 5 MiB y una foto pesada entra igual si el codificador no la bajó del objetivo
+ * (`plan-ciclo-3c-optimizar` §5).
  */
 async function readPhotoBody(request: Request): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -61,7 +77,33 @@ async function readPhotoBody(request: Request): Promise<Buffer> {
 }
 
 /**
- * Artículos del evento y su foto (`capture`, ciclo 3a).
+ * La variante pedida o, si no existe, la mayor disponible. Es la degradación declarada para las
+ * fotos anteriores a 3c-optimizar y para una subida interrumpida: se sirve lo que hay, nunca se
+ * finge un tamaño que no está.
+ */
+function pickVariant(
+  variants: readonly PhotoVariantRecord[],
+  requested: ItemPhotoVariant,
+): PhotoVariantRecord | null {
+  const byVariant = new Map(variants.map((variant) => [variant.variant, variant]));
+
+  const exact = byVariant.get(requested);
+  if (exact !== undefined) {
+    return exact;
+  }
+
+  for (const candidate of FALLBACK_ORDER) {
+    const found = byVariant.get(candidate);
+    if (found !== undefined) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Artículos del evento y su foto (`capture`, ciclo 3a; tres tamaños desde 3c-optimizar).
  *
  * La autorización se ejerce en la escritura y en la lectura, nunca en la URL (`decisiones` §24):
  * un evento del que la sesión no puede disponer responde `not_found` y no se distingue del
@@ -108,12 +150,7 @@ export function createItemsRouter(deps: IdentityDeps): Router {
       });
 
       const payload: CreatedItem = {
-        item: toItemSummary({
-          ...item,
-          photoId: null,
-          photoContentType: null,
-          photoByteSize: null,
-        }),
+        item: toItemSummary({ ...item, photoId: null, photoVariants: null }),
       };
       response.status(201).json(payload);
     };
@@ -159,8 +196,13 @@ export function createItemsRouter(deps: IdentityDeps): Router {
   });
 
   /**
-   * Subida de la foto: cuerpo binario crudo, con el `Content-Type` declarado en la cabecera. La
-   * posición 0 es la única del corte, así que una segunda subida reemplaza la anterior.
+   * Subida de **una** variante: cuerpo binario crudo, el tipo declarado en la cabecera y la variante
+   * con sus dimensiones reales en la URL. La posición 0 es la única del corte, así que una segunda
+   * subida del mismo tamaño reemplaza el objeto anterior.
+   *
+   * El tamaño `large` crea o reemplaza la foto —y rellena las columnas heredadas, que es la deuda
+   * declarada con el GC—; `medium` y `thumb` solo añaden su fila y exigen que la foto exista: una
+   * variante suelta responde `item_not_found`.
    *
    * El objeto se escribe **antes** que su fila: si la fila falla, queda un objeto huérfano en el
    * almacén, que es un daño menor y reversible; al revés, la fila apuntaría a una foto inexistente.
@@ -179,28 +221,57 @@ export function createItemsRouter(deps: IdentityDeps): Router {
         throw new AppError('item_not_found');
       }
 
-      const contentType = photoContentType(declaredContentType(request));
-      if (contentType === null) {
+      // La variante y sus medidas son parte del cuerpo de la petición: una desconocida, ausente o
+      // fuera del tamaño de su variante es `photo_invalid`, el mismo código con el que el cliente ya
+      // explica el rechazo (`plan-ciclo-3c-optimizar` §5).
+      const upload = photoVariantUploadSchema.safeParse(request.query);
+      if (!upload.success) {
+        throw new AppError('photo_invalid');
+      }
+
+      const { variant, w, h } = upload.data;
+
+      const contentType = photoVariantContentType(declaredContentType(request));
+      if (contentType === null || !isAcceptedVariant(variant, contentType, w, h)) {
         throw new AppError('photo_invalid');
       }
 
       const bytes = await readPhotoBody(request);
-      if (!isSupportedPhoto(contentType, bytes.length)) {
+      if (bytes.length === 0) {
         throw new AppError('photo_invalid');
       }
 
-      const objectKey = newObjectKey(eventId, itemId);
+      const objectKey = newObjectKey(eventId, itemId, variant);
       await deps.storage.put(objectKey, bytes, contentType);
 
-      const photo = await upsertItemPhoto(deps.database, {
-        itemId,
+      const photoId =
+        variant === 'large'
+          ? (
+              await upsertItemPhoto(deps.database, {
+                itemId,
+                objectKey,
+                contentType,
+                byteSize: bytes.length,
+              })
+            ).id
+          : item.photoId;
+
+      if (photoId === null) {
+        throw new AppError('item_not_found');
+      }
+
+      await upsertPhotoVariant(deps.database, {
+        photoId,
+        variant,
         objectKey,
         contentType,
-        byteSize: bytes.length,
+        widthPx: w,
+        heightPx: h,
       });
 
+      const variants = await findPhotoVariants(deps.database, photoId);
       const payload: { readonly photo: ItemPhoto } = {
-        photo: { id: photo.id, contentType: photo.contentType, byteSize: photo.byteSize },
+        photo: toItemPhoto(photoId, variants),
       };
       response.status(200).json(payload);
     };
@@ -209,12 +280,17 @@ export function createItemsRouter(deps: IdentityDeps): Router {
   });
 
   /**
-   * Lectura de la foto. Exige sesión del evento del artículo y responde `item_not_found` tanto si la
-   * foto no existe como si es de un evento ajeno: no se distingue ajeno de inexistente (§24).
+   * Lectura de una variante (`large` por defecto). Exige sesión del evento del artículo y responde
+   * `item_not_found` tanto si la foto no existe como si es de un evento ajeno: no se distingue ajeno
+   * de inexistente (§24).
+   *
+   * Una variante ausente se sirve con la mayor disponible y, si la foto es anterior a
+   * 3c-optimizar, con la columna heredada: es la caída declarada del ciclo, no un silencio.
    */
   router.get('/photos/:photoId', requireSession, (request, response, next) => {
     const handle = async (): Promise<void> => {
       const { photoId } = parseOrThrow(photoParamsSchema, request.params);
+      const { variant } = parseOrThrow(photoQuerySchema, request.query);
       const identity = identityOf(request);
 
       const photo = await findPhotoById(deps.database, photoId);
@@ -222,13 +298,18 @@ export function createItemsRouter(deps: IdentityDeps): Router {
         throw new AppError('item_not_found');
       }
 
-      const object = await deps.storage.get(photo.objectKey);
+      const variants = await findPhotoVariants(deps.database, photoId);
+      const chosen = pickVariant(variants, variant ?? 'large');
+      const objectKey = chosen?.objectKey ?? photo.objectKey;
+      const contentType = chosen?.contentType ?? photo.contentType;
+
+      const object = await deps.storage.get(objectKey);
       if (object === null) {
         throw new AppError('item_not_found');
       }
 
       response
-        .set('Content-Type', object.contentType)
+        .set('Content-Type', contentType)
         .set('Cache-Control', 'private, no-store')
         .send(object.bytes);
     };

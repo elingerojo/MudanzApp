@@ -1,4 +1,9 @@
-import type { ItemPhotoContentType } from '@mudanzapp/shared';
+import type {
+  ItemPhotoContentType,
+  ItemPhotoVariant,
+  ItemPhotoVariantContentType,
+  PhotoSize,
+} from '@mudanzapp/shared';
 
 import type { Queryable } from '../db.js';
 import type { ItemDraft } from '../domain/item.js';
@@ -12,6 +17,10 @@ import type { ItemDraft } from '../domain/item.js';
  * `weight_kg` se lee como `float8`: `numeric` vuelve de `pg` como cadena para no perder precisión, y
  * el contrato publica un número. El resto de las columnas viaja con alias `camelCase` para que el
  * presentador no traduzca dos veces.
+ *
+ * Desde 3c-optimizar la foto tiene tres tamaños en `app.item_photo_variant`. Las columnas heredadas de
+ * `app.item_photo` siguen describiendo el tamaño `large` y **no** se tocan; los pesos no se guardan en
+ * la tabla nueva (`plan-ciclo-3c-optimizar` §5).
  */
 
 export type ItemRecord = {
@@ -26,11 +35,13 @@ export type ItemRecord = {
   readonly createdAt: Date;
 };
 
-/** El artículo con su foto de posición 0, o con las tres columnas de foto en `null`. */
+/** Las variantes presentes, por nombre: es lo que el presentador compone en los tres tamaños. */
+export type PhotoVariantSizes = Partial<Record<ItemPhotoVariant, PhotoSize>>;
+
+/** El artículo con su foto de posición 0, o con `photoId` y sus variantes en `null`. */
 export type ItemWithPhotoRecord = ItemRecord & {
   readonly photoId: string | null;
-  readonly photoContentType: ItemPhotoContentType | null;
-  readonly photoByteSize: number | null;
+  readonly photoVariants: PhotoVariantSizes | null;
 };
 
 export type PhotoRecord = {
@@ -39,6 +50,16 @@ export type PhotoRecord = {
   readonly objectKey: string;
   readonly contentType: ItemPhotoContentType;
   readonly byteSize: number;
+};
+
+/** Una variante guardada: su objeto, su tipo y sus dimensiones reales. */
+export type PhotoVariantRecord = {
+  readonly photoId: string;
+  readonly variant: ItemPhotoVariant;
+  readonly objectKey: string;
+  readonly contentType: ItemPhotoVariantContentType;
+  readonly widthPx: number;
+  readonly heightPx: number;
 };
 
 /** La foto con el evento al que pertenece: es lo que autoriza su lectura. */
@@ -51,8 +72,16 @@ const ITEM_COLUMNS =
 
 const PHOTO_JOIN = 'LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0';
 
+/**
+ * Las variantes se agregan en la misma consulta para no hacer una lectura por artículo ni por foto
+ * (`plan-ciclo-3c-optimizar` §5): un artículo sin filas devuelve `NULL`, que el presentador traduce a
+ * los tres tamaños en `null`.
+ */
 const PHOTO_COLUMNS =
-  'p.id AS "photoId", p.content_type AS "photoContentType", p.byte_size AS "photoByteSize"';
+  'p.id AS "photoId", ' +
+  '(SELECT jsonb_object_agg(v.variant, ' +
+  "jsonb_build_object('widthPx', v.width_px, 'heightPx', v.height_px)) " +
+  '   FROM app.item_photo_variant v WHERE v.photo_id = p.id) AS "photoVariants"';
 
 const PHOTO_RETURNING =
   'id, item_id AS "itemId", object_key AS "objectKey", ' +
@@ -129,9 +158,12 @@ export async function listItemsForEvent(
 }
 
 /**
- * Escribe la foto del artículo. La posición 0 es única por artículo, así que una segunda subida
- * reemplaza la anterior en vez de acumular filas: el corte admite **una** foto por artículo y la
- * tabla queda lista para más posiciones sin migrar.
+ * Escribe la foto del artículo —el tamaño `large`— en las columnas heredadas. La posición 0 es única
+ * por artículo, así que una segunda subida reemplaza la anterior en vez de acumular filas: el corte
+ * admite **una** foto por artículo y la tabla queda lista para más posiciones sin migrar.
+ *
+ * `byte_size` sigue siendo obligatoria y guarda el peso del tamaño `large`: nadie lo lee y se retira
+ * con el GC, no en este ciclo.
  */
 export async function upsertItemPhoto(
   database: Queryable,
@@ -163,8 +195,66 @@ export async function upsertItemPhoto(
 }
 
 /**
+ * Escribe o reemplaza una variante. La clave es nueva en cada subida (`newObjectKey` incluye un
+ * `uuid`), así que reemplazar un tamaño nunca sobrescribe otro objeto ni choca con su unicidad.
+ */
+export async function upsertPhotoVariant(
+  database: Queryable,
+  input: {
+    readonly photoId: string;
+    readonly variant: ItemPhotoVariant;
+    readonly objectKey: string;
+    readonly contentType: ItemPhotoVariantContentType;
+    readonly widthPx: number;
+    readonly heightPx: number;
+  },
+): Promise<void> {
+  await database.query(
+    `INSERT INTO app.item_photo_variant
+       (photo_id, variant, object_key, content_type, width_px, height_px)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (photo_id, variant) DO UPDATE
+        SET object_key = EXCLUDED.object_key,
+            content_type = EXCLUDED.content_type,
+            width_px = EXCLUDED.width_px,
+            height_px = EXCLUDED.height_px,
+            created_at = now()`,
+    [
+      input.photoId,
+      input.variant,
+      input.objectKey,
+      input.contentType,
+      input.widthPx,
+      input.heightPx,
+    ],
+  );
+}
+
+/** Las variantes de una foto: lo que la respuesta de la subida y la lectura por variante necesitan. */
+export async function findPhotoVariants(
+  database: Queryable,
+  photoId: string,
+): Promise<PhotoVariantRecord[]> {
+  const { rows } = await database.query<PhotoVariantRecord>(
+    `SELECT photo_id AS "photoId",
+            variant,
+            object_key AS "objectKey",
+            content_type AS "contentType",
+            width_px AS "widthPx",
+            height_px AS "heightPx"
+       FROM app.item_photo_variant
+      WHERE photo_id = $1
+      ORDER BY variant`,
+    [photoId],
+  );
+
+  return rows;
+}
+
+/**
  * La foto con el evento de su artículo: el router autoriza con `eventId` en la misma consulta, sin
- * una segunda lectura que pueda ver un estado distinto.
+ * una segunda lectura que pueda ver un estado distinto. Sus columnas heredadas son la caída de las
+ * fotos anteriores a 3c-optimizar, que no tienen filas de variante.
  */
 export async function findPhotoById(
   database: Queryable,

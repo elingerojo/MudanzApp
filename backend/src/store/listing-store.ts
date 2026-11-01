@@ -1,4 +1,4 @@
-import type { ItemPhotoContentType } from '@mudanzapp/shared';
+import type { ItemPhotoVariant } from '@mudanzapp/shared';
 
 import type { Queryable } from '../db.js';
 
@@ -9,8 +9,8 @@ import type { Queryable } from '../db.js';
  * `slug` único (`listing_slug_key`). Republicar no crea otra fila ni cambia la URL: la sentencia es un
  * `ON CONFLICT (item_id)` que devuelve la fila existente.
  *
- * La URL pública **no** se guarda: la clave del objeto vive en `app.item_photo` y la dirección se
- * compone al leer, así que reemplazar la foto cambia lo que sirve la misma URL publicada.
+ * La URL pública **no** se guarda: las claves de los objetos viven en `app.item_photo_variant` y la
+ * dirección se compone al leer, así que reemplazar la foto cambia lo que sirve la misma URL publicada.
  */
 
 export type ListingRecord = {
@@ -21,7 +21,18 @@ export type ListingRecord = {
   readonly createdAt: Date;
 };
 
-/** La ficha pública resuelta: publicación, artículo y evento, con la foto de la posición 0. */
+/** Una variante de la foto pública: su clave, para componer la URL, y sus dimensiones reales. */
+export type PublicVariantRecord = {
+  readonly objectKey: string;
+  readonly widthPx: number;
+  readonly heightPx: number;
+};
+
+/**
+ * La ficha pública resuelta: publicación, artículo y evento, con la foto de la posición 0 en sus tres
+ * tamaños. `photoObjectKey` es la clave heredada del tamaño `large` y sirve de caída para las fotos
+ * anteriores a 3c-optimizar, que no tienen filas de variante.
+ */
 export type ListingWithItemRecord = {
   readonly slug: string;
   readonly title: string;
@@ -31,7 +42,7 @@ export type ListingWithItemRecord = {
   readonly depthCm: number | null;
   readonly weightKg: number | null;
   readonly photoObjectKey: string | null;
-  readonly photoContentType: ItemPhotoContentType | null;
+  readonly photoVariants: Partial<Record<ItemPhotoVariant, PublicVariantRecord>> | null;
   readonly originCity: string;
   readonly destinationCity: string;
   readonly publishedAt: Date;
@@ -85,8 +96,10 @@ export async function findListingByItemId(
 /**
  * La ficha pública por `slug`. Un `slug` inexistente es `null`, que la ruta traduce a `not_found`.
  *
- * `weight_kg` se lee como `float8` por la misma razón que en `item-store`: `numeric` vuelve de `pg`
- * como cadena y el contrato publica un número.
+ * Las tres variantes entran agregadas en la misma consulta (`jsonb_object_agg`), así que la ficha
+ * sigue siendo **una sola lectura** (`plan-ciclo-3c-optimizar` §5). `weight_kg` se lee como `float8`
+ * por la misma razón que en `item-store`: `numeric` vuelve de `pg` como cadena y el contrato publica
+ * un número.
  */
 export async function findListingBySlug(
   database: Queryable,
@@ -101,7 +114,12 @@ export async function findListingBySlug(
             i.depth_cm AS "depthCm",
             i.weight_kg::float8 AS "weightKg",
             p.object_key AS "photoObjectKey",
-            p.content_type AS "photoContentType",
+            (SELECT jsonb_object_agg(v.variant,
+                     jsonb_build_object('objectKey', v.object_key,
+                                        'widthPx', v.width_px,
+                                        'heightPx', v.height_px))
+               FROM app.item_photo_variant v
+              WHERE v.photo_id = p.id) AS "photoVariants",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             l.published_at AS "publishedAt"

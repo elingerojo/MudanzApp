@@ -11,7 +11,8 @@ producto**. Todavía **no** hay catálogo ni navegación: eso llega con `reserve
 
 - `/` — `StatusComponent`: humo del arranque; proceso y base desde `/health`.
 - `/:slug` — `ListingComponent`: ficha pública de un artículo publicado, leída de
-  `GET /public/listings/:slug` **sin sesión**.
+  `GET /public/listings/:slug` **sin sesión**. Pinta tres tamaños de la foto —miniatura, mediana y
+  grande— y el grande se abre al tocar la mediana, sin dependencia nueva.
 - `**` — redirección a `/`: fallback de la SPA.
 
 Reglas del mapa:

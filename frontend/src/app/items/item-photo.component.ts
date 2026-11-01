@@ -8,6 +8,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { ItemPhotoVariant } from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
@@ -19,6 +20,9 @@ import { API_BASE_URL } from '../api-base-url.token';
  * (`decisiones` §26). Por eso se guarda como `blob` y se pinta desde un object URL que se revoca al
  * destruir: el token no se convierte en un `src`, que acabaría en el historial y en los registros del
  * proxy.
+ *
+ * Desde 3c-optimizar pide una **variante** concreta, `thumb` por defecto: es el caso «cards compactas
+ * en móvil» que motiva la miniatura, y la variante se sirve por la lectura por tamaño del borde.
  *
  * `NgOptimizedImage` no aplica aquí: optimiza rutas estáticas conocidas en build, no blobs
  * autenticados. La excepción se retira en `publish`, cuando la foto tenga URL pública.
@@ -33,6 +37,7 @@ export class ItemPhotoComponent implements OnDestroy {
   private readonly apiBaseUrl = inject(API_BASE_URL);
 
   readonly photoId = input.required<string>();
+  readonly variant = input<ItemPhotoVariant>('thumb');
 
   protected readonly source = signal<string | null>(null);
 
@@ -41,7 +46,8 @@ export class ItemPhotoComponent implements OnDestroy {
   constructor() {
     effect(() => {
       const photoId = this.photoId();
-      void this.load(photoId);
+      const variant = this.variant();
+      void this.load(photoId, variant);
     });
   }
 
@@ -49,10 +55,12 @@ export class ItemPhotoComponent implements OnDestroy {
     this.replace(null);
   }
 
-  private async load(photoId: string): Promise<void> {
+  private async load(photoId: string, variant: ItemPhotoVariant): Promise<void> {
     try {
       const blob = await firstValueFrom(
-        this.http.get(`${this.apiBaseUrl}/photos/${photoId}`, { responseType: 'blob' }),
+        this.http.get(`${this.apiBaseUrl}/photos/${photoId}?variant=${variant}`, {
+          responseType: 'blob',
+        }),
       );
       this.replace(URL.createObjectURL(blob));
     } catch {

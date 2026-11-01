@@ -3,6 +3,7 @@ import { Router, type Request } from 'express';
 import { z } from 'zod';
 
 import { canActOnEvent } from '../domain/account.js';
+import { hasEveryVariant } from '../domain/item.js';
 import { listingSlug } from '../domain/listing.js';
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
@@ -28,9 +29,10 @@ function published(slug: string): PublishedListing {
  * repetirse. La autorización es la misma regla que el resto de la superficie privada —sesión del
  * evento o membresía— y se ejerce aquí, no en la URL (`decisiones` §24).
  *
- * Publicar exige foto: la hipótesis del ciclo es la foto compartida, y un artículo sin ella no la
- * responde. Un artículo sin foto responde `listing_photo_required` (409), que el cliente explica junto
- * al artículo y no como error genérico.
+ * Publicar exige foto **en sus tres tamaños**: la hipótesis del ciclo es la foto compartida, y la
+ * ficha pública se comparte por sus tamaños (`plan-ciclo-3c-optimizar` §3). Un artículo sin foto o con
+ * una sola variante responde `listing_photo_required` (409) con el mismo código estable, y el cliente
+ * explica que hay que volver a subir la foto. Los ya publicados siguen respondiendo `200`.
  */
 export function createListingsRouter(deps: IdentityDeps): Router {
   const router = Router();
@@ -74,7 +76,7 @@ export function createListingsRouter(deps: IdentityDeps): Router {
           return;
         }
 
-        if (item.photoId === null) {
+        if (item.photoId === null || !hasEveryVariant(item.photoVariants)) {
           throw new AppError('listing_photo_required');
         }
 
