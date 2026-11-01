@@ -690,18 +690,21 @@ Reglas del crecimiento:
 
 - **Decisión:** la IA propone **solo** `title` y `note`. El borrador **no es estado**: no hay tabla, ni
   historial, ni versiones; se valida en la frontera contra `aiDraftSchema` (`shared/src/ai.ts`) y lo
-  único que llega a `app.item` es lo que el humano confirma con `PATCH`. La IA **nunca** decide
-  medidas, peso, precio ni destino. Al proveedor viaja la **variante `medium`** que §33 reservó para
-  este corte —nunca la original ni la `large`—, y viaja como **dirección pública del objeto**: el
-  backend compone la URL y el proveedor la descarga, así que los bytes de la foto no vuelven a cruzar
-  el borde. La foto sale del sistema hacia un tercero **antes** de publicarse, y el envío lo inicia
-  siempre una persona con una acción explícita.
-- **Veredicto del experimento de transporte (2026-11-01): verde.** Una sola llamada en `live` sobre la
-  URL pública real de un objeto del almacén (`image/webp`, `200`, 51 404 B) devolvió un JSON que
-  cumplió `aiDraftSchema`: `titleLength` 27 ≤ 120 y `noteLength` 169 ≤ 500. El proveedor **descarga**
-  la URL pública, así que el corte es la forma A de `plan-ciclo-3d` §5 y el adaptador `live` usa
-  `file_data.file_uri`. La rama del experimento se descartó al cerrarlo: sobrevive el veredicto en
-  §16 del plan, y la costura y el adaptador se reescribieron como producto.
+  único que llega a `app.item` es lo que el humano deja escrito en el formulario y aprueba al pulsar
+  `Publicar` o `Solo guardar`. La IA **nunca** decide medidas, peso, precio ni destino. El borrador se
+  pide **desde el formulario de captura, antes de que el artículo exista**
+  (`POST /events/:eventId/ai/drafts`, sin `itemId`), y al proveedor viajan **los bytes de la variante
+  `medium`** que §33 reservó para este corte —nunca la original ni la `large`— como cuerpo binario
+  crudo que el backend convierte a `inline_data`. **R2 no participa en el camino de la IA**: no hay URL
+  pública, no se espera al almacén y un borrador `live` funciona con `R2_MODE=fake`. La foto sale del
+  sistema hacia un tercero **segundos antes de publicarse**, y el envío lo inicia siempre una persona
+  con una acción explícita.
+- **Veredicto del transporte (2026-11-01, decisión del dueño en la sesión de diseño): forma B.** El
+  borrador viaja con los bytes de la mediana y `inline_data`, porque así la IA no depende del almacén y
+  el artículo todavía no necesita existir. El experimento anterior —una llamada en `live` sobre la URL
+  pública real de un objeto (`image/webp`, `200`, 51 404 B) que devolvió un JSON válido con
+  `titleLength` 27 ≤ 120 y `noteLength` 169 ≤ 500— queda como **historia**: probó la forma A, que ya no
+  se usa, y deja registrado que el proveedor acepta la mediana y respeta el esquema.
 - **Motivo:** la hipótesis de 3d es que «la ficha borrador de la IA se revisa en vez de escribirse»
   (`resumen-funcional` §3). Eso exige tres cosas a la vez: que el borrador no pueda convertirse en
   dato sin una persona, que su forma sea la única que el artículo admite, y que falle ruidosamente
@@ -712,17 +715,25 @@ Reglas del crecimiento:
   dueño pida recuperar un borrador tras recargar.
 - **Alternativa descartada — que la IA cree el artículo y la foto:** elimina la revisión humana, que
   **es** la hipótesis, y mete un error en un artículo que se comparte por WhatsApp.
-- **Alternativa descartada — mandar la foto en `inline_data` (base64):** era la forma B, prevista solo
-  si el transporte por URL salía rojo. Con el veredicto verde, duplicaría los bytes de la variante y
-  no compra nada; queda registrada como camino de vuelta si la descarga pública deja de funcionar.
+- **Alternativa descartada — la dirección pública del objeto (forma A):** el backend componía la URL y
+  el proveedor descargaba la foto. Funcionaba, pero obligaba a un **título de trabajo** antes del
+  borrador, a un **panel de revisión aparte con su `PATCH`** y a un almacén `live` dentro del camino de
+  la IA. Su disparador de vuelta es que el cuerpo binario de hasta 5 MiB deje de ser aceptable en la
+  frontera.
 - **Alternativa descartada — usar el SDK oficial del proveedor:** dependencia de runtime con su commit
   `deps`. El corte cabe con `fetch` nativo y `AbortSignal.timeout`. Disparador: subida por referencia o
   streaming.
-- **Consecuencia aceptada — en la forma A el humano escribe un título de trabajo antes del borrador:**
-  `app.item` y `createItemSchema` exigen título no vacío, así que el artículo ya existe cuando se pide
-  el borrador. El formulario de revisión arranca vacío, muestra la ficha guardada como contexto y **no**
-  sobrescribe lo que la persona escribió. Si la primera tanda real muestra que el título de trabajo
-  condiciona la revisión, se reconsidera la forma B.
+- **Consecuencia aceptada — el botón primario publica, y publicar es irreversible:** no hay despublicar
+  ni `slug` editable, así que el texto que la IA propuso queda público si el humano no lo corrigió. La
+  mitigación del ciclo es que los campos están delante, son editables sin temporizador y existe
+  `Solo guardar` al lado de `Publicar`. Disparador: el primer artículo publicado con un texto que nadie
+  revisó.
+- **Consecuencia aceptada — un error publicado no se puede corregir en este ciclo:** la edición de una
+  ficha ya publicada (`PATCH` de `title` y `note`) sale del corte. Disparador: la primera errata real;
+  entonces vuelve en su propio corte y republicar no cambia el `slug`.
+- **Consecuencia aceptada — el estado publicado se lee de la base:** `ItemSummary` gana
+  `publishedSlug` con un `LEFT JOIN app.listing`, en vez de la memoria de la visita, que se perdía al
+  recargar.
 - **Consecuencia aceptada — coste sin control de cuota:** una llamada por clic, `maxOutputTokens`
   acotado, una sola tentativa y sin reintentos automáticos. Sin tope por evento ni por sesión en este
   ciclo; el hecho queda pendiente en `resumen-funcional` §6.
@@ -735,11 +746,13 @@ Reglas del crecimiento:
   [`backend/src/ai/draft-provider.ts`](../backend/src/ai/draft-provider.ts:1),
   [`backend/src/ai/gemini-draft.ts`](../backend/src/ai/gemini-draft.ts:1),
   [`backend/src/routes/ai-router.ts`](../backend/src/routes/ai-router.ts:1),
-  [`backend/src/domain/item.ts`](../backend/src/domain/item.ts:1),
-  [`frontend/src/app/items/item-review.component.ts`](../frontend/src/app/items/item-review.component.ts:1) y
+  [`backend/src/routes/raw-body.ts`](../backend/src/routes/raw-body.ts:1),
+  [`frontend/src/app/items/item-form.component.ts`](../frontend/src/app/items/item-form.component.ts:1),
+  [`frontend/src/app/items/item-list.component.ts`](../frontend/src/app/items/item-list.component.ts:1) y
   [`wiki/src/app/foto-a-ficha/foto-a-ficha.component.ts`](../wiki/src/app/foto-a-ficha/foto-a-ficha.component.ts:1).
-- **Revisa a:** §26 y §33 (la mediana reservada y la URL pública que el borrador consume). **Revisada
-  por:** el corte del ciclo 3d y su cierre `live` en remoto.
+- **Revisa a:** §33, que reservó la mediana para este corte. **Deja de revisar §26:** la URL pública
+  sigue siendo el hecho de la ficha pública, pero el borrador ya no la consume. **Revisada por:** el
+  corte del ciclo 3d y su cierre `live` en remoto.
 - **Disparador de revisión:** primera factura inesperada, cambio de política del proveedor, aparición
-  de un dato personal en una foto enviada, o una tanda de capturas reales en la que el borrador obligue
-  a reescribir todo.
+  de un dato personal en una foto enviada, una tanda de capturas reales en la que el borrador obligue a
+  reescribir todo, o una errata publicada que no se pueda corregir.
