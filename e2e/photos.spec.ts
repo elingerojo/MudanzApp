@@ -290,6 +290,13 @@ test('the public listing paints the thumbnail and the medium, and the medium ope
   );
   expect(body.photo?.sizes.large?.url.startsWith('http')).toBe(true);
 
+  // La ampliada no se ve más chica que la imagen en línea: su caja es el viewport, no una fila del
+  // `flex` ni una columna `max-w-2xl` con `padding`. Es la evidencia de la corrección de presentación.
+  const inline = await page.getByTestId('listing-photo').boundingBox();
+  const zoomed = await page.getByTestId('listing-photo-large').boundingBox();
+  expect(inline?.width ?? 0).toBeGreaterThan(0);
+  expect(zoomed?.width ?? 0).toBeGreaterThan(inline?.width ?? 0);
+
   // `Escape` cierra la vista ampliada y devuelve el foco al control que la abrió.
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('listing-photo-overlay')).toHaveCount(0);

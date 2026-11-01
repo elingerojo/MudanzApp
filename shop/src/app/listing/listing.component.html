@@ -90,8 +90,15 @@
       </div>
 
       @if (zoomed() && photo.large; as large) {
+        <!--
+          La vista ampliada usa **todo** el viewport como caja: sin `padding` que le robe ancho y con
+          el botón de cerrar fuera del flujo, para que no le robe alto. La imagen se acota por los dos
+          ejes (`max-h-full max-w-full`), así que siempre es al menos tan ancha como la mediana en
+          línea —que vive en una columna `max-w-2xl` con su propio `padding`— y nunca desborda la
+          pantalla. Con `max-h` solo, un viewport ancho y bajo la dejaba más pequeña que la miniatura.
+        -->
         <div
-          class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-slate-900/80 p-4"
+          class="fixed inset-0 z-50 bg-slate-900/90"
           role="dialog"
           aria-modal="true"
           aria-label="Foto ampliada"
@@ -108,14 +115,16 @@
 
           <img
             [src]="large.url"
+            [attr.width]="large.widthPx > 0 ? large.widthPx : null"
+            [attr.height]="large.heightPx > 0 ? large.heightPx : null"
             alt=""
-            class="relative max-h-[80vh] w-auto rounded-lg"
+            class="pointer-events-none absolute inset-0 m-auto max-h-full max-w-full rounded-lg object-contain p-2"
             data-testid="listing-photo-large"
           />
 
           <button
             type="button"
-            class="relative rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-900"
+            class="absolute top-4 right-4 z-10 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow"
             (click)="closeZoom()"
             data-testid="listing-photo-close"
           >
