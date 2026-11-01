@@ -486,11 +486,15 @@ Reglas del crecimiento:
   como valor **temporal** —rate-limited, sin SLA y no recomendada para producción— y la retención
   aprobada es «la foto vive mientras exista el `listing`», con barrido **manual** de objetos
   huérfanos. Ver §31.
-- **Verificado en vivo (2026-10-31):** la primera foto real publicada se abre en Chromium sin sesión.
-  La imagen se descarga de `pub-<hash>.r2.dev/mudanzapp-photos/<clave>` (`200`); la misma clave sin el
-  segmento del bucket responde `404`. Conclusión operativa: en esta cuenta la base pública **incluye**
-  el segmento del bucket, así que `R2_PUBLIC_BASE_URL` se copia del dashboard y no se compone en el
-  código; el adaptador solo añade `/<object_key>`.
+- **Verificado en vivo (2026-10-31; corregido el 2026-11-01):** la foto real publicada se abre en
+  Chromium sin sesión. La base pública de esta cuenta es `https://pub-<hash>.r2.dev`, **sin** el
+  segmento del bucket: `r2.dev` sirve `/<object_key>` y la clave ya identifica el bucket. La medición
+  del 2026-10-31 que pareció demostrar lo contrario se hizo sobre un objeto antiguo cuya **clave**
+  empezaba por `mudanzapp-photos/`, de modo que poner el bucket en la variable duplicaba el segmento
+  en las fotos nuevas y las dejaba en `404`. Regla vigente: `R2_PUBLIC_BASE_URL` es el origen de la
+  URL pública, sin la clave, sin el bucket y sin barra final; el adaptador solo añade `/<object_key>`.
+  Verla como línea de base en el registro de entorno
+  ([`workspace-env.md`](../.scripts/workspace-env.md:92)).
 - **Disparador de revisión:** cambio de proveedor de almacenamiento o de retención; dominio propio o
   primer tráfico real para sustituir `r2.dev`.
 
@@ -610,12 +614,13 @@ Reglas del crecimiento:
   página, no la imagen.
 - **Consecuencia aceptada:** la foto vive mientras exista el `listing`; borrar el artículo borra sus
   filas pero **no** los bytes del bucket. El barrido de huérfanos es manual y hoy no tiene script.
-- **Consecuencia aceptada (operación, 2026-10-31):** `R2_PUBLIC_BASE_URL` es la URL con la que el
-  dashboard abre un objeto, **sin la clave**, y en esta cuenta incluye el segmento del bucket
-  (`…r2.dev/mudanzapp-photos`). Es una variable distinta de `R2_BUCKET` porque hablan protocolos
-  distintos: el bucket viaja en `Bucket:` de la API S3, con firma, y la lectura pública es otro host
-  sin credenciales. Fijarla sin ese segmento no rompe el contrato —la ficha se pinta y la imagen da
-  `404`— y un dominio propio la sustituye sin tocar el código ni reconstruir `shop`.
+- **Consecuencia aceptada (operación, 2026-10-31; corregida el 2026-11-01):** `R2_PUBLIC_BASE_URL` es
+  el **origen** de la lectura pública —`https://pub-<hash>.r2.dev`—, **sin** el segmento del bucket,
+  sin la clave y sin barra final, porque `r2.dev` sirve `/<object_key>` y la clave ya vive en el
+  bucket. Es una variable distinta de `R2_BUCKET` porque hablan protocolos distintos: el bucket viaja
+  en `Bucket:` de la API S3, con firma, y la lectura pública es otro host sin credenciales. Añadir el
+  bucket a la variable duplica el segmento y deja la imagen en `404` —la ficha se pinta igual—, y un
+  dominio propio la sustituye sin tocar el código ni reconstruir `shop`.
 - **Artefactos:** [`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1),
   [`backend/src/domain/listing.ts`](../backend/src/domain/listing.ts:1),
   [`backend/src/routes/listings-router.ts`](../backend/src/routes/listings-router.ts:1) y

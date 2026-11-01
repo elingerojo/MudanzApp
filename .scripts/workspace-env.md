@@ -89,32 +89,50 @@ derivados, no hechos de plataforma. Ningún valor de esta tabla es una credencia
   resuelve al fijar la variable y redesplegar; el orden del manual no cambia
   ([`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md) §19).
 
-## 6. Hechos observados — bucket de R2 (cierre del ciclo 3c)
+## 6. Hechos observados — bucket de R2 (cierre del 3c, corregido el 2026-11-01)
 
 Se anotan aquí los **hechos de plataforma** del almacén de objetos, no las credenciales: el nombre del
 bucket, la base de lectura pública y el endpoint S3 son direcciones, no secretos. `R2_ACCESS_KEY_ID` y
 `R2_SECRET_ACCESS_KEY` **no** se escriben en ningún archivo versionado: viven en `backend/.env.local` y
 en el dashboard de Railway (`.roo/rules/07-secretos.md`).
 
-| Hecho                   | Valor                                                                  | Se obtuvo en                                 | Estado     |
-| ----------------------- | ---------------------------------------------------------------------- | -------------------------------------------- | ---------- |
-| `R2_BUCKET`             | `mudanzapp-photos`                                                     | manual `Man-3.3` pasos 1–3                   | observado  |
-| `R2_PUBLIC_BASE_URL`    | `https://pub-e6d03e1ff1ae462e9952586dc772de66.r2.dev/mudanzapp-photos` | URL pública de un objeto real, sin la clave  | observado  |
-| `R2_ENDPOINT`           | configurado (valor no anotado; ver nota)                               | manual `Man-3.3` paso 3 (dashboard → S3 API) | ejercitado |
-| Fecha de la observación | 2026-10-31                                                             | cierre del ciclo 3c (`plan-ciclo-3c` §13)    | observado  |
+| Hecho                   | Valor                                                 | Se obtuvo en                                 | Estado     |
+| ----------------------- | ----------------------------------------------------- | -------------------------------------------- | ---------- |
+| `R2_BUCKET`             | `mudanzapp-photos`                                    | manual `Man-3.3` pasos 1–3                   | observado  |
+| `R2_PUBLIC_BASE_URL`    | `https://pub-e6d03e1ff1ae462e9952586dc772de66.r2.dev` | dashboard → _Public Development URL_         | observado  |
+| `R2_ENDPOINT`           | configurado (valor no anotado; ver nota)              | manual `Man-3.3` paso 3 (dashboard → S3 API) | ejercitado |
+| Fecha de la observación | 2026-10-31, corregida el 2026-11-01                   | cierre del ciclo 3c y del 3c-optimizar       | observado  |
 
-- **La base pública de esta cuenta incluye el segmento del bucket.** Medido el 2026-10-31 con la foto
-  del artículo `silla-blanca-de-plastico-f97d4e`: `…r2.dev/mudanzapp-photos/<clave>` responde `200` y
-  `…r2.dev/<clave>` responde `404`. El adaptador solo compone `base + '/' + object_key`; el segmento
-  pertenece a la variable, no al código. La regla «sin el nombre del bucket» de la documentación
-  aplica al **endpoint S3** (`R2_ENDPOINT`), que es otro host con otro papel.
-- Si la variable se fija sin ese segmento, la ficha pública pinta la página y la imagen queda en
+- **La base pública NO incluye el segmento del bucket.** `r2.dev` sirve `/<object_key>` y el objeto ya
+  vive en el bucket, así que la variable es el **origen** de la lectura pública, sin la clave, sin el
+  bucket y sin barra final; el adaptador solo compone `base + '/' + object_key`
+  ([`r2-live.ts`](../backend/src/storage/r2-live.ts:72)). Es la misma regla que gobierna `R2_ENDPOINT`
+  —«sin el nombre del bucket»—, porque en ambos casos el bucket ya está implicado por otro camino: en
+  la API S3 viaja en `Bucket:` con firma, y en la lectura pública lo pone el propio host `r2.dev`.
+- **Corrección del 2026-11-01 (medición anterior mal generalizada):** la observación del 2026-10-31 se
+  hizo sobre la foto de `silla-blanca-de-plastico-f97d4e`, un objeto **antiguo cuya clave empezaba por
+  `mudanzapp-photos/`**. Con el bucket dentro de la variable, esa URL respondía `200`, y de ahí se
+  concluyó que el segmento pertenecía a la variable. Con las claves del ciclo 3c-optimizar
+  —`eventId/itemId/<uuid>-<variant>`, sin prefijo ([`object-store.ts`](../backend/src/storage/object-store.ts:38))—
+  la misma variable duplicaba el segmento y **toda** foto nueva daba `404`. Quitar el segmento de
+  `R2_PUBLIC_BASE_URL` en Railway y redesplegar el backend lo corrige, sin re-subir fotos, republicar
+  ni reconstruir el Worker de `shop`: la URL se recompone en cada lectura.
+- Si la variable se fija **con** el segmento, la ficha pública pinta la página y la imagen queda en
   hueco, con un `404` en la consola del navegador: el contrato no falla, la URL apunta a otro objeto.
 - **Verificación `live` del ciclo 3c (2026-10-31):** en Chromium sin sesión, sobre
   `https://mudanzapp-shop.elingerojo.workers.dev/silla-blanca-de-plastico-f97d4e`, la ficha responde
-  `200`, el título es el del artículo, el `<img>` apunta a `…r2.dev/mudanzapp-photos/…` y la imagen
-  **decodifica** (`naturalWidth` 3072) con `localStorage` vacío. La foto se descarga del bucket
-  público sin credencial y el backend no sirve bytes en ese camino (decisión §26).
+  `200`, el título es el del artículo, el `<img>` apunta a `…r2.dev/mudanzapp-photos/…` —la clave de
+  esa foto antigua **incluía** el segmento, ver la corrección de arriba— y la imagen **decodifica**
+  (`naturalWidth` 3072) con `localStorage` vacío. La foto se descarga del bucket público sin
+  credencial y el backend no sirve bytes en ese camino (decisión §26).
+- **Observado en `live` (2026-11-01):** con la base pública **sin** el segmento, la foto nueva se
+  sirve y la imagen deja de dar `404`. La clave guardada es la del ciclo
+  —`…/06dea6d5-…/e68a3392-…/f5aee5aa-…-medium`—, con el sufijo de la variante y **sin** prefijo del
+  bucket, que es lo que confirma la corrección.
+- **Pendiente de la evidencia `live` de §7:** leer en el dashboard de Cloudflare el peso de los tres
+  objetos de una misma foto y abrir la ficha desde el teléfono en datos móviles. Hasta entonces no se
+  anota un peso medido: la base solo conserva, por herencia, el de `large` en
+  `app.item_photo.byte_size`.
 - `R2_ENDPOINT` no se anota porque solo lo usan las credenciales del backend; su corrección está
   probada por el uso: la subida (`PutObject`) y la lectura con sesión (`GetObject`) funcionan.
 - El `r2.dev` es un dominio de **desarrollo**: rate-limited, sin SLA y no recomendado para producción;
@@ -127,15 +145,23 @@ en el dashboard de Railway (`.roo/rules/07-secretos.md`).
 
 ### Esquema remoto (observado)
 
-| Hecho                                         | Valor                                     | Se obtuvo en                       | Estado    |
-| --------------------------------------------- | ----------------------------------------- | ---------------------------------- | --------- |
-| Migraciones aplicadas en `mudanzapp` remota   | `5` (`001`–`005`, incluida `app.listing`) | `npm run db:migrate:remote`        | observado |
-| Migraciones aplicadas en la dev branch remota | `5` (`001`–`005`, incluida `app.listing`) | `npm run db:migrate:remote:branch` | observado |
-| Fecha de la observación                       | 2026-10-31                                | corrida local del ciclo 3c         | observado |
+| Hecho                                         | Valor                                                                   | Se obtuvo en                       | Estado    |
+| --------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------- | --------- |
+| Migraciones aplicadas en `mudanzapp` remota   | `6` (`001`–`006`, con `app.item_photo_variant`)                         | `npm run db:migrate:remote`        | observado |
+| Migraciones aplicadas en la dev branch remota | `5` (`001`–`005`): falta `006`, pendiente de `db:migrate:remote:branch` | `npm run db:migrate:remote:branch` | observado |
+| Fecha de la observación                       | 2026-10-31; `006` en la principal el 2026-11-01                         | cierre del 3c y del 3c-optimizar   | observado |
 
-- Los seis nombres de R2 en el servicio de Railway y el redespliegue del backend siguen **pendientes**:
-  son un cambio de plataforma que se hace en el dashboard (`Man-3.4`), no desde el repo. Mientras falten,
-  `R2_MODE` cae en `live` con configuración incompleta y la primera petición de foto responde
-  `r2_not_configured`.
-- Hasta que el backend desplegado tenga la ruta pública, el Worker de `shop` **no** se redespliega: la
-  ruta `/:slug` llamaría a un endpoint que todavía no existe.
+- **Aviso de la deriva (2026-11-01):** el despliegue del ciclo 3c-optimizar salió **antes** de migrar
+  la base remota, y el backend nuevo respondió `500` en `GET /events/:id/items` y en
+  `PUT …/photo` hasta aplicar `006`. El síntoma en el deploy log fue `unhandled-error` —lo que imprime
+  [`error-handler.ts`](../backend/src/error-handler.ts:29) para lo no controlado—, que no distingue un
+  esquema atrasado de otro fallo. La migración remota es un paso **manual** del dueño (`Man-2.4`) y va
+  antes —o en el mismo momento— del despliegue que la necesita, no después.
+
+- **Superado (2026-10-31):** al cierre del 3c los seis nombres de R2 en el servicio de Railway y el
+  redespliegue del backend estaban pendientes; se aplicaron en el dashboard (`Man-3.4`) y hoy la subida
+  (`PutObject`) y la lectura pública funcionan. Mientras falten, `R2_MODE` cae en `live` con
+  configuración incompleta y la primera petición de foto responde `r2_not_configured`.
+- **Superado (2026-10-31):** el Worker de `shop` esperó a que el backend desplegado tuviera la ruta
+  pública, porque `/:slug` habría llamado a un endpoint que no existía. Hoy los dos despliegues son
+  independientes: la URL de la foto la emite la API y `shop` no compila orígenes de almacén.
