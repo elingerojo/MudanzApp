@@ -92,7 +92,7 @@ Vocabulario de acceso:
 | `invite-device` | En alcance del ciclo 2 (cerrado) | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
 | `capture` | En alcance del ciclo 3a | Foto y datos mínimos del artículo; la foto se lee solo con sesión del evento hasta `publish` |
 | `publish` | En alcance del ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto resuelta en `R2_MODE` (decisión §26). Sin precio ni moneda; publicar exige foto y no hay despublicar ni `slug` editable |
-| `ai-draft` | En alcance del ciclo 3d | Ficha borrador con salida validada en la frontera; produce **solo** título y nota, nunca medidas, peso, precio ni destino; el borrador es efímero (no hay tabla ni historial) y solo la revisión humana escribe (decisión §34) |
+| `ai-draft` | En alcance del ciclo 3d (cerrado) | Ficha borrador con salida validada en la frontera; produce **solo** título y nota, nunca medidas, peso, precio ni destino; el borrador es efímero (no hay tabla ni historial) y solo la revisión humana escribe (decisión §34); el transporte por bytes de la mediana se confirmó `live` en producción el 2026-11-01 |
 | `reserve` | Tentativa, ciclo 4 | Bloqueo de 15 minutos por visitante con cuenta |
 | `settle-sale` | Tentativa, ciclo 4 | El vendedor marca `Vendido` en cualquier estado |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |

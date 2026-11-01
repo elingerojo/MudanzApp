@@ -705,6 +705,11 @@ Reglas del crecimiento:
   pública real de un objeto (`image/webp`, `200`, 51 404 B) que devolvió un JSON válido con
   `titleLength` 27 ≤ 120 y `noteLength` 169 ≤ 500— queda como **historia**: probó la forma A, que ya no
   se usa, y deja registrado que el proveedor acepta la mediana y respeta el esquema.
+- **Cierre `live` en producción (2026-11-01): confirmado por el dueño.** En el servicio, con
+  `AI_MODE=live` y `R2_MODE=live`, un borrador real tomado desde el teléfono sobre una foto real se
+  revisó en el formulario y se publicó: el proveedor aceptó los bytes de la mediana en `inline_data` y
+  el recorrido completo funcionó. El ciclo 3d queda **cerrado**, y con él el ciclo 3. Los tiempos, el
+  modelo usado, el texto del borrador y la calidad de la ficha no se registran.
 - **Motivo:** la hipótesis de 3d es que «la ficha borrador de la IA se revisa en vez de escribirse»
   (`resumen-funcional` §3). Eso exige tres cosas a la vez: que el borrador no pueda convertirse en
   dato sin una persona, que su forma sea la única que el artículo admite, y que falle ruidosamente
