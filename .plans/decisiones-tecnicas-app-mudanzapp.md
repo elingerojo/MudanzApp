@@ -784,7 +784,8 @@ Reglas del crecimiento:
   `backend/sql/008_item_price_and_sold.sql` —el `007` ya es `event_public_slug`—,
   `backend/src/routes/items-router.ts` y la página de edición de `frontend`.
 - **Implementada por:** el corte del ciclo 4b (`item-edit`), que además convirtió el precio en parte
-  de la clave de versión del índice y de la ficha.
+  de la clave de versión del índice y de la ficha. **Cerrada con revisión `live` del dueño el
+  2026-11-02.**
 - **Disparador de revisión:** precios en moneda distinta de la del evento, o la primera venta que
   necesite fracciones (entero a decimal).
 
@@ -888,6 +889,7 @@ Reglas del crecimiento:
 - **Implementada por:** el corte del ciclo 4b (`settle-sale`). El índice excluye la ficha con
   `sold_at`; la ficha conserva `200` con `X-Robots-Tag: noindex` durante treinta días y después
   responde `410 listing_gone` con el mismo `noindex`. El modelo no tiene fin de evento, así que hoy el
-  único límite operativo es el de treinta días.
+  único límite operativo es el de treinta días. **Cerrada con revisión `live` del dueño el
+  2026-11-02.**
 - **Disparador de revisión:** la primera venta que haya que revertir, el primer borrado que deje
   objetos que importen, o la aparición de un fin de evento que extienda la cortesía.

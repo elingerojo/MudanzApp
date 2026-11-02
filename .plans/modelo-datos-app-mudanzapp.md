@@ -27,7 +27,8 @@ cuando el humano confirma la revisión con `PATCH`, sobre las mismas columnas (d
 El **ciclo 4** está aprobado y se implementa un corte a la vez. El **4a (`event-index`) está
 implementado** y su DDL vive en
 [`007_event_public_slug.sql`](../backend/sql/007_event_public_slug.sql:1), que agrega
-`app.event.public_slug`. El **4b (`item-edit`) está implementado** y su DDL vive en
+`app.event.public_slug`. El **4b (`item-edit`) está implementado, aplicado en local y remoto y
+revisado `live` por el dueño el 2026-11-02**; su DDL vive en
 [`008_item_price_and_sold.sql`](../backend/sql/008_item_price_and_sold.sql:1), que agrega
 `app.item.price_cents` y `app.listing.sold_at` (decisiones §35 y §40). Los cortes restantes siguen
 declarados antes de que exista su DDL, que es el orden normal: el 4c agrega
