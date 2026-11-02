@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { INVITATION_INVALID, apiErrorCode } from './api-error';
+import { deviceLabel } from './device-label';
 import { SessionStore } from './session.store';
 import { UiCardComponent } from '../ui/ui-card/ui-card';
 import { uiButtonClasses } from '../ui/ui-button/ui-button';
@@ -32,11 +33,6 @@ function tokenFromInput(raw: string): string {
   } catch {
     return rest;
   }
-}
-
-/** Etiqueta del dispositivo: el agente del navegador, truncado al límite del contrato. */
-function deviceLabel(): string {
-  return navigator.userAgent.slice(0, 80);
 }
 
 @Component({

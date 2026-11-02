@@ -31,6 +31,15 @@ export const LISTING_GONE = 'listing_gone';
 export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';
 
+/**
+ * Identidad de cuenta del ciclo 4c (`oauth-login`): el reclamo exige un sujeto y el proveedor puede
+ * rechazarlo. Se nombran aquí para que las dos pantallas del flujo —la Cuenta y el callback— traduzcan
+ * el mismo código a la misma frase.
+ */
+export const OAUTH_INVALID_TOKEN = 'oauth_invalid_token';
+export const OAUTH_NOT_CONFIGURED = 'oauth_not_configured';
+export const SESSION_NOT_CLAIMABLE = 'session_not_claimable';
+
 /** Fallos de la integración de IA (`ai-draft`, ciclo 3d), cada uno con su mensaje en la captura. */
 export const AI_UNAVAILABLE = 'ai_unavailable';
 export const AI_OUTPUT_INVALID = 'ai_output_invalid';

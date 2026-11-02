@@ -18,6 +18,13 @@ import { requireSession } from './session/session.guard';
 export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'invitacion', component: RedeemComponent },
+  // Vuelta del proveedor de identidad (ciclo 4c-1). Es pública porque llega un navegador recién
+  // redirigido: el reclamo usa la sesión que ya sostiene el dispositivo, no una ruta protegida.
+  {
+    path: 'auth/callback',
+    loadComponent: () =>
+      import('./session/oauth-callback.component').then((module) => module.OAuthCallbackComponent),
+  },
   {
     path: 'eventos/:eventId',
     loadComponent: () => import('./events/event.component').then((module) => module.EventComponent),
