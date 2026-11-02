@@ -3,8 +3,10 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./out-tsc/spec",
-    "rootDir": "./src",
+    // Sin `rootDir` ni `outDir`: la prueba de paridad importa el renderizador del backend
+    // (`backend/src/render/event-index-page.ts`) para comparar las dos renderizaciones, y un
+    // `rootDir` lo rechazaría. Este proyecto solo se usa con `--noEmit`, así que no hay salida que
+    // acotar.
     "types": ["vitest/globals"]
   },
   "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]

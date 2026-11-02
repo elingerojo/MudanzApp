@@ -64,6 +64,8 @@ export interface PublicListing {
   readonly event: {
     readonly originCity: string;
     readonly destinationCity: string;
+    /** Enlace de vuelta al índice del evento (ciclo 4a, decisión §36). */
+    readonly publicSlug: string;
   };
   readonly publishedAt: string;
 }

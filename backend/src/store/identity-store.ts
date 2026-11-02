@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
+
 import type { EventRole, SessionScope } from '@mudanzapp/shared';
 
 import type { Queryable } from '../db.js';
+import { eventPublicSlug, eventPublicSlugRetry } from '../domain/event.js';
 
 /**
  * Acceso a datos del corte de identidad, en SQL crudo y parametrizado (`modelo-datos` §2).
@@ -17,17 +20,44 @@ export type UserRecord = {
   readonly isAdmin: boolean;
 };
 
+/**
+ * El evento con su identificador público. `publicSlug` es `null` en un evento anterior al ciclo 4a:
+ * la derivación es **perezosa** y se persiste una sola vez, la primera vez que el evento se lee
+ * (`plan-ciclo-4a` §3). El `CHECK` y el índice único admiten ese nulo a propósito.
+ */
 export type EventRecord = {
   readonly id: string;
+  readonly publicSlug: string | null;
   readonly originCity: string;
   readonly destinationCity: string;
   readonly currency: string;
   readonly state: string;
 };
 
+/** El evento ya con su identificador público resuelto: lo que el contrato puede publicar. */
+export type EventWithPublicSlug = EventRecord & { readonly publicSlug: string };
+
 export type EventMembershipRecord = EventRecord & {
   readonly role: EventRole;
 };
+
+const EVENT_COLUMNS =
+  'id, public_slug AS "publicSlug", origin_city AS "originCity", ' +
+  'destination_city AS "destinationCity", currency, state';
+
+/** ¿El índice único del `public_slug` rechazó la escritura? Es la única colisión que se reintenta. */
+function isPublicSlugConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+
+  const { code, constraint } = error as { readonly code?: unknown; readonly constraint?: unknown };
+  if (code !== '23505') {
+    return false;
+  }
+
+  return constraint === undefined || constraint === 'event_public_slug_key';
+}
 
 export type InvitationRecord = {
   readonly id: string;
@@ -86,6 +116,14 @@ export async function ensureAdminUser(database: Queryable): Promise<UserRecord |
   return rows[0] ?? null;
 }
 
+/**
+ * Crea el evento y **estrena** su `public_slug` en la misma escritura (decisión §36): el enlace
+ * público existe desde el minuto cero, antes de que haya artículos.
+ *
+ * El identificador se genera aquí y no en la base porque el sufijo del `slug` sale de él. Si el
+ * índice único rechaza la primera forma —dos trayectos idénticos con el mismo prefijo—, se reintenta
+ * con ocho caracteres del mismo identificador; un tercer fallo es un error real y se propaga.
+ */
 export async function createEvent(
   database: Queryable,
   input: {
@@ -95,20 +133,40 @@ export async function createEvent(
     readonly currency: string;
   },
 ): Promise<EventRecord> {
-  const { rows } = await database.query<EventRecord>(
-    `INSERT INTO app.event (owner_user_id, origin_city, destination_city, currency)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id,
-               origin_city AS "originCity",
-               destination_city AS "destinationCity",
-               currency,
-               state`,
-    [input.ownerUserId, input.originCity, input.destinationCity, input.currency],
-  );
+  const eventId = randomUUID();
 
-  const event = rows[0];
-  if (event === undefined) {
-    throw new Error('event-insert-returned-no-row');
+  const insert = async (publicSlug: string): Promise<EventRecord> => {
+    const { rows } = await database.query<EventRecord>(
+      `INSERT INTO app.event (id, owner_user_id, origin_city, destination_city, currency, public_slug)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING ${EVENT_COLUMNS}`,
+      [
+        eventId,
+        input.ownerUserId,
+        input.originCity,
+        input.destinationCity,
+        input.currency,
+        publicSlug,
+      ],
+    );
+
+    const event = rows[0];
+    if (event === undefined) {
+      throw new Error('event-insert-returned-no-row');
+    }
+
+    return event;
+  };
+
+  let event: EventRecord;
+  try {
+    event = await insert(eventPublicSlug(input.originCity, input.destinationCity, eventId));
+  } catch (error: unknown) {
+    if (!isPublicSlugConflict(error)) {
+      throw error;
+    }
+
+    event = await insert(eventPublicSlugRetry(input.originCity, input.destinationCity, eventId));
   }
 
   await database.query(
@@ -121,18 +179,107 @@ export async function createEvent(
   return event;
 }
 
+/**
+ * Deriva y persiste el `public_slug` de un evento anterior al ciclo 4a, **una sola vez**.
+ *
+ * La escritura condicional (`WHERE public_slug IS NULL`) es la que hace segura la carrera: el que
+ * pierde no escribe nada y relee lo que ganó el otro. Un evento que ya tiene su identificador no
+ * toca la base.
+ */
+export async function ensureEventPublicSlug(
+  database: Queryable,
+  event: EventRecord,
+): Promise<EventWithPublicSlug> {
+  if (event.publicSlug !== null) {
+    return { ...event, publicSlug: event.publicSlug };
+  }
+
+  const first = await persistPublicSlug(
+    database,
+    event.id,
+    eventPublicSlug(event.originCity, event.destinationCity, event.id),
+  );
+  if (first !== null) {
+    return { ...event, publicSlug: first };
+  }
+
+  const existing = await readPublicSlug(database, event.id);
+  if (existing !== null) {
+    return { ...event, publicSlug: existing };
+  }
+
+  const retried = await persistPublicSlug(
+    database,
+    event.id,
+    eventPublicSlugRetry(event.originCity, event.destinationCity, event.id),
+  );
+  const resolved = retried ?? (await readPublicSlug(database, event.id));
+  if (resolved === null) {
+    throw new Error('event-public-slug-unresolved');
+  }
+
+  return { ...event, publicSlug: resolved };
+}
+
+/**
+ * Rellena de una vez los eventos que todavía no estrenaron su `public_slug`. Se usa en el camino de
+ * fallo de la lectura pública: un enlace emitido antes del corte tiene que encontrar su evento sin
+ * que nadie tenga que abrir la superficie privada primero.
+ */
+export async function backfillEventPublicSlugs(database: Queryable): Promise<number> {
+  const { rows } = await database.query<EventRecord>(
+    `SELECT ${EVENT_COLUMNS} FROM app.event WHERE public_slug IS NULL`,
+  );
+
+  let changed = 0;
+  for (const event of rows) {
+    await ensureEventPublicSlug(database, event);
+    changed += 1;
+  }
+
+  return changed;
+}
+
+async function persistPublicSlug(
+  database: Queryable,
+  eventId: string,
+  publicSlug: string,
+): Promise<string | null> {
+  try {
+    const { rows } = await database.query<{ readonly publicSlug: string }>(
+      `UPDATE app.event
+          SET public_slug = $2
+        WHERE id = $1
+          AND public_slug IS NULL
+        RETURNING public_slug AS "publicSlug"`,
+      [eventId, publicSlug],
+    );
+
+    return rows[0]?.publicSlug ?? null;
+  } catch (error: unknown) {
+    if (isPublicSlugConflict(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function readPublicSlug(database: Queryable, eventId: string): Promise<string | null> {
+  const { rows } = await database.query<{ readonly publicSlug: string | null }>(
+    `SELECT public_slug AS "publicSlug" FROM app.event WHERE id = $1`,
+    [eventId],
+  );
+
+  return rows[0]?.publicSlug ?? null;
+}
+
 export async function findEventById(
   database: Queryable,
   eventId: string,
 ): Promise<EventRecord | null> {
   const { rows } = await database.query<EventRecord>(
-    `SELECT id,
-            origin_city AS "originCity",
-            destination_city AS "destinationCity",
-            currency,
-            state
-     FROM app.event
-     WHERE id = $1`,
+    `SELECT ${EVENT_COLUMNS} FROM app.event WHERE id = $1`,
     [eventId],
   );
 
@@ -162,6 +309,7 @@ export async function listEventsForUser(
 ): Promise<EventMembershipRecord[]> {
   const { rows } = await database.query<EventMembershipRecord>(
     `SELECT e.id,
+            e.public_slug AS "publicSlug",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             e.currency,
@@ -184,6 +332,7 @@ export async function findEventForUser(
 ): Promise<EventMembershipRecord | null> {
   const { rows } = await database.query<EventMembershipRecord>(
     `SELECT e.id,
+            e.public_slug AS "publicSlug",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             e.currency,

@@ -1,6 +1,7 @@
 import type { ItemPhotoVariant } from '@mudanzapp/shared';
 
 import type { Queryable } from '../db.js';
+import { backfillEventPublicSlugs } from './identity-store.js';
 
 /**
  * Acceso a datos de la publicación, en SQL crudo y parametrizado (`modelo-datos` §2).
@@ -43,9 +44,43 @@ export type ListingWithItemRecord = {
   readonly weightKg: number | null;
   readonly photoObjectKey: string | null;
   readonly photoVariants: Partial<Record<ItemPhotoVariant, PublicVariantRecord>> | null;
+  /** Interno: permite derivar el `public_slug` de un evento anterior al ciclo 4a. No se publica. */
+  readonly eventId: string;
+  readonly publicSlug: string | null;
   readonly originCity: string;
   readonly destinationCity: string;
   readonly publishedAt: Date;
+};
+
+/**
+ * El evento del índice público: su identificador público y las dos ciudades de la cabecera.
+ * `publicSlug` es `null` solo en un evento anterior al ciclo 4a, antes de su derivación perezosa.
+ */
+export type PublicEventRecord = {
+  readonly id: string;
+  readonly publicSlug: string | null;
+  readonly originCity: string;
+  readonly destinationCity: string;
+  readonly currency: string;
+};
+
+/**
+ * Una tarjeta del índice: el artículo publicado con la variante `thumb` de su foto. `thumb*` es
+ * `null` cuando la foto no tiene esa variante —un artículo publicado antes de `3c-optimizar`— y la
+ * tarjeta muestra su marcador en las dos renderizaciones.
+ */
+export type PublicEventListingRecord = {
+  readonly slug: string;
+  readonly title: string;
+  readonly publishedAt: Date;
+  readonly thumbObjectKey: string | null;
+  readonly thumbWidthPx: number | null;
+  readonly thumbHeightPx: number | null;
+};
+
+export type PublicEventIndexRecord = {
+  readonly event: PublicEventRecord;
+  readonly listings: readonly PublicEventListingRecord[];
 };
 
 const LISTING_RETURNING =
@@ -120,6 +155,8 @@ export async function findListingBySlug(
                                         'heightPx', v.height_px))
                FROM app.item_photo_variant v
               WHERE v.photo_id = p.id) AS "photoVariants",
+            e.id AS "eventId",
+            e.public_slug AS "publicSlug",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             l.published_at AS "publishedAt"
@@ -132,4 +169,83 @@ export async function findListingBySlug(
   );
 
   return rows[0] ?? null;
+}
+
+/**
+ * El evento por su `public_slug`. Un `slug` inexistente es `null`, que la ruta traduce a `not_found`.
+ */
+export async function findPublicEventBySlug(
+  database: Queryable,
+  publicSlug: string,
+): Promise<PublicEventRecord | null> {
+  const { rows } = await database.query<PublicEventRecord>(
+    `SELECT id,
+            public_slug AS "publicSlug",
+            origin_city AS "originCity",
+            destination_city AS "destinationCity",
+            currency
+       FROM app.event
+      WHERE public_slug = $1`,
+    [publicSlug],
+  );
+
+  return rows[0] ?? null;
+}
+
+/**
+ * Las tarjetas del índice: **solo** artículos con fila en `app.listing`, en el orden publicado
+ * (`published_at DESC, id`). La variante `thumb` entra por `LEFT JOIN` en la misma lectura, así que un
+ * artículo sin esa variante devuelve `null` y no desaparece de la lista.
+ */
+async function listPublicEventListings(
+  database: Queryable,
+  eventId: string,
+): Promise<PublicEventListingRecord[]> {
+  const { rows } = await database.query<PublicEventListingRecord>(
+    `SELECT l.slug,
+            i.title,
+            l.published_at AS "publishedAt",
+            v.object_key AS "thumbObjectKey",
+            v.width_px AS "thumbWidthPx",
+            v.height_px AS "thumbHeightPx"
+       FROM app.listing l
+       JOIN app.item i ON i.id = l.item_id
+       LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0
+       LEFT JOIN app.item_photo_variant v ON v.photo_id = p.id AND v.variant = 'thumb'
+      WHERE i.event_id = $1
+      ORDER BY l.published_at DESC, l.id`,
+    [eventId],
+  );
+
+  return rows;
+}
+
+/**
+ * El índice de un evento: su cabecera y sus tarjetas publicadas.
+ *
+ * Un evento anterior al ciclo 4a no está todavía en el índice único de `public_slug`; la lectura
+ * pública lo deriva **una sola vez** y reintenta, para que un enlace emitido antes del corte
+ * encuentre su evento sin que nadie abra primero la superficie privada (`plan-ciclo-4a` §3). Con la
+ * tabla al día, el camino de fallo solo cuesta una consulta que no devuelve filas.
+ */
+export async function findPublicEventIndex(
+  database: Queryable,
+  publicSlug: string,
+): Promise<PublicEventIndexRecord | null> {
+  const found = await findPublicEventBySlug(database, publicSlug);
+  if (found !== null) {
+    return { event: found, listings: await listPublicEventListings(database, found.id) };
+  }
+
+  const backfilled = await backfillEventPublicSlugs(database);
+  if (backfilled === 0) {
+    return null;
+  }
+
+  const retried = await findPublicEventBySlug(database, publicSlug);
+  if (retried === null) {
+    return null;
+  }
+
+  return { event: retried, listings: await listPublicEventListings(database, retried.id) };
 }

@@ -1,4 +1,4 @@
-import { LISTING_LIMITS } from '@mudanzapp/shared';
+import { LISTING_LIMITS, slugBase } from '@mudanzapp/shared';
 
 /**
  * Núcleo puro de la publicación (ciclo 3c, `publish`).
@@ -38,13 +38,9 @@ const JOIN_LENGTH = 1;
  * que hace que «Sillón» y «Sillon» produzcan la misma base.
  */
 export function slugifyTitle(title: string): string {
-  const ascii = title
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-');
-
-  return ascii.slice(0, MAX_TITLE_PART).replace(/^-+|-+$/g, '');
+  // La regla de normalización es la misma que usa el `public_slug` del evento: vive en `shared`
+  // (`plan-ciclo-4a` §6) para que las dos formas no puedan separarse.
+  return slugBase(title, MAX_TITLE_PART);
 }
 
 /**

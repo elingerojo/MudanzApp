@@ -9,6 +9,7 @@
     "dev": "ng serve",
     "start": "ng serve",
     "build": "ng build && npm run brand:index",
+    "deploy": "node scripts/deploy.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit",

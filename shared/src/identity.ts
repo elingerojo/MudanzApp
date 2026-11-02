@@ -27,9 +27,13 @@ export interface IdentityUser {
 /**
  * `role` es `null` en una sesión de evento: todavía no hay membresía. No es un rol vacío, es la
  * ausencia del hecho, y es lo que el cliente usa para ofrecer el reclamo.
+ *
+ * Desde el ciclo 4a (`event-index`) el resumen publica `publicSlug`: el enlace del índice existe
+ * desde que el evento se crea y el lado privado lo copia sin inventar una ruta (decisión §36).
  */
 export interface EventSummary {
   readonly id: string;
+  readonly publicSlug: string;
   readonly originCity: string;
   readonly destinationCity: string;
   readonly currency: string;

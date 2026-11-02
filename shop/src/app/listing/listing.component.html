@@ -21,6 +21,16 @@
       <p class="text-sm text-slate-600" data-testid="listing-event">
         {{ listing.event.originCity }} → {{ listing.event.destinationCity }}
       </p>
+
+      <!-- El vínculo de vuelta al índice: la ficha pertenece a un evento y el evento es la
+           unidad que se comparte (decisión §36). -->
+      <a
+        [routerLink]="['/evento', listing.event.publicSlug]"
+        class="inline-block text-sm text-slate-700 underline"
+        data-testid="listing-event-link"
+      >
+        Ver todo el evento
+      </a>
     </header>
 
     @if (gallery(); as photo) {

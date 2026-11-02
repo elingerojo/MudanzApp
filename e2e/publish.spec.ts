@@ -155,7 +155,12 @@ test('the first published article opens without a session', async ({ request, pa
   expect(body.slug).toBe(listing.slug);
   expect(body.title).toBe('Silla de madera');
   expect(body.widthCm).toBe(45);
-  expect(body.event).toEqual({ originCity: 'Bogotá', destinationCity: 'Ciudad de México' });
+  // Desde el ciclo 4a la ficha compone el `publicSlug` del evento para enlazar de vuelta al índice.
+  expect(body.event).toEqual({
+    originCity: 'Bogotá',
+    destinationCity: 'Ciudad de México',
+    publicSlug: own.event.publicSlug,
+  });
 
   expect(body.photo?.sizes.medium?.widthPx).toBe(768);
   expect(body.photo?.sizes.medium?.heightPx).toBe(576);

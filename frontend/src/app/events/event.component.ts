@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { ActivatedRoute, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { SessionStore } from '../session/session.store';
+import { SHOP_BASE_URL } from '../shop-base-url.token';
 import { EventItemsStore } from './event-items.store';
 
 /**
@@ -25,6 +26,7 @@ import { EventItemsStore } from './event-items.store';
 export class EventComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly session = inject(SessionStore);
+  private readonly shopBaseUrl = inject(SHOP_BASE_URL);
 
   /** El recurso de artículos de la sección; lo consumen las dos pestañas y el contador. */
   protected readonly store = inject(EventItemsStore);
@@ -33,6 +35,16 @@ export class EventComponent {
 
   /** Ciudades del evento, cuando la identidad de la sesión ya las conoce. */
   protected readonly event = computed(() => this.session.eventById(this.eventId));
+
+  /**
+   * Enlace público del índice, visible y copiable desde que el evento se crea (decisión §36). El
+   * origen de `shop` es configuración compilada y el `publicSlug` lo emite el backend: el frontend no
+   * compone ninguno de los dos.
+   */
+  protected readonly publicUrl = computed(() => {
+    const event = this.event();
+    return event === null ? null : `${this.shopBaseUrl}/evento/${event.publicSlug}`;
+  });
 
   protected readonly sessionInvalid = this.session.identityFailed;
 

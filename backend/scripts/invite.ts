@@ -17,7 +17,7 @@ const DEFAULT_PORT = '3000';
 const DEFAULT_FRONTEND_BASE = 'http://localhost:4200';
 
 interface CreatedEventBody {
-  readonly event: { readonly id: string };
+  readonly event: { readonly id: string; readonly publicSlug?: string };
 }
 
 interface CreatedInvitationBody {
@@ -116,6 +116,8 @@ async function request(path: string, init: RequestInit): Promise<unknown> {
 
 async function main(): Promise<void> {
   let eventId = option('--event');
+  /** Identificador público del evento, cuando el backend lo emite (ciclo 4a). */
+  let publicSlug: string | null = null;
 
   if (eventId === null) {
     const origin = option('--origin');
@@ -136,6 +138,7 @@ async function main(): Promise<void> {
     })) as CreatedEventBody;
 
     eventId = created.event.id;
+    publicSlug = created.event.publicSlug ?? null;
   }
 
   const invitation = (await request(`/admin/events/${eventId}/invitations`, {
@@ -145,6 +148,10 @@ async function main(): Promise<void> {
   // La invitación es la capacidad que el administrador comparte; no es un valor de entorno. El
   // token se emite una sola vez y la base solo guarda su hash.
   console.log(`event: ${eventId}`);
+  if (publicSlug !== null) {
+    // El índice público es lo que el administrador comparte desde el minuto cero (decisión §36).
+    console.log(`public-slug: ${publicSlug}`);
+  }
   console.log(`invitation: ${invitation.id}`);
   console.log(`token: ${invitation.token}`);
   console.log(`expires: ${invitation.expiresAt}`);

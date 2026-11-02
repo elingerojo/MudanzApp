@@ -32,7 +32,11 @@ const LISTING: PublicListing = {
       },
     },
   },
-  event: { originCity: 'Bogotá', destinationCity: 'Ciudad de México' },
+  event: {
+    originCity: 'Bogotá',
+    destinationCity: 'Ciudad de México',
+    publicSlug: 'bogota-ciudad-de-mexico-3f9a2c',
+  },
   publishedAt: '2026-10-31T12:00:00.000Z',
 };
 
@@ -95,6 +99,12 @@ describe('ListingComponent', () => {
 
     const thumb = element.querySelector('[data-testid="listing-photo-thumb"]') as HTMLImageElement;
     expect(thumb.getAttribute('src')).toBe(LISTING.photo?.sizes.thumb?.url);
+
+    // La ficha enlaza de vuelta al índice del evento: el `publicSlug` viaja en el contrato.
+    const eventLink = element.querySelector(
+      '[data-testid="listing-event-link"]',
+    ) as HTMLAnchorElement;
+    expect(eventLink.getAttribute('href')).toBe('/evento/bogota-ciudad-de-mexico-3f9a2c');
 
     expect(TestBed.inject(Title).getTitle()).toBe('Mesa de roble');
   });

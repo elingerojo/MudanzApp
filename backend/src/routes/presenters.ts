@@ -1,4 +1,5 @@
 import {
+  type EventCardEntry,
   type EventRole,
   type EventSummary,
   type IdentityUser,
@@ -6,14 +7,21 @@ import {
   type ItemPhotoVariant,
   type ItemSummary,
   type PhotoSize,
+  type PublicEventIndex,
   type PublicListing,
   type PublicPhotoSize,
   type SessionSummary,
+  deriveEventPublicSlug,
+  indexVersion,
 } from '@mudanzapp/shared';
 
 import type { EventRecord, EventSessionRecord, UserRecord } from '../store/identity-store.js';
 import type { ItemWithPhotoRecord, PhotoVariantRecord } from '../store/item-store.js';
-import type { ListingWithItemRecord } from '../store/listing-store.js';
+import type {
+  ListingWithItemRecord,
+  PublicEventListingRecord,
+  PublicEventRecord,
+} from '../store/listing-store.js';
 
 /**
  * Traducción fila → contrato. Es el único lugar donde el `snake_case` de la base se convierte en
@@ -32,6 +40,10 @@ export function toEventSummary(
 ): EventSummary {
   return {
     id: event.id,
+    // Un evento anterior al ciclo 4a se deriva aquí sin escribir: la derivación es determinista sobre
+    // el identificador y el enlace queda estable aunque la persistencia llegue después.
+    publicSlug:
+      event.publicSlug ?? deriveEventPublicSlug(event.originCity, event.destinationCity, event.id),
     originCity: event.originCity,
     destinationCity: event.destinationCity,
     currency: event.currency,
@@ -168,7 +180,63 @@ export function toPublicListing(
     event: {
       originCity: listing.originCity,
       destinationCity: listing.destinationCity,
+      publicSlug:
+        listing.publicSlug ??
+        deriveEventPublicSlug(listing.originCity, listing.destinationCity, listing.eventId),
     },
     publishedAt: listing.publishedAt.toISOString(),
+  };
+}
+
+/**
+ * Una tarjeta del índice público (ciclo 4a). Solo publica lo que la tarjeta pinta: `slug`, `title`,
+ * `publishedAt` y la miniatura. Ni `eventId`, ni `itemId`, ni el `object_key` (`decisiones` §24).
+ *
+ * La URL de la miniatura la compone el almacén, no este mapeo, para que la base pública siga siendo
+ * una sola fuente (decisión §26).
+ */
+export function toPublicListingCard(
+  listing: PublicEventListingRecord,
+  publicUrl: (objectKey: string) => string,
+): EventCardEntry {
+  const thumb =
+    listing.thumbObjectKey === null ||
+    listing.thumbWidthPx === null ||
+    listing.thumbHeightPx === null
+      ? null
+      : {
+          url: publicUrl(listing.thumbObjectKey),
+          widthPx: listing.thumbWidthPx,
+          heightPx: listing.thumbHeightPx,
+        };
+
+  return {
+    slug: listing.slug,
+    title: listing.title,
+    publishedAt: listing.publishedAt.toISOString(),
+    thumb,
+  };
+}
+
+/**
+ * El índice completo, con su clave de versión. La versión se calcula con `indexVersion` sobre las
+ * mismas tarjetas que se publican, así que el snapshot y el JSON no pueden describir estados
+ * distintos en la misma respuesta.
+ */
+export function toPublicEventIndex(
+  event: PublicEventRecord,
+  listings: readonly EventCardEntry[],
+): PublicEventIndex {
+  return {
+    version: indexVersion({ event, listings }),
+    event: {
+      publicSlug:
+        event.publicSlug ??
+        deriveEventPublicSlug(event.originCity, event.destinationCity, event.id),
+      originCity: event.originCity,
+      destinationCity: event.destinationCity,
+      currency: event.currency,
+    },
+    listings,
   };
 }

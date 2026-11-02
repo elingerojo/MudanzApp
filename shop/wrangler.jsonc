@@ -1,10 +1,26 @@
 {
-  // Worker de assets de la superficie pública. Sin `main` y sin `_redirects`:
-  // un Worker sirve un único `assets.directory` (plantilla §2).
+  // Worker de la superficie pública. Desde el ciclo 4a (`event-index`) **no** es un Worker de solo
+  // assets: gana un `main` que intercepta `/evento/*` y sirve el snapshot del índice, y conserva el
+  // resto del mapa con el fallback de SPA (`plan-ciclo-4a` §4).
+  //
+  // `run_worker_first` con patrones hace que solo `/evento/*` entre primero al script; el resto sigue
+  // el camino de assets y el fallback de SPA. `binding` es lo que permite leer la shell con
+  // `env.ASSETS.fetch()` y componer la página con el snapshot dentro.
+  //
+  // `API_BASE_URL` es el origen del backend que el Worker pide para el snapshot. Wrangler no lee
+  // TypeScript, así que el valor se escribe aquí; `src/worker-config.spec.ts` falla si deja de
+  // coincidir con `src/environments/environment.production.ts`, de modo que el origen sigue teniendo
+  // una sola verdad verificada y no dos copias libres (disparador de `plan-ciclo-4a` §10).
   "name": "mudanzapp-shop",
+  "main": "./src/worker.ts",
   "compatibility_date": "2026-10-06",
+  "vars": {
+    "API_BASE_URL": "https://mudanzappbackend-production.up.railway.app",
+  },
   "assets": {
     "directory": "./dist/shop/browser",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
+    "run_worker_first": ["/evento/*"],
   },
 }

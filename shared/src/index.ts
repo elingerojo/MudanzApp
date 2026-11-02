@@ -7,6 +7,17 @@
  */
 export { AI_DRAFT_LIMITS, aiDraftSchema } from './ai.js';
 export type { AiDraft, AiDraftResult } from './ai.js';
+export { EVENT_CARD_LIMITS, EVENT_CARD_SIZES, cardModel, publishedLabel } from './card.js';
+export type { EventCardEntry, EventCardImage, EventCardModel, EventCardThumb } from './card.js';
+export {
+  EVENT_SLUG_RETRY_SUFFIX_LENGTH,
+  EVENT_SLUG_SUFFIX_LENGTH,
+  deriveEventPublicSlug,
+  eventPublicSlugSchema,
+  indexVersion,
+  slugBase,
+} from './event.js';
+export type { PublicEventIndex, PublicEventIndexEvent } from './event.js';
 export { health } from './health.js';
 export type { DatabaseState, Health } from './health.js';
 export { brand } from './brand.js';

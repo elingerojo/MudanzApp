@@ -1,0 +1,66 @@
+@if (loading() && value() === null) {
+  <p class="text-sm text-slate-600" data-testid="event-index-loading">Cargando…</p>
+} @else if (notFound()) {
+  <section class="space-y-2" data-testid="event-index-not-found">
+    <h2 class="text-lg font-semibold text-slate-900">Este evento no está disponible</h2>
+    <p class="text-sm text-slate-600">Pide un enlace nuevo a quien te lo compartió.</p>
+  </section>
+} @else if (failed()) {
+  <p class="text-sm text-red-600" data-testid="event-index-error">
+    No se pudo cargar el evento. Recarga la página.
+  </p>
+} @else if (value(); as index) {
+  <div class="mx-auto w-full max-w-2xl p-6" data-testid="event-index">
+    <header class="space-y-1">
+      <h1 class="text-xl font-semibold text-slate-900" data-testid="event-index-cities">
+        {{ index.event.originCity }} → {{ index.event.destinationCity }}
+      </h1>
+    </header>
+
+    @if (cards().length === 0) {
+      <p class="mt-4 text-sm text-slate-600" data-testid="event-index-empty">
+        Todavía no hay artículos publicados. Cuando se publique el primero, aparecerá aquí.
+      </p>
+    } @else {
+      <ul class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="event-index-list">
+        @for (card of cards(); track card.slug) {
+          <li>
+            <article class="space-y-2" [attr.data-slug]="card.slug" data-testid="event-index-card">
+              <a
+                class="block space-y-2"
+                [routerLink]="card.href"
+                data-testid="event-index-card-link"
+              >
+                @if (card.image; as image) {
+                  <img
+                    [ngSrc]="image.src"
+                    [ngSrcset]="image.descriptor"
+                    [sizes]="image.sizes"
+                    [width]="image.width"
+                    [height]="image.height"
+                    [alt]="card.alt"
+                    class="h-40 w-full rounded-lg bg-slate-100 object-cover"
+                    data-testid="event-index-card-thumb"
+                  />
+                } @else {
+                  <div
+                    class="h-40 w-full rounded-lg bg-slate-100"
+                    data-testid="event-index-card-thumb"
+                  ></div>
+                }
+
+                <h2 class="text-sm font-medium text-slate-900" data-testid="event-index-card-title">
+                  {{ card.title }}
+                </h2>
+
+                <p class="text-xs text-slate-500" data-testid="event-index-card-published">
+                  {{ card.publishedLabel }}
+                </p>
+              </a>
+            </article>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}

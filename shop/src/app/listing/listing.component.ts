@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import type { PublicListing, PublicPhotoSize } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../api-base-url.token';
@@ -51,7 +51,7 @@ interface Gallery {
  */
 @Component({
   selector: 'app-listing',
-  imports: [NgOptimizedImage],
+  imports: [NgOptimizedImage, RouterLink],
   templateUrl: './listing.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [{ provide: IMAGE_LOADER, useValue: identityLoader }],

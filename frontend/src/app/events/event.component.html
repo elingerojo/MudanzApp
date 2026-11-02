@@ -11,6 +11,15 @@
       <p class="text-sm text-slate-600">
         Documenta cada artículo con una foto y compártelo cuando esté listo.
       </p>
+
+      <!-- El enlace del evento existe desde que se crea: el índice nace vacío y sigue siendo un
+           enlace válido (decisión §36). -->
+      @if (publicUrl(); as link) {
+        <p class="text-sm text-slate-700" data-testid="event-public-link">
+          Enlace del evento:
+          <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{ link }}</a>
+        </p>
+      }
     </div>
 
     <a routerLink="/" class="text-sm text-slate-600 underline" data-testid="event-home-link">

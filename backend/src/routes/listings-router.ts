@@ -1,4 +1,10 @@
-import { listingSlugSchema, type PublicListing, type PublishedListing } from '@mudanzapp/shared';
+import {
+  eventPublicSlugSchema,
+  listingSlugSchema,
+  type PublicEventIndex,
+  type PublicListing,
+  type PublishedListing,
+} from '@mudanzapp/shared';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 
@@ -6,15 +12,26 @@ import { canActOnEvent } from '../domain/account.js';
 import { hasEveryVariant } from '../domain/item.js';
 import { listingSlug } from '../domain/listing.js';
 import { AppError } from '../errors.js';
+import { renderEventIndexPage } from '../render/event-index-page.js';
 import { findEventForUser } from '../store/identity-store.js';
 import { findItem } from '../store/item-store.js';
-import { findListingByItemId, findListingBySlug, upsertListing } from '../store/listing-store.js';
+import {
+  findListingByItemId,
+  findListingBySlug,
+  findPublicEventIndex,
+  upsertListing,
+} from '../store/listing-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
-import { toPublicListing } from './presenters.js';
+import { toPublicEventIndex, toPublicListing, toPublicListingCard } from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const itemParamsSchema = z.object({ eventId: z.uuid(), itemId: z.uuid() });
+
+/** Un parámetro de ruta que Express tipa como `string | string[]`: solo el texto simple es válido. */
+function pathParam(value: string | string[] | undefined): string {
+  return typeof value === 'string' ? value : '';
+}
 
 /** El contrato de publicar: la dirección y su camino relativo, sin origen. */
 function published(slug: string): PublishedListing {
@@ -108,6 +125,74 @@ export function createListingsRouter(deps: IdentityDeps): Router {
  */
 export function createPublicListingsRouter(deps: IdentityDeps): Router {
   const router = Router();
+
+  /**
+   * El índice de un evento, resuelto una sola vez para las dos lecturas públicas. Un `publicSlug`
+   * mal formado y uno inexistente responden lo mismo (`not_found`): la ruta no distingue «no existe»
+   * de «no cumple el patrón» (`decisiones` §24).
+   */
+  const loadEventIndex = async (publicSlug: string): Promise<PublicEventIndex> => {
+    const parsed = eventPublicSlugSchema.safeParse(publicSlug);
+    if (!parsed.success) {
+      throw new AppError('not_found');
+    }
+
+    const found = await findPublicEventIndex(deps.database, parsed.data);
+    if (found === null) {
+      throw new AppError('not_found');
+    }
+
+    return toPublicEventIndex(
+      found.event,
+      found.listings.map((listing) =>
+        toPublicListingCard(listing, (objectKey) => deps.storage.publicUrl(objectKey)),
+      ),
+    );
+  };
+
+  /**
+   * `GET /public/events/:publicSlug` — el índice como JSON, **sin sesión**.
+   *
+   * Publica `version` y las tarjetas. No publica `eventId`, `itemId` ni `object_key`: es el mismo
+   * contrato que el snapshot sirve como HTML, así que la SPA y el HTML no pueden describir estados
+   * distintos (`plan-ciclo-4a` §5).
+   */
+  router.get('/public/events/:publicSlug', (request: Request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const payload = await loadEventIndex(pathParam(request.params.publicSlug));
+      response.set('Cache-Control', 'public, max-age=60').json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * `GET /public/events/:publicSlug/page` — el snapshot como HTML, **sin sesión**. No es una URL del
+   * usuario: la pide el Worker de `shop` y la incrusta en la shell de la SPA.
+   *
+   * - `200` con el fragmento y su `ETag`, que es la clave de versión;
+   * - `204` cuando el evento existe y no tiene artículos: el índice nace con la primera publicación,
+   *   la URL no (§3);
+   * - `404` con el mismo criterio que la ficha.
+   *
+   * El TTL es el único reloj que acota lo que ve un visitante cuando cambia la disponibilidad; con
+   * `version` en la clave, corregir la copia cuesta una lectura y una renderización (§5).
+   */
+  router.get('/public/events/:publicSlug/page', (request: Request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const payload = await loadEventIndex(pathParam(request.params.publicSlug));
+      if (payload.listings.length === 0) {
+        response.status(204).end();
+        return;
+      }
+
+      response.set('ETag', `"${payload.version}"`);
+      response.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
+      response.type('text/html').send(renderEventIndexPage(payload));
+    };
+
+    void handle().catch(next);
+  });
 
   router.get('/public/listings/:slug', (request: Request, response, next) => {
     const handle = async (): Promise<void> => {
