@@ -22,7 +22,14 @@
 
 const EVENT_PREFIX = '/evento/';
 const SNAPSHOT_SUFFIX = '/page';
-const SNAPSHOT_CACHE_CONTROL = 'public, max-age=60';
+
+/**
+ * La ventana de la copia: exactamente el valor de `plan-ciclo-4a` §5 y el que el backend ya envía en
+ * `/page`. Son 60 segundos con `stale-while-revalidate` de 10 minutos porque es el único reloj que
+ * acota lo que ve un visitante cuando cambia la disponibilidad; cero pondría el backend en el camino
+ * de cada visita.
+ */
+const SNAPSHOT_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=600';
 
 /** Estado de la copia, tal como viaja en `X-Snapshot`. */
 export type SnapshotState = 'hit' | 'miss' | 'stale' | 'shell';

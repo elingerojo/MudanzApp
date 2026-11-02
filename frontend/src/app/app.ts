@@ -3,6 +3,7 @@ import { Title } from '@angular/platform-browser';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { brand } from '@mudanzapp/shared';
 
+import { InviteDeviceComponent } from './session/invite-device.component';
 import { SessionStore } from './session/session.store';
 import { uiButtonClasses } from './ui/ui-button/ui-button';
 
@@ -28,7 +29,7 @@ interface Destination {
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [InviteDeviceComponent, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

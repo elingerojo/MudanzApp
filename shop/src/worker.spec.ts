@@ -18,6 +18,11 @@ const SHELL = '<!doctype html><html><body><app-root></app-root></body></html>';
 const INDEX_URL = 'https://shop.test/evento/bogota-ciudad-de-mexico-3f9a2c';
 const FRAGMENT =
   '<meta name="event-version" content="v1">\n<div id="evento-snapshot" data-testid="event-index-snapshot"><ul data-testid="event-index-list"></ul></div>';
+/**
+ * La ventana de la copia, escrita a mano: si la aserción leyera la constante del Worker, el valor
+ * podría cambiar sin que nada se entere. El texto es el de `plan-ciclo-4a` §5.
+ */
+const SNAPSHOT_CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=600';
 
 interface MemoryCache extends SnapshotCache {
   readonly entries: Map<string, Response>;
@@ -82,6 +87,7 @@ describe('handleEventoRequest', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Snapshot')).toBe('miss');
     expect(response.headers.get('etag')).toBe('"v1"');
+    expect(response.headers.get('cache-control')).toBe(SNAPSHOT_CACHE_CONTROL);
     expect(body).toContain('<app-root></app-root>');
     expect(body).toContain('id="evento-snapshot"');
     expect(body.indexOf('id="evento-snapshot"')).toBeGreaterThan(body.indexOf('<app-root>'));
@@ -106,8 +112,43 @@ describe('handleEventoRequest', () => {
     const second = await handleEventoRequest(new Request(INDEX_URL), env, context(), cache);
 
     expect(second.headers.get('X-Snapshot')).toBe('hit');
+    expect(second.headers.get('cache-control')).toBe(SNAPSHOT_CACHE_CONTROL);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(await second.text()).toContain('id="evento-snapshot"');
+  });
+
+  it('serves the last stored copy, with its header, after a concurrent store', async () => {
+    const stored = new Response(FRAGMENT, {
+      status: 200,
+      headers: { etag: '"v1"', 'cache-control': SNAPSHOT_CACHE_CONTROL },
+    });
+
+    // Primera lectura sin copia y segunda con ella: así se ejerce el camino `stale`, que solo ocurre
+    // cuando otra petición guardó la copia mientras esta hablaba con el backend.
+    let reads = 0;
+    const cache: SnapshotCache = {
+      match: () => {
+        reads += 1;
+        return Promise.resolve(reads === 1 ? undefined : stored.clone());
+      },
+      put: () => Promise.resolve(),
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new Error('network'))),
+    );
+
+    const response = await handleEventoRequest(
+      new Request(INDEX_URL),
+      workerEnv(),
+      context(),
+      cache,
+    );
+
+    expect(response.headers.get('X-Snapshot')).toBe('stale');
+    expect(response.headers.get('cache-control')).toBe(SNAPSHOT_CACHE_CONTROL);
+    expect(await response.text()).toContain('id="evento-snapshot"');
   });
 
   it('serves the shell, not a snapshot, for an event with no articles', async () => {
@@ -124,6 +165,7 @@ describe('handleEventoRequest', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Snapshot')).toBe('shell');
+    expect(response.headers.get('cache-control')).toBe('no-cache');
     expect(body).not.toContain('id="evento-snapshot"');
     expect(cache.entries.size).toBe(0);
   });

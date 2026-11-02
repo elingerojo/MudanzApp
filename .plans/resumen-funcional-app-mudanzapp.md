@@ -86,11 +86,14 @@ Vocabulario de acceso:
 
 El ciclo 4 no es un solo corte: el enlace del evento existe desde que el evento se crea, el
 event-administrator administra la ficha y el comprador necesita una cuenta para señalar lo que
-quiere. Se descompone en seis cortes, cada uno con su hipótesis y su evidencia.
+quiere. Se descompone en seis cortes, cada uno con su hipótesis y su evidencia. La corrección
+`4a-fix` no es un corte nuevo: cierra dos brechas de 4a y se ejecuta **antes** de 4b
+([`plan-ciclo-4a-correccion-cache-y-cuenta`](../plans/plan-ciclo-4a-correccion-cache-y-cuenta.md:1) §1).
 
 | Corte | Hipótesis | Superficies |
 | --- | --- | --- |
 | 4a `event-index` | Quien recibe el enlace de un artículo llega por su índice a todo el evento, y el enlace existe desde que el evento se crea, aunque el índice esté vacío | `shop` y `frontend` |
+| 4a-fix `cache y Cuenta` | La copia del índice respeta la ventana que 4a declaró y una prueba la defiende; el enlace que 4a crea se reparte desde la Cuenta del marco, sin volver al administrador | `shop` y `frontend` |
 | 4b `item-edit` | Cualquier co-dispositivo corrige la ficha y fija el precio, y el catálogo lo refleja; el vendedor declara `Vendido` | `frontend` y `shop` |
 | 4c `event-admin` | Solo el event-administrator autenticado administra el evento, y una sesión de co-dispositivo no entra al dashboard | `frontend` |
 | 4d `shop-account` | Un visitante se registra y entra en la tienda sin tocar el evento | `shop` |
@@ -116,11 +119,11 @@ Reglas que ordenan la secuencia:
 | `invite` | En alcance del ciclo 1 | Enlace de 72 horas y cinco canjes, revocable; el token lo emite el servidor y el reclamo con cuenta no lo inutiliza |
 | `session` | En alcance del ciclo 1 | Token opaco por dispositivo, guardado como hash, con alcance `app` o `shop`, y dueño: una cuenta o un evento |
 | `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: vincula el sujeto y añade una sesión de cuenta. Es aditivo: no cierra el enlace ni revoca otras sesiones. No es obligatorio para documentar; es el camino de regreso |
-| `invite-device` | En alcance del ciclo 2 (cerrado) | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
+| `invite-device` | En alcance del ciclo 2 (cerrado) | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento; desde la corrección de 4a la emisión tiene superficie —el card de la Cuenta del marco compone el enlace y no lo persiste— sin cambiar los términos de §30 |
 | `capture` | En alcance del ciclo 3a | Foto y datos mínimos del artículo; la foto se lee solo con sesión del evento hasta `publish` |
 | `publish` | En alcance del ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto resuelta en `R2_MODE` (decisión §26). Sin precio ni moneda en 3c: el precio entra nulo en el ciclo 4b (decisión §35). Publicar exige foto y no hay despublicar ni `slug` editable; el borrado de una captura equivocada llega con `event-admin` (4c) |
 | `ai-draft` | En alcance del ciclo 3d (cerrado) | Ficha borrador con salida validada en la frontera; produce **solo** título y nota, nunca medidas, peso, precio ni destino; el borrador es efímero (no hay tabla ni historial) y solo la revisión humana escribe (decisión §34); el transporte por bytes de la mediana se confirmó `live` en producción el 2026-11-01 |
-| `event-index` | En alcance del ciclo 4a (cerrado) | `public_slug` del evento, inmutable una vez publicado; índice público con estado vacío y enlace de vuelta desde cada ficha (decisión §36); se sirve como snapshot HTML con clave de versión desde la primera publicación y el componente solo reemplaza la lista si la versión difiere; revisado `live` en el móvil del dueño el 2026-11-02 |
+| `event-index` | En alcance del ciclo 4a (cerrado) | `public_slug` del evento, inmutable una vez publicado; índice público con estado vacío y enlace de vuelta desde cada ficha (decisión §36); se sirve como snapshot HTML con clave de versión desde la primera publicación y el componente solo reemplaza la lista si la versión difiere; revisado `live` en el móvil del dueño el 2026-11-02; la corrección de 4a deja en vigor la ventana de 60 segundos con `stale-while-revalidate` de 10 minutos y la aserción que la defiende |
 | `item-edit` | Tentativa, ciclo 4b | Página de edición desde `Capturados` para cualquier sesión del evento; `price_cents` nulo deshabilita «Lo quiero» (decisión §35) |
 | `event-admin` | Tentativa, ciclo 4c | El primer invitado del evento que se autentica lo reclama y `is_admin` también entra; una sesión de co-dispositivo responde `forbidden` (decisión §37) |
 | `shop-account` | Tentativa, ciclo 4d | Registro igual al primer acceso OAuth, con nombre opcional; sesión de alcance `shop` |

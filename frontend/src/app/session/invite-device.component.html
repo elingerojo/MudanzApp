@@ -1,0 +1,41 @@
+@if (visible()) {
+  <app-ui-card title="Invitar a otro dispositivo">
+    <div class="space-y-2 text-xs text-slate-600">
+      <p>
+        El enlace dura 72 horas, se puede canjear cinco veces y no pide cuenta: el otro dispositivo
+        entra directo a este evento.
+      </p>
+
+      <app-ui-button
+        variant="primary"
+        testId="shell-invite-create"
+        [disabled]="inviting()"
+        (click)="invite()"
+      >
+        {{ inviting() ? 'Creando enlace…' : 'Crear enlace' }}
+      </app-ui-button>
+
+      @if (error(); as message) {
+        <p class="text-red-600" data-testid="shell-invite-error">{{ message }}</p>
+      }
+      @if (link(); as invitation) {
+        <label class="block text-slate-500" for="shell-invite-url"
+          >Enlace para el otro dispositivo</label
+        >
+
+        <input
+          id="shell-invite-url"
+          class="w-full rounded border border-slate-300 px-2 py-1 text-xs text-slate-900"
+          data-testid="shell-invite-url"
+          [value]="invitation"
+          readonly
+          (focus)="selectAll($event)"
+        />
+
+        <app-ui-button variant="secondary" testId="shell-invite-copy" (click)="copy()">
+          {{ copied() ? 'Copiado' : 'Copiar enlace' }}
+        </app-ui-button>
+      }
+    </div>
+  </app-ui-card>
+}

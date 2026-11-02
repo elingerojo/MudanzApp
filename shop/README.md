@@ -59,7 +59,10 @@ Reglas del mapa:
   fallback de SPA.
 - **Snapshot**: `X-Snapshot: hit | miss | stale | shell` dice qué sirvió el Worker. `hit` es una
   copia guardada, `miss` una página recién renderizada y guardada, `stale` la última copia ante un
-  fallo del backend y `shell` la SPA sin snapshot (evento vacío, sin copia o backend caído).
+  fallo del backend y `shell` la SPA sin snapshot (evento vacío, sin copia o backend caído). La copia
+  viaja con `cache-control: public, max-age=60, stale-while-revalidate=600` —el valor de
+  `plan-ciclo-4a` §5 y el mismo que el backend envía en `/page`— y `shell` con `no-cache`;
+  [`worker.spec.ts`](src/worker.spec.ts:1) fija el texto, así que cambiarlo sin cambiar el plan falla.
 - **Tests unitarios**: `npm run test:web:shop` desde la raíz (Vitest).
 - **E2E**: el arnés del monorepo es **Playwright**, no `ng e2e`. Se ejecuta desde la raíz con
   `npm run test:e2e`; `shop` entra como un `project` más y el humo corre una vez contra su shell.
