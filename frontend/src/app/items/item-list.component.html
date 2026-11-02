@@ -30,6 +30,10 @@
                 {{ item.title }}
               </p>
 
+              <p class="text-sm font-semibold text-slate-900" data-testid="item-price">
+                {{ store.priceLabel(item) }}
+              </p>
+
               @if (item.widthCm !== null && item.heightCm !== null && item.depthCm !== null) {
                 <p class="text-xs text-slate-600">
                   {{ item.widthCm }} × {{ item.heightCm }} × {{ item.depthCm }} cm
@@ -55,15 +59,19 @@
             <div class="flex shrink-0 flex-col items-end gap-1">
               <span
                 class="rounded-full px-2 py-0.5 text-xs"
-                [class]="
-                  item.publishedSlug === null
-                    ? 'bg-amber-100 text-amber-900'
-                    : 'bg-emerald-100 text-emerald-900'
-                "
+                [class]="statusClasses(item)"
                 data-testid="item-status"
               >
-                {{ item.publishedSlug === null ? 'en proceso' : 'publicado' }}
+                {{ statusLabel(item) }}
               </span>
+
+              <a
+                [routerLink]="['/eventos', store.eventId, 'articulos', item.id]"
+                class="text-sm text-slate-700 underline"
+                data-testid="item-edit-link"
+              >
+                Editar
+              </a>
 
               @if (linkFor(item); as link) {
                 <a
@@ -96,12 +104,38 @@
                 </button>
               }
 
+              @if (item.publishedSlug !== null && item.soldAt === null) {
+                <button
+                  type="button"
+                  [class]="secondaryClasses"
+                  [disabled]="store.sellingId() !== null"
+                  (click)="confirmSold(item)"
+                  data-testid="item-sold"
+                >
+                  {{
+                    confirmingSoldId() === item.id
+                      ? store.sellingId() === item.id
+                        ? 'Marcando…'
+                        : 'Confirmar venta'
+                      : 'Marcar vendido'
+                  }}
+                </button>
+              }
+
               @if (store.publishFailure(); as failure) {
                 @if (failure.itemId === item.id) {
                   <p
                     class="max-w-64 text-right text-xs text-red-600"
                     data-testid="item-listing-error"
                   >
+                    {{ failure.message }}
+                  </p>
+                }
+              }
+
+              @if (store.sellFailure(); as failure) {
+                @if (failure.itemId === item.id) {
+                  <p class="max-w-64 text-right text-xs text-red-600" data-testid="item-sold-error">
                     {{ failure.message }}
                   </p>
                 }

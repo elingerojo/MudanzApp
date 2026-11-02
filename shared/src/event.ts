@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { cardModel, type EventCardEntry } from './card.js';
+import { fnv1a64 } from './hash.js';
 import { LISTING_LIMITS, LISTING_SLUG_PATTERN } from './listing.js';
 
 /**
@@ -98,57 +99,36 @@ export interface PublicEventIndex {
   readonly listings: readonly EventCardEntry[];
 }
 
-const FNV_OFFSET = 0xcbf29ce484222325n;
-const FNV_PRIME = 0x100000001b3n;
-const MASK_64 = 0xffffffffffffffffn;
-
 /**
- * FNV-1a de 64 bits sobre las unidades UTF-16 del texto.
+ * Clave del snapshot: hashea lo que la tarjeta pinta —ciudades de la cabecera, la moneda que
+ * convierte el precio en texto y, por cada tarjeta, su `slug` (el `href`), su título ya recortado, su
+ * precio, su etiqueta de publicación y los descriptores de la imagen—.
  *
- * Se implementa aquí y no se importa una biblioteca porque la clave debe salir **igual** en el
- * backend y en la prueba, sin depender de `Intl` ni de la plataforma. 16 hex son de sobra para
- * distinguir dos versiones del mismo evento.
- */
-function hash(text: string): string {
-  let value = FNV_OFFSET;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.charCodeAt(index);
-    value ^= BigInt(code & 0xff);
-    value = (value * FNV_PRIME) & MASK_64;
-    value ^= BigInt(code >> 8);
-    value = (value * FNV_PRIME) & MASK_64;
-  }
-
-  return value.toString(16).padStart(16, '0');
-}
-
-/**
- * Clave del snapshot: hashea lo que la tarjeta pinta —ciudades de la cabecera, y por cada tarjeta su
- * `slug` (el `href`), su título ya recortado, su etiqueta de publicación y los descriptores de la
- * imagen—.
- *
- * **No** entran `currency`, `note`, `weightKg`, las medidas ni el orden de llegada de la base más
- * allá del orden publicado (`published_at DESC, id`): cambiar cualquiera de los primeros no altera un
- * solo píxel de la página, y el segundo ya es parte de la lista.
+ * **No** entran `note`, `weightKg`, las medidas ni el orden de llegada de la base más allá del orden
+ * publicado (`published_at DESC, id`): cambiar los primeros no altera un solo píxel de la página, y
+ * el segundo ya es parte de la lista. Desde el ciclo 4b el precio **sí** entra: la tarjeta lo pinta.
  */
 export function indexVersion(input: {
-  readonly event: { readonly originCity: string; readonly destinationCity: string };
+  readonly event: {
+    readonly originCity: string;
+    readonly destinationCity: string;
+    readonly currency: string;
+  };
   readonly listings: readonly EventCardEntry[];
 }): string {
   const lines = [
     `event\u001f${input.event.originCity}\u001f${input.event.destinationCity}`,
     ...input.listings.map((entry) => {
-      const card = cardModel(entry);
+      const card = cardModel(entry, input.event.currency);
       const image = card.image;
       const media =
         image === null
           ? 'no-thumb'
           : `${image.src}\u001f${String(image.width)}\u001f${String(image.height)}`;
 
-      return [card.slug, card.title, card.publishedLabel, media].join('\u001e');
+      return [card.slug, card.title, card.priceLabel, card.publishedLabel, media].join('\u001e');
     }),
   ];
 
-  return hash(lines.join('\u001d'));
+  return fnv1a64(lines.join('\u001d'));
 }

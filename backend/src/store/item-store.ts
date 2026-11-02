@@ -6,7 +6,7 @@ import type {
 } from '@mudanzapp/shared';
 
 import type { Queryable } from '../db.js';
-import type { ItemDraft } from '../domain/item.js';
+import type { ItemDraft, ItemUpdate } from '../domain/item.js';
 
 /**
  * Acceso a datos del artículo, en SQL crudo y parametrizado (`modelo-datos` §2).
@@ -32,6 +32,10 @@ export type ItemRecord = {
   readonly heightCm: number | null;
   readonly depthCm: number | null;
   readonly weightKg: number | null;
+  /** Precio en centavos de la moneda del evento; `null` mientras el vendedor no lo fija. */
+  readonly priceCents: number | null;
+  /** Instante de la venta; `null` mientras el artículo no está vendido (ciclo 4b). */
+  readonly soldAt: Date | null;
   readonly createdAt: Date;
 };
 
@@ -72,7 +76,8 @@ export type PhotoLookupRecord = PhotoRecord & { readonly eventId: string };
 const ITEM_COLUMNS =
   'i.id, i.event_id AS "eventId", i.title, i.note, ' +
   'i.width_cm AS "widthCm", i.height_cm AS "heightCm", i.depth_cm AS "depthCm", ' +
-  'i.weight_kg::float8 AS "weightKg", i.created_at AS "createdAt", ' +
+  'i.weight_kg::float8 AS "weightKg", i.price_cents AS "priceCents", ' +
+  'l.sold_at AS "soldAt", i.created_at AS "createdAt", ' +
   'l.slug AS "publishedSlug"';
 
 const PHOTO_JOIN = 'LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0';
@@ -114,6 +119,8 @@ export async function insertItem(
                height_cm AS "heightCm",
                depth_cm AS "depthCm",
                weight_kg::float8 AS "weightKg",
+               price_cents AS "priceCents",
+               NULL::timestamptz AS "soldAt",
                created_at AS "createdAt"`,
     [
       input.eventId,
@@ -151,6 +158,51 @@ export async function findItem(
   );
 
   return rows[0] ?? null;
+}
+
+/**
+ * Corrige la ficha en una sola sentencia parametrizada. Las banderas `has*` distinguen «no venía en
+ * la petición» de «vino con `null` para limpiar»; el `slug` publicado no se toca (decisión §31).
+ */
+export async function updateItem(
+  database: Queryable,
+  eventId: string,
+  itemId: string,
+  patch: ItemUpdate,
+): Promise<boolean> {
+  const { rows } = await database.query<{ readonly id: string }>(
+    `UPDATE app.item
+        SET title = CASE WHEN $3 THEN $4 ELSE title END,
+            note = CASE WHEN $5 THEN $6 ELSE note END,
+            width_cm = CASE WHEN $7 THEN $8 ELSE width_cm END,
+            height_cm = CASE WHEN $9 THEN $10 ELSE height_cm END,
+            depth_cm = CASE WHEN $11 THEN $12 ELSE depth_cm END,
+            weight_kg = CASE WHEN $13 THEN $14 ELSE weight_kg END,
+            price_cents = CASE WHEN $15 THEN $16 ELSE price_cents END
+      WHERE event_id = $1
+        AND id = $2
+      RETURNING id`,
+    [
+      eventId,
+      itemId,
+      patch.title !== undefined,
+      patch.title ?? null,
+      patch.note !== undefined,
+      patch.note ?? null,
+      patch.widthCm !== undefined,
+      patch.widthCm ?? null,
+      patch.heightCm !== undefined,
+      patch.heightCm ?? null,
+      patch.depthCm !== undefined,
+      patch.depthCm ?? null,
+      patch.weightKg !== undefined,
+      patch.weightKg ?? null,
+      patch.priceCents !== undefined,
+      patch.priceCents ?? null,
+    ],
+  );
+
+  return rows.length > 0;
 }
 
 export async function listItemsForEvent(

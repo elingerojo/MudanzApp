@@ -1,3 +1,5 @@
+import { formatPriceCents } from './price.js';
+
 /**
  * Modelo **único** de la tarjeta del índice público del evento (ciclo 4a, `event-index`).
  *
@@ -39,6 +41,8 @@ export interface EventCardEntry {
   readonly title: string;
   readonly publishedAt: string;
   readonly thumb: EventCardThumb | null;
+  /** Precio del artículo en centavos; `null` es «Precio a consultar» (ciclo 4b, §35). */
+  readonly priceCents: number | null;
 }
 
 /**
@@ -63,6 +67,7 @@ export interface EventCardModel {
   readonly slug: string;
   readonly href: string;
   readonly title: string;
+  readonly priceLabel: string;
   readonly publishedLabel: string;
   readonly alt: string;
   readonly image: EventCardImage | null;
@@ -90,8 +95,11 @@ export function publishedLabel(publishedAt: string): string {
 /**
  * La tarjeta resuelta. El `href` es la ruta de la ficha (`/<slug>`) y **no** un origen: el origen de
  * `shop` es configuración compilada, no un hecho del contrato.
+ *
+ * El precio se compone con la moneda del evento, que llega como argumento: la tarjeta no la guarda
+ * por artículo (decisión §35).
  */
-export function cardModel(entry: EventCardEntry): EventCardModel {
+export function cardModel(entry: EventCardEntry, currency: string): EventCardModel {
   const title = entry.title.trim().slice(0, EVENT_CARD_LIMITS.title);
   const thumb = entry.thumb;
 
@@ -113,6 +121,7 @@ export function cardModel(entry: EventCardEntry): EventCardModel {
     slug: entry.slug,
     href: `/${entry.slug}`,
     title,
+    priceLabel: formatPriceCents(entry.priceCents, currency),
     publishedLabel: publishedLabel(entry.publishedAt),
     alt: `Foto de ${title}`,
     image,

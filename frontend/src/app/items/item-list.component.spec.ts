@@ -6,6 +6,7 @@ import type { ItemSummary } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { EventItemsStore } from '../events/event-items.store';
+import { SessionStore } from '../session/session.store';
 import { SHOP_BASE_URL } from '../shop-base-url.token';
 import { ItemListComponent } from './item-list.component';
 
@@ -24,6 +25,8 @@ const PENDING: ItemSummary = {
   heightCm: 75,
   depthCm: 60,
   weightKg: 35,
+  priceCents: null,
+  soldAt: null,
   photo: { id: 'photo-1', sizes: { thumb: null, medium: null, large: null } },
   publishedSlug: null,
   createdAt: '2026-10-31T00:00:00.000Z',
@@ -33,7 +36,15 @@ const PUBLISHED: ItemSummary = {
   ...PENDING,
   id: 'item-2',
   title: 'Silla blanca',
+  priceCents: 125_050,
   publishedSlug: 'silla-blanca-3f9a2c',
+};
+
+const SOLD: ItemSummary = {
+  ...PUBLISHED,
+  id: 'item-3',
+  title: 'Sillón vendido',
+  soldAt: '2026-11-02T12:00:00.000Z',
 };
 
 /** Un turno de macro-tarea: deja correr la cadena de promesas entre dos peticiones encadenadas. */
@@ -55,6 +66,10 @@ describe('ItemListComponent', () => {
         EventItemsStore,
         { provide: API_BASE_URL, useValue: '/api' },
         { provide: SHOP_BASE_URL, useValue: 'http://shop.test' },
+        {
+          provide: SessionStore,
+          useValue: { eventById: () => ({ currency: 'MXN' }) },
+        },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap({ eventId: 'event-1' }) } },
@@ -121,11 +136,46 @@ describe('ItemListComponent', () => {
     const fixture = await load([PUBLISHED]);
 
     expect(statusOf(fixture, 0)).toBe('publicado');
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="item-price"]')?.textContent,
+    ).toContain('$1,250.50 MXN');
 
     const link = fixture.nativeElement.querySelector(
       '[data-testid="item-listing-link"]',
     ) as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('http://shop.test/silla-blanca-3f9a2c');
+  });
+
+  it('paints vendido and the edit link without offering the sale again', async () => {
+    const fixture = await load([SOLD]);
+
+    expect(statusOf(fixture, 0)).toBe('vendido');
+    expect(fixture.nativeElement.querySelector('[data-testid="item-edit-link"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="item-sold"]')).toBeNull();
+  });
+
+  it('marks a published article sold after the second tap and reloads the list', async () => {
+    const fixture = await load([PUBLISHED]);
+
+    const button = fixture.nativeElement.querySelector(
+      '[data-testid="item-sold"]',
+    ) as HTMLButtonElement;
+    button.click();
+    fixture.detectChanges();
+    expect(button.textContent).toContain('Confirmar venta');
+
+    button.click();
+    await settle(fixture);
+
+    const request = httpTesting.expectOne('/api/events/event-1/items/item-2/sold');
+    expect(request.request.method).toBe('POST');
+    request.flush({ item: SOLD });
+    await settle(fixture);
+
+    httpTesting.expectOne(ITEMS_URL).flush({ items: [SOLD] });
+    await settle(fixture);
+
+    expect(statusOf(fixture, 0)).toBe('vendido');
   });
 
   it('publishes an en proceso article and reloads the list', async () => {

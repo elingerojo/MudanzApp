@@ -70,9 +70,12 @@ export class EventIndexComponent {
   );
 
   /** Las tarjetas ya resueltas por el modelo compartido: el template no compone ningún texto. */
-  protected readonly cards = computed<readonly EventCardModel[]>(() =>
-    (this.value()?.listings ?? []).map(cardModel),
-  );
+  protected readonly cards = computed<readonly EventCardModel[]>(() => {
+    const index = this.value();
+    return index === null
+      ? []
+      : index.listings.map((entry) => cardModel(entry, index.event.currency));
+  });
 
   /** Un `publicSlug` inexistente y uno mal formado responden lo mismo: `not_found` (§24). */
   protected readonly notFound = computed(() => {

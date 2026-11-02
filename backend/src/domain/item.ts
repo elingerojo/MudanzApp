@@ -6,6 +6,7 @@ import {
   type ItemPhotoVariant,
   type ItemPhotoVariantContentType,
   type PhotoSize,
+  type UpdateItemRequest,
 } from '@mudanzapp/shared';
 
 /**
@@ -34,6 +35,17 @@ export interface ItemDraft {
   readonly weightKg: number | null;
 }
 
+/** Corrección de la ficha: `undefined` es «no enviado» y `null`, «limpiar» (ciclo 4b). */
+export interface ItemUpdate {
+  readonly title?: string;
+  readonly note?: string | null;
+  readonly widthCm?: number | null;
+  readonly heightCm?: number | null;
+  readonly depthCm?: number | null;
+  readonly weightKg?: number | null;
+  readonly priceCents?: number | null;
+}
+
 /**
  * Normaliza lo que la frontera ya validó. El `trim` del título se repite aquí a propósito: la regla
  * «un título vacío no es un título» es del dominio, y el esquema solo acota la forma.
@@ -48,6 +60,25 @@ export function normalizeItemDraft(input: CreateItemRequest): ItemDraft {
     heightCm: input.heightCm ?? null,
     depthCm: input.depthCm ?? null,
     weightKg: input.weightKg ?? null,
+  };
+}
+
+/**
+ * Normaliza lo que la frontera ya validó para una corrección. La nota vacía es ausencia, igual que en
+ * la captura; `undefined` se conserva como «no enviado» para no borrar un campo que no se tocó. El
+ * título se vuelve a recortar porque la regla de dominio es que un título vacío no es un título.
+ */
+export function normalizeItemUpdate(input: UpdateItemRequest): ItemUpdate {
+  return {
+    ...(input.title === undefined ? {} : { title: input.title.trim() }),
+    ...(input.note === undefined
+      ? {}
+      : { note: input.note === null || input.note.length === 0 ? null : input.note }),
+    ...(input.widthCm === undefined ? {} : { widthCm: input.widthCm }),
+    ...(input.heightCm === undefined ? {} : { heightCm: input.heightCm }),
+    ...(input.depthCm === undefined ? {} : { depthCm: input.depthCm }),
+    ...(input.weightKg === undefined ? {} : { weightKg: input.weightKg }),
+    ...(input.priceCents === undefined ? {} : { priceCents: input.priceCents }),
   };
 }
 

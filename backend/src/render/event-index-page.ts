@@ -54,6 +54,7 @@ function renderCard(card: EventCardModel): string {
     ` data-testid="event-index-card-link" href="${escapeHtml(card.href)}">`,
     renderMedia(card),
     `<h2 class="text-sm font-medium text-slate-900" data-testid="event-index-card-title">${escapeHtml(card.title)}</h2>`,
+    `<p class="text-sm font-semibold text-slate-900" data-testid="event-index-card-price">${escapeHtml(card.priceLabel)}</p>`,
     `<p class="text-xs text-slate-500" data-testid="event-index-card-published">${escapeHtml(card.publishedLabel)}</p>`,
     '</a>',
     '</article>',
@@ -69,7 +70,10 @@ function renderCard(card: EventCardModel): string {
  * cliente.
  */
 export function renderEventIndexPage(payload: PublicEventIndex): string {
-  const cards = payload.listings.map(cardModel).map(renderCard).join('\n');
+  const cards = payload.listings
+    .map((entry) => cardModel(entry, payload.event.currency))
+    .map(renderCard)
+    .join('\n');
 
   return [
     `<meta name="event-version" content="${escapeHtml(payload.version)}">`,

@@ -42,6 +42,8 @@ export type ListingWithItemRecord = {
   readonly heightCm: number | null;
   readonly depthCm: number | null;
   readonly weightKg: number | null;
+  readonly priceCents: number | null;
+  readonly soldAt: Date | null;
   readonly photoObjectKey: string | null;
   readonly photoVariants: Partial<Record<ItemPhotoVariant, PublicVariantRecord>> | null;
   /** Interno: permite derivar el `public_slug` de un evento anterior al ciclo 4a. No se publica. */
@@ -49,6 +51,7 @@ export type ListingWithItemRecord = {
   readonly publicSlug: string | null;
   readonly originCity: string;
   readonly destinationCity: string;
+  readonly currency: string;
   readonly publishedAt: Date;
 };
 
@@ -72,6 +75,7 @@ export type PublicEventRecord = {
 export type PublicEventListingRecord = {
   readonly slug: string;
   readonly title: string;
+  readonly priceCents: number | null;
   readonly publishedAt: Date;
   readonly thumbObjectKey: string | null;
   readonly thumbWidthPx: number | null;
@@ -148,6 +152,8 @@ export async function findListingBySlug(
             i.height_cm AS "heightCm",
             i.depth_cm AS "depthCm",
             i.weight_kg::float8 AS "weightKg",
+            i.price_cents AS "priceCents",
+            l.sold_at AS "soldAt",
             p.object_key AS "photoObjectKey",
             (SELECT jsonb_object_agg(v.variant,
                      jsonb_build_object('objectKey', v.object_key,
@@ -159,6 +165,7 @@ export async function findListingBySlug(
             e.public_slug AS "publicSlug",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
+            e.currency,
             l.published_at AS "publishedAt"
        FROM app.listing l
        JOIN app.item i ON i.id = l.item_id
@@ -166,6 +173,33 @@ export async function findListingBySlug(
        LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0
       WHERE l.slug = $1`,
     [slug],
+  );
+
+  return rows[0] ?? null;
+}
+
+/** Lo que la venta deja escrito; `soldAt` es el instante ya persistido, no el del intento. */
+export type ListingSaleRecord = {
+  readonly slug: string;
+  readonly soldAt: Date;
+};
+
+/**
+ * Marca la publicación como vendida sin monto y sin exigir precio (decisión §40). Es idempotente:
+ * `COALESCE` conserva la primera venta, así que reintentar no reescribe la fecha. Un artículo sin
+ * fila en `app.listing` devuelve `null` y el borde responde `listing_not_published`.
+ */
+export async function markListingSold(
+  database: Queryable,
+  itemId: string,
+  soldAt: Date,
+): Promise<ListingSaleRecord | null> {
+  const { rows } = await database.query<ListingSaleRecord>(
+    `UPDATE app.listing
+        SET sold_at = COALESCE(sold_at, $2)
+      WHERE item_id = $1
+      RETURNING slug, sold_at AS "soldAt"`,
+    [itemId, soldAt],
   );
 
   return rows[0] ?? null;
@@ -204,6 +238,7 @@ async function listPublicEventListings(
   const { rows } = await database.query<PublicEventListingRecord>(
     `SELECT l.slug,
             i.title,
+            i.price_cents AS "priceCents",
             l.published_at AS "publishedAt",
             v.object_key AS "thumbObjectKey",
             v.width_px AS "thumbWidthPx",
@@ -213,6 +248,7 @@ async function listPublicEventListings(
        LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0
        LEFT JOIN app.item_photo_variant v ON v.photo_id = p.id AND v.variant = 'thumb'
       WHERE i.event_id = $1
+        AND l.sold_at IS NULL
       ORDER BY l.published_at DESC, l.id`,
     [eventId],
   );

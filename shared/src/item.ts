@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
+import { PRICE_LIMITS } from './price.js';
+
 /**
- * Contrato del corte de captura del ciclo 3a (`capture`, `resumen-funcional` §4) y del corte de
- * optimización del ciclo 3c-optimizar.
+ * Contrato del corte de captura del ciclo 3a (`capture`, `resumen-funcional` §4), del corte de
+ * optimización del ciclo 3c-optimizar y de la edición del ciclo 4b (`item-edit`).
  *
  * Un artículo es la ficha mínima que un co-dispositivo documenta desde el teléfono: título, nota y
  * medidas opcionales. La foto es una capacidad aparte y su lectura exige sesión del evento en este
@@ -29,6 +31,8 @@ export const ITEM_LIMITS = {
   note: 500,
   sideCm: 500,
   weightKg: 2_000,
+  /** Tope del precio en centavos; el precio es nulo mientras el vendedor no lo fija. */
+  priceCents: PRICE_LIMITS.cents,
   /**
    * Tope del **archivo de la cámara**, no de lo que se transmite: desde 3c-optimizar la original se
    * decodifica en el dispositivo y nunca sale de él. En la frontera solo es cordura de transporte.
@@ -81,6 +85,7 @@ const title = z.string().trim().min(1).max(ITEM_LIMITS.title);
 const note = z.string().trim().max(ITEM_LIMITS.note);
 const side = z.number().int().min(1).max(ITEM_LIMITS.sideCm);
 const weightKg = z.number().positive().max(ITEM_LIMITS.weightKg);
+const priceCents = z.number().int().min(0).max(ITEM_LIMITS.priceCents).nullable();
 
 /**
  * `POST /events/:eventId/items`: ficha mínima del artículo. Las medidas son opcionales porque el
@@ -97,6 +102,27 @@ export const createItemSchema = z.strictObject({
 });
 
 export type CreateItemRequest = z.infer<typeof createItemSchema>;
+
+/**
+ * `PATCH /events/:eventId/items/:itemId` (ciclo 4b): corrige la ficha y fija el precio. Todos los
+ * campos son opcionales, pero la petición lleva al menos uno; `null` limpia la nota, una medida o el
+ * precio. El título no puede quedar vacío y el `slug` publicado no se toca (decisión §31).
+ */
+export const updateItemSchema = z
+  .strictObject({
+    title: title.optional(),
+    note: note.nullable().optional(),
+    widthCm: side.nullable().optional(),
+    heightCm: side.nullable().optional(),
+    depthCm: side.nullable().optional(),
+    weightKg: weightKg.nullable().optional(),
+    priceCents: priceCents.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'at least one field is required',
+  });
+
+export type UpdateItemRequest = z.infer<typeof updateItemSchema>;
 
 /** Nombre de la variante que pide o sube el cliente. */
 export const photoVariantSchema = z.enum(ITEM_PHOTO_VARIANTS);
@@ -156,12 +182,21 @@ export interface ItemSummary {
   readonly heightCm: number | null;
   readonly depthCm: number | null;
   readonly weightKg: number | null;
+  /** Precio en centavos de la moneda del evento; `null` mientras el vendedor no lo fija. */
+  readonly priceCents: number | null;
+  /** Instante de la venta; `null` mientras el artículo no está vendido (ciclo 4b, §40). */
+  readonly soldAt: string | null;
   readonly photo: ItemPhoto | null;
   readonly publishedSlug: string | null;
   readonly createdAt: string;
 }
 
 export interface CreatedItem {
+  readonly item: ItemSummary;
+}
+
+/** Respuesta de `PATCH` y de la venta: el artículo ya con su estado nuevo. */
+export interface UpdatedItem {
   readonly item: ItemSummary;
 }
 

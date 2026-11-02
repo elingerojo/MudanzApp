@@ -7,12 +7,13 @@ import { indexVersion, type EventCardEntry } from '@mudanzapp/shared';
  * se pinta, cada edición reescribiría la página pública; si omitiera uno que sí se pinta, la tarjeta
  * quedaría vieja y en silencio.
  */
-const EVENT = { originCity: 'Bogotá', destinationCity: 'Ciudad de México' };
+const EVENT = { originCity: 'Bogotá', destinationCity: 'Ciudad de México', currency: 'MXN' };
 
 const FIRST: EventCardEntry = {
   slug: 'silla-de-madera-3f9a2c',
   title: 'Silla de madera',
   publishedAt: '2026-10-31T12:00:00.000Z',
+  priceCents: 125_050,
   thumb: {
     url: 'https://fake.r2.local/event/item/uuid-thumb',
     widthPx: 320,
@@ -24,6 +25,7 @@ const SECOND: EventCardEntry = {
   slug: 'mesa-de-roble-4a1b3c',
   title: 'Mesa de roble',
   publishedAt: '2026-10-30T12:00:00.000Z',
+  priceCents: null,
   thumb: null,
 };
 
@@ -56,9 +58,15 @@ describe('indexVersion', () => {
   });
 
   it('changes when the event header cities change', () => {
-    const other = { originCity: 'Lima', destinationCity: 'Santiago' };
+    const other = { ...EVENT, originCity: 'Lima', destinationCity: 'Santiago' };
 
     expect(versionOf([FIRST, SECOND], other)).not.toBe(versionOf([FIRST, SECOND]));
+  });
+
+  it('changes when a painted price changes', () => {
+    const cheaper = { ...FIRST, priceCents: 99_900 };
+
+    expect(versionOf([cheaper, SECOND])).not.toBe(versionOf([FIRST, SECOND]));
   });
 
   it('changes when the published order changes', () => {

@@ -5,7 +5,8 @@ plantillas `.html` separadas) del monorepo MudanzApp. Es la tercera superficie: 
 privada del administrador y de los co-dispositivos del evento, y `wiki` es el dossier técnico.
 
 Este workspace arrancó como **bootstrap**, desde el ciclo 3c sirve la **primera página pública de
-producto** y desde el ciclo 4a el **índice público del evento**. El ciclo 4 le agrega la cuenta del
+producto**, desde el ciclo 4a el **índice público del evento** y desde el ciclo 4b la ficha muestra
+**precio y estado de venta** y también llega como snapshot. El ciclo 4 le agrega la cuenta del
 visitante (4d), el interés de compra (4e) y el carrito (4f). Las rutas de este documento son el mapa
 **vigente**; las de ciclo 4 se marcan como pendientes hasta que su corte las implante.
 
@@ -13,9 +14,12 @@ visitante (4d), el interés de compra (4e) y el carrito (4f). Las rutas de este 
 
 - `/` — `StatusComponent`: humo del arranque; proceso y base desde `/health`.
 - `/:slug` — `ListingComponent`: ficha pública de un artículo publicado, leída de
-  `GET /public/listings/:slug` **sin sesión**. Pinta tres tamaños de la foto —miniatura, mediana y
-  grande— y el grande se abre al tocar la mediana, sin dependencia nueva. Enlaza de vuelta al índice
-  del evento por `event.publicSlug`.
+  `GET /public/listings/:slug` **sin sesión**. Desde el ciclo 4b pinta el precio con la moneda del
+  evento y, si se vendió, el estado `Vendido`; el `noindex` y el `410` de la cortesía son cabeceras
+  del Worker, no `<meta>` de la SPA. La página llega **ya renderizada** por el backend
+  (`GET /public/listings/:slug/page`) y el Worker la guarda como snapshot; el componente la retira
+  cuando su modelo está al día. Pinta tres tamaños de la foto y el grande se abre al tocar la
+  mediana, sin dependencia nueva. Enlaza de vuelta al índice del evento por `event.publicSlug`.
 - `/evento/:publicSlug` — `EventIndexComponent`: índice público del evento desde el ciclo 4a, leído de
   `GET /public/events/:publicSlug` **sin sesión**. Con cero artículos muestra su estado vacío y sigue
   siendo un enlace válido. Cada tarjeta abre su ficha. La página llega **ya renderizada** por el
@@ -35,10 +39,12 @@ Reglas del mapa:
   reclasifica —`/` es una landing mínima pendiente de decisión, no un catálogo aplazado— y el índice
   del evento es quien demuestra el camino completo con backend cross-origin.
 - Ni `/:slug` ni `/evento/:publicSlug` emiten metadatos por ruta: WhatsApp no ejecuta la SPA y la
-  vista previa sigue siendo la del sitio (decisión §28).
+  vista previa sigue siendo la del sitio (decisión §28). La única excepción es `X-Robots-Tag:
+noindex` en una ficha vendida, que el Worker propaga del backend.
 - El índice y su tarjeta se pintan **dos veces** —el HTML del snapshot y el componente— desde un
   modelo único (`shared/src/card.ts`). `card-parity.spec.ts` compara ambas salidas y es lo que impide
-  que se separen.
+  que se separen. La ficha hace lo mismo desde `shared/src/listing-page.ts`, con
+  `listing-parity.spec.ts`.
 - La foto pública la descarga el navegador del almacén (`R2_PUBLIC_BASE_URL`), no del backend
   (decisión §26); el contrato entrega la URL ya compuesta.
 - Todavía no hay sesión de visitante: el alcance `shop` existe en el modelo de sesiones desde el ciclo
@@ -55,14 +61,17 @@ Reglas del mapa:
   `mudanzapp-shop`, su `name` debe coincidir con el del dashboard y `API_BASE_URL` vive en
   `wrangler.jsonc`; `backend/test/config/shop-worker-origin.test.ts` falla si deja de coincidir con
   `src/environments/environment.production.ts`, así que el origen del backend no tiene dos copias
-  libres. El Worker sirve `/evento/*` desde el script y el resto de las rutas desde sus assets con el
-  fallback de SPA.
-- **Snapshot**: `X-Snapshot: hit | miss | stale | shell` dice qué sirvió el Worker. `hit` es una
-  copia guardada, `miss` una página recién renderizada y guardada, `stale` la última copia ante un
-  fallo del backend y `shell` la SPA sin snapshot (evento vacío, sin copia o backend caído). La copia
-  viaja con `cache-control: public, max-age=60, stale-while-revalidate=600` —el valor de
-  `plan-ciclo-4a` §5 y el mismo que el backend envía en `/page`— y `shell` con `no-cache`;
-  [`worker.spec.ts`](src/worker.spec.ts:1) fija el texto, así que cambiarlo sin cambiar el plan falla.
+  libres. El Worker sirve `/evento/*` y las navegaciones `GET` a `/:slug` desde el script; el resto de
+  las rutas y los assets salen de sus assets con el fallback de SPA.
+- **Snapshot**: `X-Snapshot: hit | miss | stale | shell` dice qué sirvió el Worker, tanto para el
+  índice como para la ficha. `hit` es una copia guardada, `miss` una página recién renderizada y
+  guardada, `stale` la última copia ante un fallo del backend y `shell` la SPA sin snapshot (evento
+  vacío, sin copia, backend caído o ficha con la cortesía vencida). La copia viaja con
+  `cache-control: public, max-age=60, stale-while-revalidate=600` —el valor de `plan-ciclo-4a` §5 y el
+  mismo que el backend envía en `/page`— y `shell` con `no-cache`; [`worker.spec.ts`](src/worker.spec.ts:1)
+  fija el texto, así que cambiarlo sin cambiar el plan falla. Una ficha vendida conserva `200` con
+  `X-Robots-Tag: noindex` durante treinta días y después responde `410` con la shell y el mismo
+  `noindex`.
 - **Tests unitarios**: `npm run test:web:shop` desde la raíz (Vitest).
 - **E2E**: el arnés del monorepo es **Playwright**, no `ng e2e`. Se ejecuta desde la raíz con
   `npm run test:e2e`; `shop` entra como un `project` más y el humo corre una vez contra su shell.

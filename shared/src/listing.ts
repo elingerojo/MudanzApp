@@ -18,6 +18,36 @@ export const LISTING_LIMITS = {
   slug: 140,
 } as const;
 
+/** Días que una ficha vendida sigue respondiendo `200` con `noindex` (ciclo 4b, §40). */
+export const SOLD_COURTESY_DAYS = 30;
+
+const DAY_MS = 24 * 60 * 60 * 1_000;
+
+/**
+ * ¿Pasó la cortesía de una ficha vendida? El reloj entra como argumento: el núcleo no lee el reloj
+ * de la plataforma (`03` §3). Una fecha inválida no se inventa: el contrato público solo emite ISO
+ * válidos y el backend nunca guarda otra cosa.
+ */
+export function soldCourtesyOver(soldAt: string, now: Date): boolean {
+  const sold = new Date(soldAt).getTime();
+  if (Number.isNaN(sold)) {
+    return false;
+  }
+
+  return now.getTime() - sold >= SOLD_COURTESY_DAYS * DAY_MS;
+}
+
+/** Estado público de una ficha según su venta: viva, vendida dentro de la cortesía o retirada. */
+export type ListingState = 'live' | 'sold' | 'gone';
+
+export function listingState(soldAt: string | null, now: Date): ListingState {
+  if (soldAt === null) {
+    return 'live';
+  }
+
+  return soldCourtesyOver(soldAt, now) ? 'gone' : 'sold';
+}
+
 /**
  * Forma del `slug`: minúsculas alfanuméricas y separadores de un solo guion. Es el **mismo** patrón
  * que el `CHECK` de `app.listing` en [`005_listing.sql`](../backend/sql/005_listing.sql:1); un
@@ -49,10 +79,14 @@ export interface PublicListingPhoto {
 }
 
 /**
- * Ficha pública de un artículo publicado. Sin precio ni moneda: el artículo no los guarda en este
- * ciclo y la venta se cierra fuera de la aplicación.
+ * Ficha pública de un artículo publicado. Desde el ciclo 4b publica el precio —nulo es «precio a
+ * consultar»— y la venta; la moneda se lee del evento, nunca del artículo (decisión §35).
+ *
+ * `version` es la clave del snapshot: un cambio de precio, de texto o de estado cambia el `ETag` y
+ * la copia guardada se regenera.
  */
 export interface PublicListing {
+  readonly version: string;
   readonly slug: string;
   readonly title: string;
   readonly note: string | null;
@@ -60,12 +94,15 @@ export interface PublicListing {
   readonly heightCm: number | null;
   readonly depthCm: number | null;
   readonly weightKg: number | null;
+  readonly priceCents: number | null;
+  readonly soldAt: string | null;
   readonly photo: PublicListingPhoto | null;
   readonly event: {
     readonly originCity: string;
     readonly destinationCity: string;
     /** Enlace de vuelta al índice del evento (ciclo 4a, decisión §36). */
     readonly publicSlug: string;
+    readonly currency: string;
   };
   readonly publishedAt: string;
 }

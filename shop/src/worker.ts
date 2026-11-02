@@ -24,6 +24,14 @@ const EVENT_PREFIX = '/evento/';
 const SNAPSHOT_SUFFIX = '/page';
 
 /**
+ * Una ficha pública es **un** segmento con la forma del `slug` del artículo. Los assets llevan
+ * extensión (`/main.js`, `/favicon.svg`) y las rutas del mapa llevan más segmentos, así que no
+ * entran. `evento` y `carrito` se excluyen por nombre: son rutas del mapa, no fichas.
+ */
+const LISTING_PATH = /^\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
+const RESERVED_PATHS = new Set(['evento', 'carrito']);
+
+/**
  * La ventana de la copia: exactamente el valor de `plan-ciclo-4a` §5 y el que el backend ya envía en
  * `/page`. Son 60 segundos con `stale-while-revalidate` de 10 minutos porque es el único reloj que
  * acota lo que ve un visitante cuando cambia la disponibilidad; cero pondría el backend en el camino
@@ -79,6 +87,26 @@ function eventSlugOf(pathname: string): string | null {
 
   const slug = pathname.slice(EVENT_PREFIX.length);
   return slug.length === 0 || slug.includes('/') ? null : slug;
+}
+
+/**
+ * ¿Es una navegación a la ficha pública? Solo `GET`, solo si el visitante acepta HTML y solo un
+ * segmento con la forma del `slug`. Las peticiones de assets y de la API no se interceptan.
+ */
+function listingSlugOf(request: Request, pathname: string): string | null {
+  if (request.method !== 'GET') {
+    return null;
+  }
+
+  const accept = request.headers.get('accept') ?? '';
+  if (!accept.includes('text/html')) {
+    return null;
+  }
+
+  const match = LISTING_PATH.exec(pathname);
+  const slug = match?.[1] ?? null;
+
+  return slug === null || RESERVED_PATHS.has(slug) ? null : slug;
 }
 
 /** Inserta el fragmento antes de `</body>` para que quede **fuera** de `<app-root>`. */
@@ -203,6 +231,89 @@ export async function handleEventoRequest(
 }
 
 /**
+ * El handler de la ficha. Conserva la misma disciplina que el índice: copia sin identidad, `stale`
+ * ante un fallo del backend y `410` con `noindex` cuando la cortesía de venta venció.
+ */
+export async function handleListingRequest(
+  request: Request,
+  env: ShopWorkerEnv,
+  ctx: ShopExecutionContext,
+  cache: SnapshotCache,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const slug = listingSlugOf(request, url.pathname);
+  if (slug === null) {
+    return env.ASSETS.fetch(request);
+  }
+
+  const cacheKey = new Request(new URL(`/${slug}`, url).toString(), { method: 'GET' });
+
+  const cached = await cache.match(cacheKey);
+  if (cached !== undefined) {
+    return tagged(cached, 'hit');
+  }
+
+  const apiUrl = `${env.API_BASE_URL.replace(/\/+$/, '')}/public/listings/${encodeURIComponent(slug)}${SNAPSHOT_SUFFIX}`;
+
+  const staleOrShell = async (status: number): Promise<Response> => {
+    const stale = await cache.match(cacheKey);
+    return stale === undefined ? serveShell(env, url, status, 'shell') : tagged(stale, 'stale');
+  };
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(apiUrl, {
+      method: 'GET',
+      credentials: 'omit',
+      redirect: 'manual',
+      headers: { accept: 'text/html' },
+    });
+  } catch {
+    return staleOrShell(200);
+  }
+
+  if (upstream.status === 200) {
+    const fragment = await upstream.text();
+    const shell = await fetchShell(env, url);
+    const body = injectSnapshot(await shell.text(), fragment);
+
+    const response = new Response(body, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': SNAPSHOT_CACHE_CONTROL,
+      },
+    });
+
+    const etag = upstream.headers.get('etag');
+    if (etag !== null) {
+      response.headers.set('etag', etag);
+    }
+
+    const robots = upstream.headers.get('x-robots-tag');
+    if (robots !== null) {
+      response.headers.set('x-robots-tag', robots);
+    }
+
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    return tagged(response, 'miss');
+  }
+
+  if (upstream.status === 404) {
+    return serveShell(env, url, 404, 'shell');
+  }
+
+  // La cortesía venció: la página sigue sin ser indexable y el visitante ve la shell de la SPA.
+  if (upstream.status === 410) {
+    const shell = await serveShell(env, url, 410, 'shell');
+    shell.headers.set('x-robots-tag', 'noindex');
+    return shell;
+  }
+
+  return staleOrShell(200);
+}
+
+/**
  * El objeto del Worker: ata la caché del borde y atrapa lo que se escape del handler. Un error
  * inesperado también termina en la última copia o en la shell, nunca en un `5xx` del Worker.
  */
@@ -214,15 +325,30 @@ export function createShopWorker(cache: SnapshotCache) {
       ctx: ShopExecutionContext,
     ): Promise<Response> {
       const url = new URL(request.url);
-      const slug = eventSlugOf(url.pathname);
-      if (slug === null) {
+      const eventSlug = eventSlugOf(url.pathname);
+
+      if (eventSlug !== null) {
+        try {
+          return await handleEventoRequest(request, env, ctx, cache);
+        } catch {
+          const cacheKey = new Request(new URL(`/evento/${eventSlug}`, url).toString(), {
+            method: 'GET',
+          });
+          const stale = await cache.match(cacheKey);
+
+          return stale === undefined ? serveShell(env, url, 200, 'shell') : tagged(stale, 'stale');
+        }
+      }
+
+      const listingSlug = listingSlugOf(request, url.pathname);
+      if (listingSlug === null) {
         return env.ASSETS.fetch(request);
       }
 
       try {
-        return await handleEventoRequest(request, env, ctx, cache);
+        return await handleListingRequest(request, env, ctx, cache);
       } catch {
-        const cacheKey = new Request(new URL(`/evento/${slug}`, url).toString(), { method: 'GET' });
+        const cacheKey = new Request(new URL(`/${listingSlug}`, url).toString(), { method: 'GET' });
         const stale = await cache.match(cacheKey);
 
         return stale === undefined ? serveShell(env, url, 200, 'shell') : tagged(stale, 'stale');

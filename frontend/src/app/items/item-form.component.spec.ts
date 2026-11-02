@@ -27,6 +27,8 @@ const CREATED = {
     heightCm: null,
     depthCm: null,
     weightKg: null,
+    priceCents: null,
+    soldAt: null,
     photo: null,
     publishedSlug: null,
     createdAt: '2026-10-31T00:00:00.000Z',

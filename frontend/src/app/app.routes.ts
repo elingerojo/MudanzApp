@@ -33,6 +33,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./items/item-list.component').then((module) => module.ItemListComponent),
       },
+      {
+        path: 'articulos/:itemId',
+        loadComponent: () =>
+          import('./items/item-edit.component').then((module) => module.ItemEditComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

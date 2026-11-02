@@ -13,6 +13,7 @@ import {
   type SessionSummary,
   deriveEventPublicSlug,
   indexVersion,
+  listingVersion,
 } from '@mudanzapp/shared';
 
 import type { EventRecord, EventSessionRecord, UserRecord } from '../store/identity-store.js';
@@ -118,6 +119,8 @@ export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
     heightCm: item.heightCm,
     depthCm: item.depthCm,
     weightKg: item.weightKg,
+    priceCents: item.priceCents,
+    soldAt: item.soldAt?.toISOString() ?? null,
     photo: item.photoId === null ? null : { id: item.photoId, sizes: sizesOf(item.photoVariants) },
     publishedSlug: item.publishedSlug,
     createdAt: item.createdAt.toISOString(),
@@ -168,7 +171,8 @@ export function toPublicListing(
           },
         };
 
-  return {
+  const draft: PublicListing = {
+    version: '',
     slug: listing.slug,
     title: listing.title,
     note: listing.note,
@@ -176,6 +180,8 @@ export function toPublicListing(
     heightCm: listing.heightCm,
     depthCm: listing.depthCm,
     weightKg: listing.weightKg,
+    priceCents: listing.priceCents,
+    soldAt: listing.soldAt?.toISOString() ?? null,
     photo,
     event: {
       originCity: listing.originCity,
@@ -183,9 +189,12 @@ export function toPublicListing(
       publicSlug:
         listing.publicSlug ??
         deriveEventPublicSlug(listing.originCity, listing.destinationCity, listing.eventId),
+      currency: listing.currency,
     },
     publishedAt: listing.publishedAt.toISOString(),
   };
+
+  return { ...draft, version: listingVersion(draft) };
 }
 
 /**
@@ -213,6 +222,7 @@ export function toPublicListingCard(
   return {
     slug: listing.slug,
     title: listing.title,
+    priceCents: listing.priceCents,
     publishedAt: listing.publishedAt.toISOString(),
     thumb,
   };

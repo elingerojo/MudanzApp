@@ -1,9 +1,11 @@
 import {
   eventPublicSlugSchema,
   listingSlugSchema,
+  listingState,
   type PublicEventIndex,
   type PublicListing,
   type PublishedListing,
+  type UpdatedItem,
 } from '@mudanzapp/shared';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
@@ -13,17 +15,24 @@ import { hasEveryVariant } from '../domain/item.js';
 import { listingSlug } from '../domain/listing.js';
 import { AppError } from '../errors.js';
 import { renderEventIndexPage } from '../render/event-index-page.js';
+import { renderListingPage } from '../render/listing-page.js';
 import { findEventForUser } from '../store/identity-store.js';
 import { findItem } from '../store/item-store.js';
 import {
   findListingByItemId,
   findListingBySlug,
   findPublicEventIndex,
+  markListingSold,
   upsertListing,
 } from '../store/listing-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
-import { toPublicEventIndex, toPublicListing, toPublicListingCard } from './presenters.js';
+import {
+  toItemSummary,
+  toPublicEventIndex,
+  toPublicListing,
+  toPublicListingCard,
+} from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const itemParamsSchema = z.object({ eventId: z.uuid(), itemId: z.uuid() });
@@ -108,6 +117,44 @@ export function createListingsRouter(deps: IdentityDeps): Router {
       void handle().catch(next);
     },
   );
+
+  /**
+   * `POST /events/:eventId/items/:itemId/sold` — el vendedor declara la venta (ciclo 4b, §40).
+   *
+   * Vender no es borrar: escribe `app.listing.sold_at` y conserva artículo, foto y URL. Es
+   * idempotente; reintentar no reescribe la fecha. Un artículo sin publicación responde
+   * `listing_not_published` (409), porque vender no es publicar.
+   */
+  router.post('/events/:eventId/items/:itemId/sold', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+      const identity = identityOf(request);
+
+      if (!(await canAct(identity, eventId))) {
+        throw new AppError('not_found');
+      }
+
+      const item = await findItem(deps.database, eventId, itemId);
+      if (item === null) {
+        throw new AppError('item_not_found');
+      }
+
+      const sold = await markListingSold(deps.database, itemId, deps.now());
+      if (sold === null) {
+        throw new AppError('listing_not_published');
+      }
+
+      const fresh = await findItem(deps.database, eventId, itemId);
+      if (fresh === null) {
+        throw new AppError('item_not_found');
+      }
+
+      const payload: UpdatedItem = { item: toItemSummary(fresh) };
+      response.json(payload);
+    };
+
+    void handle().catch(next);
+  });
 
   return router;
 }
@@ -194,23 +241,72 @@ export function createPublicListingsRouter(deps: IdentityDeps): Router {
     void handle().catch(next);
   });
 
+  /**
+   * La ficha pública, resuelta una sola vez para sus dos lecturas. Un `slug` mal formado y uno
+   * inexistente responden lo mismo (`not_found`). El estado se decide con el reloj inyectado:
+   * `live`, `sold` dentro de la cortesía o `gone` después.
+   */
+  const loadListing = async (
+    slug: string,
+  ): Promise<{ readonly listing: PublicListing; readonly state: 'live' | 'sold' | 'gone' }> => {
+    const parsed = listingSlugSchema.safeParse(slug);
+    if (!parsed.success) {
+      throw new AppError('not_found');
+    }
+
+    const found = await findListingBySlug(deps.database, parsed.data);
+    if (found === null) {
+      throw new AppError('not_found');
+    }
+
+    const listing = toPublicListing(found, (objectKey) => deps.storage.publicUrl(objectKey));
+
+    return { listing, state: listingState(listing.soldAt, deps.now()) };
+  };
+
+  /** `GET /public/listings/:slug` — la ficha como JSON, **sin sesión**. */
   router.get('/public/listings/:slug', (request: Request, response, next) => {
     const handle = async (): Promise<void> => {
-      const parsed = listingSlugSchema.safeParse(request.params.slug);
-      if (!parsed.success) {
-        throw new AppError('not_found');
+      const { listing, state } = await loadListing(pathParam(request.params.slug));
+
+      if (state === 'gone') {
+        response.set('X-Robots-Tag', 'noindex').status(410).json({ error: 'listing_gone' });
+        return;
       }
 
-      const listing = await findListingBySlug(deps.database, parsed.data);
-      if (listing === null) {
-        throw new AppError('not_found');
+      if (state === 'sold') {
+        response.set('X-Robots-Tag', 'noindex');
       }
 
-      const payload: PublicListing = toPublicListing(listing, (objectKey) =>
-        deps.storage.publicUrl(objectKey),
-      );
+      response.set('Cache-Control', 'public, max-age=60').json(listing);
+    };
 
-      response.set('Cache-Control', 'public, max-age=60').json(payload);
+    void handle().catch(next);
+  });
+
+  /**
+   * `GET /public/listings/:slug/page` — el snapshot HTML de la ficha, **sin sesión**. No es una URL
+   * del usuario: la pide el Worker de `shop` y la incrusta en la shell de la SPA.
+   *
+   * Una ficha vendida conserva el `200` durante la cortesía y lo abandona con `410` al vencer; en los
+   * dos casos la respuesta lleva `noindex`, que es la cortesía declarada en `plan-ciclo-4a` §5.
+   */
+  router.get('/public/listings/:slug/page', (request: Request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { listing, state } = await loadListing(pathParam(request.params.slug));
+
+      if (state === 'gone') {
+        response.set('X-Robots-Tag', 'noindex').status(410).end();
+        return;
+      }
+
+      if (state === 'sold') {
+        response.set('X-Robots-Tag', 'noindex');
+      }
+
+      response.set('ETag', `"${listing.version}"`);
+      response.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
+      response.type('text/html').send(renderListingPage(listing));
     };
 
     void handle().catch(next);

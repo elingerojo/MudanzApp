@@ -20,6 +20,7 @@ const PAYLOAD: PublicEventIndex = {
       slug: 'silla-de-madera-3f9a2c',
       title: 'Silla de madera',
       publishedAt: '2026-10-31T12:00:00.000Z',
+      priceCents: 125_050,
       thumb: {
         url: 'https://fake.r2.local/event/item/uuid-thumb',
         widthPx: 320,
@@ -30,6 +31,7 @@ const PAYLOAD: PublicEventIndex = {
       slug: 'mesa-de-roble-4a1b3c',
       title: 'Mesa de roble',
       publishedAt: '2026-10-30T12:00:00.000Z',
+      priceCents: null,
       thumb: null,
     },
   ],
@@ -73,6 +75,13 @@ describe('renderEventIndexPage', () => {
     expect(html).toContain('Publicado el 2026-10-31');
   });
 
+  it('paints the price from the event currency and the null price', () => {
+    const html = renderEventIndexPage(PAYLOAD);
+
+    expect(html).toContain('$1,250.50 MXN');
+    expect(html).toContain('Precio a consultar');
+  });
+
   it('escapes user input and carries no session marks', () => {
     const html = renderEventIndexPage({
       ...PAYLOAD,
@@ -81,6 +90,7 @@ describe('renderEventIndexPage', () => {
           slug: 'caja-3f9a2c',
           title: '<script>alert(1)</script>',
           publishedAt: '2026-10-31T12:00:00.000Z',
+          priceCents: null,
           thumb: null,
         },
       ],

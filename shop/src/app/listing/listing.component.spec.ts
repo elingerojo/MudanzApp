@@ -14,6 +14,7 @@ import { ListingComponent } from './listing.component';
  * inexistente muestra su estado sin romper la shell.
  */
 const LISTING: PublicListing = {
+  version: 'a1b2c3d4e5f60718',
   slug: 'mesa-de-roble-3f9a2c',
   title: 'Mesa de roble',
   note: 'De madera',
@@ -21,6 +22,8 @@ const LISTING: PublicListing = {
   heightCm: 75,
   depthCm: 60,
   weightKg: 35,
+  priceCents: 125_050,
+  soldAt: null,
   photo: {
     sizes: {
       thumb: { url: 'https://fake.r2.local/event/item/uuid-thumb', widthPx: 320, heightPx: 240 },
@@ -36,6 +39,7 @@ const LISTING: PublicListing = {
     originCity: 'Bogotá',
     destinationCity: 'Ciudad de México',
     publicSlug: 'bogota-ciudad-de-mexico-3f9a2c',
+    currency: 'MXN',
   },
   publishedAt: '2026-10-31T12:00:00.000Z',
 };
@@ -87,6 +91,9 @@ describe('ListingComponent', () => {
 
     expect(element.querySelector('[data-testid="listing-title"]')?.textContent).toContain(
       'Mesa de roble',
+    );
+    expect(element.querySelector('[data-testid="listing-price"]')?.textContent).toContain(
+      '$1,250.50 MXN',
     );
     expect(element.querySelector('[data-testid="listing-measures"]')?.textContent).toContain('120');
     expect(element.querySelector('[data-testid="listing-event"]')?.textContent).toContain('Bogotá');

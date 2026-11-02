@@ -20,6 +20,7 @@ const WITH_THUMB: EventCardEntry = {
   slug: 'silla-de-madera-3f9a2c',
   title: 'Silla de madera',
   publishedAt: '2026-10-31T12:00:00.000Z',
+  priceCents: 125_050,
   thumb: {
     url: 'https://fake.r2.local/event/item/uuid-thumb',
     widthPx: 320,
@@ -31,6 +32,7 @@ const WITHOUT_THUMB: EventCardEntry = {
   slug: 'mesa-de-roble-4a1b3c',
   title: 'Mesa de roble',
   publishedAt: '2026-10-30T12:00:00.000Z',
+  priceCents: null,
   thumb: null,
 };
 

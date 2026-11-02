@@ -40,14 +40,21 @@ export {
   createItemSchema,
   photoVariantSchema,
   photoVariantUploadSchema,
+  updateItemSchema,
 } from './item.js';
-export { LISTING_LIMITS, LISTING_SLUG_PATTERN, listingSlugSchema } from './listing.js';
-export type {
-  PublicListing,
-  PublicListingPhoto,
-  PublicPhotoSize,
-  PublishedListing,
+export {
+  LISTING_LIMITS,
+  LISTING_SLUG_PATTERN,
+  SOLD_COURTESY_DAYS,
+  listingSlugSchema,
+  listingState,
+  soldCourtesyOver,
 } from './listing.js';
+export { listingPageModel, listingVersion, measuresLabel } from './listing-page.js';
+export { PRICE_LIMITS, formatPriceCents, parsePriceInput, priceInputValue } from './price.js';
+export type { ListingState } from './listing.js';
+export type { ListingPageLarge, ListingPageModel, ListingPagePhoto } from './listing-page.js';
+export type { PriceParseResult } from './price.js';
 export type {
   CreatedItem,
   CreateItemRequest,
@@ -59,7 +66,15 @@ export type {
   ItemSummary,
   PhotoSize,
   PhotoVariantUpload,
+  UpdatedItem,
+  UpdateItemRequest,
 } from './item.js';
+export type {
+  PublicListing,
+  PublicListingPhoto,
+  PublicPhotoSize,
+  PublishedListing,
+} from './listing.js';
 export type {
   ClaimEventRequest,
   CreateEventRequest,

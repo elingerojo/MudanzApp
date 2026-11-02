@@ -27,12 +27,13 @@ cuando el humano confirma la revisión con `PATCH`, sobre las mismas columnas (d
 El **ciclo 4** está aprobado y se implementa un corte a la vez. El **4a (`event-index`) está
 implementado** y su DDL vive en
 [`007_event_public_slug.sql`](../backend/sql/007_event_public_slug.sql:1), que agrega
-`app.event.public_slug`. Los cortes restantes siguen declarados antes de que exista su DDL, que es el
-orden normal: el 4b agrega `app.item.price_cents` y `app.listing.sold_at`; el 4c agrega
+`app.event.public_slug`. El **4b (`item-edit`) está implementado** y su DDL vive en
+[`008_item_price_and_sold.sql`](../backend/sql/008_item_price_and_sold.sql:1), que agrega
+`app.item.price_cents` y `app.listing.sold_at` (decisiones §35 y §40). Los cortes restantes siguen
+declarados antes de que exista su DDL, que es el orden normal: el 4c agrega
 `app.event.admin_user_id`; el 4e agrega `app.purchase_interest`; y el 4f agrega `app.cart` y
-`app.cart_item` (decisiones §35 a §40). Esos cambios no viven todavía en `backend/sql/`: los archivos
-`008`–`011` están **reservados** y solo se crean con su corte, aditivos, idempotentes y sin `DROP`,
-como los anteriores.
+`app.cart_item`. Esos cambios no viven todavía en `backend/sql/`: los archivos `009`–`011` están
+**reservados** y solo se crean con su corte, aditivos, idempotentes y sin `DROP`, como los anteriores.
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |

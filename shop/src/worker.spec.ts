@@ -1,5 +1,6 @@
 import {
   handleEventoRequest,
+  handleListingRequest,
   injectSnapshot,
   type ShopExecutionContext,
   type ShopWorkerEnv,
@@ -18,6 +19,9 @@ const SHELL = '<!doctype html><html><body><app-root></app-root></body></html>';
 const INDEX_URL = 'https://shop.test/evento/bogota-ciudad-de-mexico-3f9a2c';
 const FRAGMENT =
   '<meta name="event-version" content="v1">\n<div id="evento-snapshot" data-testid="event-index-snapshot"><ul data-testid="event-index-list"></ul></div>';
+const LISTING_URL = 'https://shop.test/mesa-de-roble-3f9a2c';
+const LISTING_FRAGMENT =
+  '<meta name="listing-version" content="v1">\n<div id="ficha-snapshot" data-testid="listing-snapshot"><article data-testid="listing"></article></div>';
 /**
  * La ventana de la copia, escrita a mano: si la aserción leyera la constante del Worker, el valor
  * podría cambiar sin que nada se entere. El texto es el de `plan-ciclo-4a` §5.
@@ -239,6 +243,117 @@ describe('handleEventoRequest', () => {
     expect(await response.text()).toBe('asset');
     expect(response.headers.get('X-Snapshot')).toBeNull();
     expect(assets).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('handleListingRequest', () => {
+  function listingRequest(url = LISTING_URL): Request {
+    return new Request(url, { headers: { accept: 'text/html' } });
+  }
+
+  it('renders the shell with the listing snapshot on a miss and stores the copy', async () => {
+    upstream(
+      new Response(LISTING_FRAGMENT, {
+        status: 200,
+        headers: { etag: '"v1"', 'content-type': 'text/html', 'x-robots-tag': 'noindex' },
+      }),
+    );
+    const cache = memoryCache();
+    const ctx = context();
+
+    const response = await handleListingRequest(listingRequest(), workerEnv(), ctx, cache);
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-Snapshot')).toBe('miss');
+    expect(response.headers.get('etag')).toBe('"v1"');
+    expect(response.headers.get('cache-control')).toBe(SNAPSHOT_CACHE_CONTROL);
+    expect(response.headers.get('x-robots-tag')).toBe('noindex');
+    expect(body).toContain('id="ficha-snapshot"');
+    expect(body.indexOf('id="ficha-snapshot"')).toBeLessThan(body.indexOf('</body>'));
+
+    await Promise.all(ctx.pending);
+    expect([...cache.entries.keys()]).toEqual([LISTING_URL]);
+  });
+
+  it('serves the stored listing copy on a hit without asking the backend again', async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(LISTING_FRAGMENT, { status: 200, headers: { etag: '"v1"' } })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const cache = memoryCache();
+    const env = workerEnv();
+
+    await handleListingRequest(listingRequest(), env, context(), cache);
+    const second = await handleListingRequest(listingRequest(), env, context(), cache);
+
+    expect(second.headers.get('X-Snapshot')).toBe('hit');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await second.text()).toContain('id="ficha-snapshot"');
+  });
+
+  it('keeps the 404 of an unknown listing with the shell as body', async () => {
+    upstream(new Response('no', { status: 404 }));
+
+    const response = await handleListingRequest(
+      listingRequest(),
+      workerEnv(),
+      context(),
+      memoryCache(),
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('X-Snapshot')).toBe('shell');
+  });
+
+  it('serves the shell with 410 and noindex when the courtesy is over', async () => {
+    upstream(new Response(null, { status: 410 }));
+
+    const response = await handleListingRequest(
+      listingRequest(),
+      workerEnv(),
+      context(),
+      memoryCache(),
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(410);
+    expect(response.headers.get('X-Snapshot')).toBe('shell');
+    expect(response.headers.get('x-robots-tag')).toBe('noindex');
+    expect(body).toContain('<app-root></app-root>');
+    expect(body).not.toContain('id="ficha-snapshot"');
+  });
+
+  it('leaves assets, JSON and the event index to their own handlers', async () => {
+    const assets = vi.fn(() => Promise.resolve(new Response('asset')));
+    const env: ShopWorkerEnv = { API_BASE_URL: 'https://api.test', ASSETS: { fetch: assets } };
+
+    const asset = await handleListingRequest(
+      new Request('https://shop.test/main.js', { headers: { accept: 'text/html' } }),
+      env,
+      context(),
+      memoryCache(),
+    );
+    const event = await handleListingRequest(
+      new Request(INDEX_URL, { headers: { accept: 'text/html' } }),
+      env,
+      context(),
+      memoryCache(),
+    );
+    const json = await handleListingRequest(
+      new Request('https://shop.test/mesa-de-roble-3f9a2c', {
+        headers: { accept: 'application/json' },
+      }),
+      env,
+      context(),
+      memoryCache(),
+    );
+
+    expect(await asset.text()).toBe('asset');
+    expect(await event.text()).toBe('asset');
+    expect(await json.text()).toBe('asset');
+    expect(assets).toHaveBeenCalledTimes(3);
   });
 });
 

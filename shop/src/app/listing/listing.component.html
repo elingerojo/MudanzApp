@@ -1,4 +1,4 @@
-@if (loading()) {
+@if (loading() && model() === null) {
   <p class="text-sm text-slate-600" data-testid="listing-loading">Cargando…</p>
 } @else if (notFound()) {
   <section class="space-y-2" data-testid="listing-not-found">
@@ -7,25 +7,28 @@
       Puede que el artículo ya no esté publicado. Pide un enlace nuevo a quien te lo compartió.
     </p>
   </section>
+} @else if (gone()) {
+  <section class="space-y-2" data-testid="listing-gone">
+    <h2 class="text-lg font-semibold text-slate-900">Este artículo ya no está disponible</h2>
+    <p class="text-sm text-slate-600">La venta ya se cerró y el enlace dejó de estar disponible.</p>
+  </section>
 } @else if (failed()) {
   <p class="text-sm text-red-600" data-testid="listing-error">
     No se pudo cargar el artículo. Recarga la página.
   </p>
-} @else if (value(); as listing) {
+} @else if (model(); as listing) {
   <article class="space-y-4" data-testid="listing">
     <header class="space-y-1">
       <h1 class="text-xl font-semibold text-slate-900" data-testid="listing-title">
         {{ listing.title }}
       </h1>
 
-      <p class="text-sm text-slate-600" data-testid="listing-event">
-        {{ listing.event.originCity }} → {{ listing.event.destinationCity }}
-      </p>
+      <p class="text-sm text-slate-600" data-testid="listing-event">{{ listing.citiesLabel }}</p>
 
       <!-- El vínculo de vuelta al índice: la ficha pertenece a un evento y el evento es la
            unidad que se comparte (decisión §36). -->
       <a
-        [routerLink]="['/evento', listing.event.publicSlug]"
+        [routerLink]="listing.eventHref"
         class="inline-block text-sm text-slate-700 underline"
         data-testid="listing-event-link"
       >
@@ -33,7 +36,20 @@
       </a>
     </header>
 
-    @if (gallery(); as photo) {
+    <p class="text-base font-semibold text-slate-900" data-testid="listing-price">
+      {{ listing.priceLabel }}
+    </p>
+
+    @if (listing.soldLabel; as sold) {
+      <p
+        class="inline-block rounded-full bg-slate-900 px-3 py-1 text-sm font-medium text-white"
+        data-testid="listing-sold"
+      >
+        {{ sold }}
+      </p>
+    }
+
+    @if (listing.photo; as photo) {
       <div class="space-y-3" data-testid="listing-gallery">
         @if (photo.medium; as medium) {
           <figure>
@@ -45,21 +61,22 @@
               data-testid="listing-photo-trigger"
               aria-label="Ver la foto en tamaño grande"
             >
-              @if (medium.widthPx > 0) {
+              @if (medium.width > 0) {
                 <img
-                  [ngSrc]="medium.url"
-                  [width]="medium.widthPx"
-                  [height]="medium.heightPx"
-                  sizes="100vw"
+                  [ngSrc]="medium.src"
+                  [ngSrcset]="medium.descriptor"
+                  [sizes]="medium.sizes"
+                  [width]="medium.width"
+                  [height]="medium.height"
                   priority
-                  alt=""
+                  [alt]="listing.alt"
                   class="w-full rounded-lg bg-slate-100 object-cover"
                   data-testid="listing-photo"
                 />
               } @else {
                 <img
-                  [src]="medium.url"
-                  alt=""
+                  [src]="medium.src"
+                  [alt]="listing.alt"
                   class="w-full rounded-lg bg-slate-100 object-cover"
                   data-testid="listing-photo"
                 />
@@ -67,33 +84,35 @@
             </button>
 
             <figcaption class="mt-1 text-xs text-slate-500" data-testid="listing-photo-medium">
-              {{ medium.widthPx }} px
+              {{ medium.width }} px
             </figcaption>
           </figure>
         }
 
         @if (photo.thumb; as thumb) {
           <figure class="w-24">
-            @if (thumb.widthPx > 0) {
+            @if (thumb.width > 0) {
               <img
-                [ngSrc]="thumb.url"
-                [width]="thumb.widthPx"
-                [height]="thumb.heightPx"
-                alt=""
+                [ngSrc]="thumb.src"
+                [ngSrcset]="thumb.descriptor"
+                [sizes]="thumb.sizes"
+                [width]="thumb.width"
+                [height]="thumb.height"
+                [alt]="listing.alt"
                 class="w-full rounded-lg bg-slate-100 object-cover"
                 data-testid="listing-photo-thumb"
               />
             } @else {
               <img
-                [src]="thumb.url"
-                alt=""
+                [src]="thumb.src"
+                [alt]="listing.alt"
                 class="w-full rounded-lg bg-slate-100 object-cover"
                 data-testid="listing-photo-thumb"
               />
             }
 
             <figcaption class="text-xs text-slate-500" data-testid="listing-photo-thumb-label">
-              {{ thumb.widthPx }} px
+              {{ thumb.width }} px
             </figcaption>
           </figure>
         }
@@ -124,10 +143,10 @@
           ></button>
 
           <img
-            [src]="large.url"
-            [attr.width]="large.widthPx > 0 ? large.widthPx : null"
-            [attr.height]="large.heightPx > 0 ? large.heightPx : null"
-            alt=""
+            [src]="large.src"
+            [attr.width]="large.width > 0 ? large.width : null"
+            [attr.height]="large.height > 0 ? large.height : null"
+            [alt]="listing.alt"
             class="pointer-events-none absolute inset-0 m-auto max-h-full max-w-full rounded-lg object-contain p-2"
             data-testid="listing-photo-large"
           />
@@ -144,15 +163,8 @@
       }
     }
 
-    @if (listing.widthCm !== null && listing.heightCm !== null && listing.depthCm !== null) {
-      <p class="text-sm text-slate-700" data-testid="listing-measures">
-        {{ listing.widthCm }} × {{ listing.heightCm }} × {{ listing.depthCm }} cm
-        @if (listing.weightKg !== null) {
-          · {{ listing.weightKg }} kg
-        }
-      </p>
-    } @else if (listing.weightKg !== null) {
-      <p class="text-sm text-slate-700" data-testid="listing-measures">{{ listing.weightKg }} kg</p>
+    @if (listing.measuresLabel; as measures) {
+      <p class="text-sm text-slate-700" data-testid="listing-measures">{{ measures }}</p>
     }
 
     @if (listing.note; as note) {
@@ -160,7 +172,7 @@
     }
 
     <p class="text-xs text-slate-500" data-testid="listing-published-at">
-      Publicado el {{ listing.publishedAt.slice(0, 10) }}
+      {{ listing.publishedLabel }}
     </p>
   </article>
 }

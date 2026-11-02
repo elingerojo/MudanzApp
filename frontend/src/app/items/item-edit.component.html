@@ -1,0 +1,166 @@
+<app-ui-card title="Editar artículo">
+  @if (loading()) {
+    <p class="text-sm text-slate-600" data-testid="item-edit-loading">Cargando…</p>
+  } @else if (failed()) {
+    <p class="text-sm text-red-600" data-testid="item-edit-load-error">
+      No se pudo cargar el artículo. Vuelve a «Capturados» e inténtalo de nuevo.
+    </p>
+  } @else if (item(); as current) {
+    <form class="space-y-4" (submit)="save($event)" data-testid="item-edit-form">
+      <div class="flex flex-wrap items-center gap-3">
+        @if (current.photo; as photo) {
+          <app-item-photo [photoId]="photo.id" />
+        } @else {
+          <span
+            class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+            data-testid="item-photo-missing"
+          >
+            sin foto
+          </span>
+        }
+
+        <p class="text-xs text-slate-500">
+          La foto no se reemplaza en esta pantalla; se muestra para reconocer la ficha.
+        </p>
+      </div>
+
+      @if (current.soldAt !== null) {
+        <p class="rounded-lg bg-slate-100 p-2 text-xs text-slate-700" data-testid="item-edit-sold">
+          Este artículo está vendido. Corregir la ficha no reabre la venta.
+        </p>
+      }
+
+      <div>
+        <label class="block text-sm font-medium text-slate-800" for="item-edit-title">Título</label>
+        <input
+          id="item-edit-title"
+          data-testid="item-edit-title"
+          type="text"
+          autocomplete="off"
+          maxlength="120"
+          class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          [value]="title()"
+          (input)="onInput('title')($event)"
+        />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-800" for="item-edit-note">Nota</label>
+        <textarea
+          id="item-edit-note"
+          data-testid="item-edit-note"
+          rows="2"
+          maxlength="500"
+          class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          [value]="note()"
+          (input)="onInput('note')($event)"
+        ></textarea>
+      </div>
+
+      <fieldset class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <legend class="mb-1 text-sm font-medium text-slate-800">Medidas (opcional)</legend>
+
+        <div>
+          <label class="block text-xs text-slate-600" for="item-edit-width">Ancho (cm)</label>
+          <input
+            id="item-edit-width"
+            data-testid="item-edit-width"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            [value]="widthCm()"
+            (input)="onInput('widthCm')($event)"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-600" for="item-edit-height">Alto (cm)</label>
+          <input
+            id="item-edit-height"
+            data-testid="item-edit-height"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            [value]="heightCm()"
+            (input)="onInput('heightCm')($event)"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-600" for="item-edit-depth">Fondo (cm)</label>
+          <input
+            id="item-edit-depth"
+            data-testid="item-edit-depth"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            [value]="depthCm()"
+            (input)="onInput('depthCm')($event)"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-600" for="item-edit-weight">Peso (kg)</label>
+          <input
+            id="item-edit-weight"
+            data-testid="item-edit-weight"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            [value]="weightKg()"
+            (input)="onInput('weightKg')($event)"
+          />
+        </div>
+      </fieldset>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-800" for="item-edit-price">
+          Precio ({{ store.currency() }})
+        </label>
+        <input
+          id="item-edit-price"
+          data-testid="item-edit-price"
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
+          placeholder="Ej. 1250.50"
+          class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          [value]="price()"
+          (input)="onInput('price')($event)"
+        />
+        <p class="mt-1 text-xs text-slate-500">
+          Vacío es «Precio a consultar». Hasta dos decimales; el tope es
+          {{ maxPriceCents }} centavos.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="submit"
+          [class]="primaryClasses"
+          [disabled]="!canSave()"
+          data-testid="item-edit-save"
+        >
+          {{ saving() ? 'Guardando…' : 'Guardar' }}
+        </button>
+
+        <a
+          [routerLink]="['/eventos', eventId, 'capturados']"
+          class="text-sm text-slate-700 underline"
+          data-testid="item-edit-cancel"
+        >
+          Cancelar
+        </a>
+      </div>
+
+      @if (error(); as message) {
+        <p class="text-sm text-red-600" data-testid="item-edit-error">{{ message }}</p>
+      }
+    </form>
+  }
+</app-ui-card>

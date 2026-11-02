@@ -129,6 +129,16 @@ export const ERROR_CATALOG = {
     status: 409,
     message: 'A listing requires a photo',
   },
+  listing_not_published: {
+    code: 'listing_not_published',
+    status: 409,
+    message: 'The item is not published',
+  },
+  listing_gone: {
+    code: 'listing_gone',
+    status: 410,
+    message: 'The listing is no longer available',
+  },
   database_not_configured: {
     code: 'database_not_configured',
     status: 503,

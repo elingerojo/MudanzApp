@@ -2,16 +2,23 @@ import {
   createItemSchema,
   photoVariantSchema,
   photoVariantUploadSchema,
+  updateItemSchema,
   type CreatedItem,
   type ItemList,
   type ItemPhoto,
   type ItemPhotoVariant,
+  type UpdatedItem,
 } from '@mudanzapp/shared';
 import { Router } from 'express';
 import { z } from 'zod';
 
 import { canActOnEvent } from '../domain/account.js';
-import { isAcceptedVariant, normalizeItemDraft, photoVariantContentType } from '../domain/item.js';
+import {
+  isAcceptedVariant,
+  normalizeItemDraft,
+  normalizeItemUpdate,
+  photoVariantContentType,
+} from '../domain/item.js';
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
 import {
@@ -20,6 +27,7 @@ import {
   findPhotoVariants,
   insertItem,
   listItemsForEvent,
+  updateItem,
   upsertItemPhoto,
   upsertPhotoVariant,
   type PhotoVariantRecord,
@@ -136,6 +144,45 @@ export function createItemsRouter(deps: IdentityDeps): Router {
 
       const items = await listItemsForEvent(deps.database, eventId);
       const payload: ItemList = { items: items.map(toItemSummary) };
+      response.json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * `PATCH /events/:eventId/items/:itemId` — corrige la ficha y fija el precio (ciclo 4b).
+   *
+   * La autorización es la misma que capturar y publicar: una sesión del evento o un miembro de
+   * cuenta. Un artículo ajeno responde `item_not_found`, igual que uno inexistente (§24). El `slug`
+   * publicado no se toca: editar el título no reescribe la URL que ya se compartió (decisión §31).
+   */
+  router.patch('/events/:eventId/items/:itemId', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+      const identity = identityOf(request);
+
+      if (!(await canAct(identity, eventId))) {
+        throw new AppError('not_found');
+      }
+
+      const item = await findItem(deps.database, eventId, itemId);
+      if (item === null) {
+        throw new AppError('item_not_found');
+      }
+
+      const input = parseOrThrow(updateItemSchema, request.body);
+      const updated = await updateItem(deps.database, eventId, itemId, normalizeItemUpdate(input));
+      if (!updated) {
+        throw new AppError('item_not_found');
+      }
+
+      const fresh = await findItem(deps.database, eventId, itemId);
+      if (fresh === null) {
+        throw new AppError('item_not_found');
+      }
+
+      const payload: UpdatedItem = { item: toItemSummary(fresh) };
       response.json(payload);
     };
 

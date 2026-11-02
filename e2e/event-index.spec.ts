@@ -171,6 +171,7 @@ test('the event link opens its index from the first publication', async ({
   const firstIndex = await readIndex(request, publicSlug);
   expect(firstIndex.listings).toHaveLength(1);
   expect(firstIndex.listings[0]?.slug).toBe(firstSlug);
+  expect(firstIndex.listings[0]?.priceCents).toBeNull();
 
   const snapshotResponse = await request.get(`${BACKEND_URL}/public/events/${publicSlug}/page`);
   expect(snapshotResponse.status()).toBe(200);
@@ -182,6 +183,7 @@ test('the event link opens its index from the first publication', async ({
   const snapshotHtml = await snapshotResponse.text();
   expect(snapshotHtml.match(/data-testid="event-index-card"/g)).toHaveLength(1);
   expect(snapshotHtml).toContain('Silla de madera');
+  expect(snapshotHtml).toContain('Precio a consultar');
   expect(snapshotHtml).toContain(`<meta name="event-version" content="${firstIndex.version}">`);
 
   // La misma versión devuelve la misma clave: lo que la caché del Worker usa para no regenerar.

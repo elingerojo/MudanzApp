@@ -1,4 +1,10 @@
-import { LISTING_LIMITS, LISTING_SLUG_PATTERN } from '@mudanzapp/shared';
+import {
+  LISTING_LIMITS,
+  LISTING_SLUG_PATTERN,
+  SOLD_COURTESY_DAYS,
+  listingState,
+  soldCourtesyOver,
+} from '@mudanzapp/shared';
 
 import { listingSlug, slugifyTitle } from '../../src/domain/listing.js';
 
@@ -51,5 +57,28 @@ describe('listingSlug', () => {
 
     expect(slug).toBe('articulo-abcdef');
     expect(SLUG.test(slug)).toBe(true);
+  });
+});
+
+describe('listingState', () => {
+  const SOLD_AT = '2026-10-01T12:00:00.000Z';
+  const sold = new Date(SOLD_AT);
+
+  it('is live while the article has not been sold', () => {
+    expect(listingState(null, sold)).toBe('live');
+  });
+
+  it('is sold during the courtesy window', () => {
+    const justBefore = new Date(sold.getTime() + SOLD_COURTESY_DAYS * 24 * 60 * 60 * 1_000 - 1);
+
+    expect(listingState(SOLD_AT, justBefore)).toBe('sold');
+    expect(soldCourtesyOver(SOLD_AT, justBefore)).toBe(false);
+  });
+
+  it('is gone exactly at the end of the courtesy window', () => {
+    const exactly = new Date(sold.getTime() + SOLD_COURTESY_DAYS * 24 * 60 * 60 * 1_000);
+
+    expect(listingState(SOLD_AT, exactly)).toBe('gone');
+    expect(soldCourtesyOver(SOLD_AT, exactly)).toBe(true);
   });
 });

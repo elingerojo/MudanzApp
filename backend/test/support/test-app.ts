@@ -15,6 +15,10 @@ export interface RunningApp {
 
 export interface TestAppOptions {
   readonly adminToken?: string | null;
+  /** Doble de base para una ruta concreta; sin él se usa el que rechaza toda consulta. */
+  readonly database?: Database;
+  /** Reloj inyectado; la cortesía de venta no debe depender del reloj de la máquina. */
+  readonly now?: () => Date;
 }
 
 /**
@@ -29,7 +33,7 @@ export async function startTestApp(
   appBaseUrl = '',
   options: TestAppOptions = {},
 ): Promise<RunningApp> {
-  const database: Database = {
+  const database: Database = options.database ?? {
     check: () => Promise.resolve(state),
     query: () => Promise.reject(new Error('test-database-query-not-stubbed')),
     transaction: () => Promise.reject(new Error('test-database-transaction-not-stubbed')),
@@ -61,7 +65,7 @@ export async function startTestApp(
     appBaseUrl,
     oauth,
     adminToken: options.adminToken ?? null,
-    now: () => new Date(),
+    now: options.now ?? (() => new Date()),
     storage,
     // La IA va en `fake`, como OAUTH: el gate no depende del proveedor (regla del gate).
     ai: createFakeDraftProvider(),
