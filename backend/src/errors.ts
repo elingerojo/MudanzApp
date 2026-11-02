@@ -59,6 +59,11 @@ export const ERROR_CATALOG = {
     status: 500,
     message: 'OAuth mode is not valid',
   },
+  oauth_unavailable: {
+    code: 'oauth_unavailable',
+    status: 503,
+    message: 'OAuth provider is unavailable',
+  },
   account_not_linked: {
     code: 'account_not_linked',
     status: 401,

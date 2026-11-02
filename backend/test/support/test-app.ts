@@ -5,7 +5,7 @@ import type { DatabaseState } from '@mudanzapp/shared';
 import { createFakeDraftProvider } from '../../src/ai/gemini-fake.js';
 import { createApp } from '../../src/app.js';
 import type { Database } from '../../src/db.js';
-import { createOAuthVerifier } from '../../src/identity/oauth.js';
+import { createOAuthVerifier, type OAuthVerifier } from '../../src/identity/oauth.js';
 import type { ObjectStore } from '../../src/storage/object-store.js';
 
 export interface RunningApp {
@@ -19,6 +19,11 @@ export interface TestAppOptions {
   readonly database?: Database;
   /** Reloj inyectado; la cortesía de venta no debe depender del reloj de la máquina. */
   readonly now?: () => Date;
+  /**
+   * Verificador concreto cuando la prueba necesita el adaptador y no el doble: el canje del código
+   * (4c-1b) solo existe en `live`, así que su frontera se ejerce con un doble del verificador.
+   */
+  readonly oauth?: OAuthVerifier;
 }
 
 /**
@@ -40,12 +45,14 @@ export async function startTestApp(
     close: () => Promise.resolve(),
   };
 
-  const oauth = createOAuthVerifier({
-    mode: 'fake',
-    issuer: null,
-    clientId: null,
-    clientSecret: null,
-  });
+  const oauth =
+    options.oauth ??
+    createOAuthVerifier({
+      mode: 'fake',
+      issuer: null,
+      clientId: null,
+      clientSecret: null,
+    });
 
   // Doble en memoria del almacén: el humo no escribe fotos, y un almacén real aquí haría que la
   // prueba dependiera del sistema de archivos. La base pública es propia del doble, igual que en

@@ -100,6 +100,27 @@ export const claimEventSchema = z.object({
   deviceLabel: deviceLabel.optional(),
 });
 
+/**
+ * `POST /auth/oauth/exchange` (ciclo 4c-1b): el navegador entrega el código y su verificador, y el
+ * backend hace el canje que exige secreto. `redirectUri` viaja porque el proveedor exige el mismo que
+ * se usó al autorizar y el servidor no conoce el origen del frontend; el proveedor es la autoridad.
+ */
+export const oauthExchangeSchema = z.object({
+  code: z.string().trim().min(1).max(4_096),
+  codeVerifier: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9\-._~]{43,128}$/),
+  redirectUri: z.url().max(2_048),
+});
+
+export type OAuthExchangeRequest = z.infer<typeof oauthExchangeSchema>;
+
+/** Resultado del canje: el `id_token` ya verificado contra el JWKS del emisor. */
+export interface OAuthExchange {
+  readonly oauthToken: string;
+}
+
 /** `POST /auth/sessions`: segundo dispositivo de una cuenta ya reclamada, sin reusar el enlace. */
 export const createSessionSchema = z.object({
   oauthToken,

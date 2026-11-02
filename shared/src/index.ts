@@ -28,6 +28,7 @@ export {
   claimEventSchema,
   createEventSchema,
   createSessionSchema,
+  oauthExchangeSchema,
   redeemInvitationSchema,
 } from './identity.js';
 export {
@@ -108,6 +109,8 @@ export type {
   EventSummary,
   IdentityUser,
   IssuedSession,
+  OAuthExchange,
+  OAuthExchangeRequest,
   RedeemInvitationRequest,
   SessionScope,
   SessionSummary,

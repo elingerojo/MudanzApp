@@ -5,29 +5,37 @@ import {
   createOAuthState,
   oauthDiscoverySchema,
   oauthStateMatches,
-  oauthTokenResponseSchema,
-  tokenRequestBody,
   type OAuthDiscovery,
 } from '@mudanzapp/shared';
 
 import { oauthConfigured, oauthRedirectUri, type OAuthClientConfig } from './oauth-config';
-import { OAuthFlowError, type OAuthCallbackParams, type OAuthFlow } from './oauth-flow';
+import {
+  OAuthFlowError,
+  type OAuthCallbackParams,
+  type OAuthFlow,
+  type OAuthFlowErrorCode,
+} from './oauth-flow';
 import { clearPendingFlow, readPendingFlow, savePendingFlow } from './oauth-session';
 
 /**
- * Adaptador `live`: el proveedor real (ciclo 4c-1).
+ * Adaptador `live`: el proveedor real (ciclo 4c-1 y su corrección 4c-1b).
  *
- * Tres decisiones que no cambian con el emisor:
- * - el descubrimiento se valida con `zod` antes de usarse, porque es la salida de una integración
- *   externa (`stack` §9);
- * - el canje es de cliente **público**: viaja `code_verifier` y nunca un `client_secret`;
- * - `fetch` directo y no `HttpClient`: la llamada sale hacia el emisor, no hacia el backend, y así no
- *   pasa por ningún interceptor de la aplicación.
+ * El navegador conserva **solo la mitad pública** del flujo: descubre los endpoints, redirige con el
+ * `challenge` y, a la vuelta, entrega el código y su verificador al backend, que hace el canje.
  *
- * Aquí no se emite ni se guarda ninguna sesión: el `id_token` es la entrada de `POST /auth/claim`.
+ * El canje no puede vivir aquí: el proveedor exige autenticación de cliente —Google publica
+ * `token_endpoint_auth_methods_supported` sin `none`— y un SPA desplegado no puede guardar el
+ * `client_secret`. El backend devuelve el `id_token` ya verificado y este adaptador lo entrega al
+ * reclamo, sin emitir ni guardar sesiones.
+ *
+ * El `state` se verifica igual que en el doble, y el verificador no se reutiliza: se borra en cuanto se
+ * entrega.
  */
 export class LiveOAuthFlow implements OAuthFlow {
-  constructor(private readonly config: OAuthClientConfig) {}
+  constructor(
+    private readonly config: OAuthClientConfig,
+    private readonly apiBaseUrl: string,
+  ) {}
 
   async begin(): Promise<void> {
     if (!oauthConfigured(this.config)) {
@@ -62,12 +70,9 @@ export class LiveOAuthFlow implements OAuthFlow {
     clearPendingFlow();
 
     if (pending === null || !oauthStateMatches(pending.state, params.state)) {
-      // Sin el `state` de esta visita no se canjea nada: es la defensa contra una respuesta inyectada.
+      // Sin el `state` de esta visita no se entrega nada al backend: es la defensa contra una respuesta
+      // inyectada.
       throw new OAuthFlowError('oauth_state_mismatch');
-    }
-
-    if (!oauthConfigured(this.config)) {
-      throw new OAuthFlowError('oauth_not_configured');
     }
 
     const code = params.code;
@@ -75,19 +80,67 @@ export class LiveOAuthFlow implements OAuthFlow {
       throw new OAuthFlowError('oauth_invalid_token');
     }
 
-    const discovery = await discover(this.config.issuer);
-    const body = tokenRequestBody({
+    return this.exchange({
       code,
       codeVerifier: pending.verifier,
-      clientId: this.config.clientId,
       redirectUri: oauthRedirectUri(),
     });
+  }
 
-    return exchange(discovery, body);
+  /**
+   * Canje por el backend. La respuesta es el `id_token` ya verificado contra el JWKS del emisor; un
+   * fallo se traduce por **código**, nunca por el texto del borde.
+   */
+  private async exchange(input: {
+    readonly code: string;
+    readonly codeVerifier: string;
+    readonly redirectUri: string;
+  }): Promise<string> {
+    let response: Response;
+    try {
+      response = await fetch(`${this.apiBaseUrl}/auth/oauth/exchange`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify(input),
+      });
+    } catch {
+      throw new OAuthFlowError('oauth_unavailable');
+    }
+
+    if (!response.ok) {
+      throw new OAuthFlowError(await failureCode(response));
+    }
+
+    const payload: unknown = await response.json().catch(() => null);
+    const token =
+      typeof payload === 'object' && payload !== null && 'oauthToken' in payload
+        ? (payload as { oauthToken?: unknown }).oauthToken
+        : undefined;
+
+    if (typeof token !== 'string' || token.length === 0) {
+      throw new OAuthFlowError('oauth_invalid_token');
+    }
+
+    return token;
   }
 }
 
-/** Descubre los dos endpoints del flujo. Un emisor inalcanzable o un documento inválido falla ruidoso. */
+/** Código del borde, acotado a los que este flujo sabe explicar; el resto es indisponibilidad. */
+async function failureCode(response: Response): Promise<OAuthFlowErrorCode> {
+  const body: unknown = await response.json().catch(() => null);
+  const candidate =
+    typeof body === 'object' && body !== null && 'error' in body
+      ? (body as { error?: unknown }).error
+      : undefined;
+
+  if (candidate === 'oauth_invalid_token' || candidate === 'oauth_not_configured') {
+    return candidate;
+  }
+
+  return 'oauth_unavailable';
+}
+
+/** Descubre los endpoints públicos del flujo. Un documento inválido falla ruidoso, no se adivina. */
 async function discover(issuer: string): Promise<OAuthDiscovery> {
   const base = issuer.trim().replace(/\/+$/, '');
 
@@ -111,32 +164,4 @@ async function discover(issuer: string): Promise<OAuthDiscovery> {
   }
 
   return parsed.data;
-}
-
-async function exchange(discovery: OAuthDiscovery, body: string): Promise<string> {
-  let response: Response;
-  try {
-    response = await fetch(discovery.token_endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        accept: 'application/json',
-      },
-      body,
-    });
-  } catch {
-    throw new OAuthFlowError('oauth_unavailable');
-  }
-
-  if (!response.ok) {
-    throw new OAuthFlowError('oauth_invalid_token');
-  }
-
-  const payload: unknown = await response.json().catch(() => null);
-  const parsed = oauthTokenResponseSchema.safeParse(payload);
-  if (!parsed.success) {
-    throw new OAuthFlowError('oauth_invalid_token');
-  }
-
-  return parsed.data.id_token;
 }

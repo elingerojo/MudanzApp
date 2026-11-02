@@ -12,6 +12,9 @@ import { LiveOAuthFlow } from './oauth-flow.live';
  * `environment.oauth.mode` se intercambia con `fileReplacements`: el bundle de producción lleva
  * `live` y el de desarrollo y el arnés, `fake`. Ninguna plantilla ni servicio decide el modo, y una
  * variable de entorno del navegador no participa.
+ *
+ * El adaptador `live` recibe además el origen de la API, porque desde 4c-1b el canje del código lo hace
+ * el backend: el navegador solo entrega código y verificador.
  */
 export function provideOAuthFlow(): Provider[] {
   return [
@@ -22,7 +25,7 @@ export function provideOAuthFlow(): Provider[] {
 
         return config.mode === 'fake'
           ? new FakeOAuthFlow(inject(Router))
-          : new LiveOAuthFlow(config);
+          : new LiveOAuthFlow(config, environment.apiBaseUrl);
       },
     },
   ];

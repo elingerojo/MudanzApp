@@ -168,21 +168,36 @@ export interface TokenRequestInput {
   readonly codeVerifier: string;
   readonly clientId: string;
   readonly redirectUri: string;
+  /**
+   * Solo existe en el canje de **servidor**. El navegador nunca lo lleva: un secreto ahí dejaría de
+   * serlo. Google no admite clientes públicos en su `token_endpoint`
+   * (`token_endpoint_auth_methods_supported` sin `none`), así que su canje vive en el backend
+   * (`plan-ciclo-4c` §16).
+   */
+  readonly clientSecret?: string;
 }
 
 /**
- * Cuerpo del canje del código, ya codificado para `application/x-www-form-urlencoded`. Es un cliente
- * **público**: no hay `client_secret`, porque un secreto en el navegador dejaría de serlo y PKCE es
- * justamente lo que lo hace innecesario.
+ * Cuerpo del canje del código, ya codificado para `application/x-www-form-urlencoded`.
+ *
+ * El mismo compositor sirve a las dos mitades del flujo: sin secreto es un cliente público y con
+ * secreto es el canal trasero del backend. La diferencia queda escrita aquí y no en dos cadenas
+ * paralelas que se separan con el tiempo.
  */
 export function tokenRequestBody(input: TokenRequestInput): string {
-  return queryString([
+  const entries: [string, string][] = [
     ['grant_type', 'authorization_code'],
     ['code', input.code],
     ['code_verifier', input.codeVerifier],
     ['client_id', input.clientId],
     ['redirect_uri', input.redirectUri],
-  ]);
+  ];
+
+  if (input.clientSecret !== undefined && input.clientSecret.length > 0) {
+    entries.push(['client_secret', input.clientSecret]);
+  }
+
+  return queryString(entries);
 }
 
 /**

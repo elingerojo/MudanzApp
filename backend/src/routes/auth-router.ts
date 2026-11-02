@@ -1,13 +1,16 @@
 import {
   claimEventSchema,
   createSessionSchema,
+  oauthExchangeSchema,
   redeemInvitationSchema,
   type IssuedSession,
+  type OAuthExchange,
 } from '@mudanzapp/shared';
 import { Router } from 'express';
 
 import { INVITATION_MAX_USES, invitationUsability, normalizeIssuer } from '../domain/account.js';
 import { AppError } from '../errors.js';
+import { OAuthError } from '../identity/oauth.js';
 import {
   addEventMember,
   createFactor,
@@ -88,6 +91,40 @@ export function createAuthRouter(deps: IdentityDeps): Router {
         event: toEventSummary({ ...event, role: null }),
       };
       response.status(201).json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Canje del código en el **canal trasero** (ciclo 4c-1b). Sin sesión: la identidad la prueba el
+   * `id_token` que el proveedor firma, y el canje exige el secreto del cliente, que solo vive aquí.
+   *
+   * `redirectUri` viene del navegador porque el proveedor exige el mismo que se usó al autorizar y el
+   * servidor no conoce el origen del frontend; el proveedor es la autoridad sobre él, y un valor que no
+   * coincida hace fallar el canje.
+   */
+  router.post('/auth/oauth/exchange', (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const input = parseOrThrow(oauthExchangeSchema, request.body);
+
+      const exchange = deps.oauth.exchangeCode;
+      if (exchange === undefined) {
+        // `fake` no tiene proveedor al que canjear: es su estado real, no un fallo.
+        throw new AppError('oauth_not_configured');
+      }
+
+      try {
+        const oauthToken = await exchange(input);
+        const payload: OAuthExchange = { oauthToken };
+        response.json(payload);
+      } catch (error: unknown) {
+        if (error instanceof OAuthError) {
+          throw new AppError(error.code);
+        }
+
+        throw error;
+      }
     };
 
     void handle().catch(next);
