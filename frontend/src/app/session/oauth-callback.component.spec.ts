@@ -11,10 +11,12 @@ import { OAUTH_FLOW, OAuthFlowError, type OAuthFlow } from './oauth-flow';
 import { SessionStore } from './session.store';
 
 /**
- * La vuelta del proveedor (ciclo 4c-1).
+ * La vuelta del proveedor (ciclos 4c-1 y 4c-1c).
  *
- * El recorrido tiene dos pasos y la prueba los separa: el flujo devuelve el `id_token` y el reclamo lo
- * entrega al backend, que emite la sesión de cuenta. Un `state` ajeno no produce ninguna petición.
+ * Un solo callback y dos caminos, decididos por el **propósito** que devuelve el flujo: `claim` entrega
+ * el token a `/auth/claim` —que exige la sesión de evento que se está reclamando— y `signin` a
+ * `/auth/sessions`, que es el regreso de una cuenta ya vinculada sin pedir invitación. El caso sin
+ * evento es el que más importa explicar: haber entrado no es tener acceso.
  */
 const ISSUED = {
   sessionToken: 'account-session-token',
@@ -38,7 +40,9 @@ describe('OAuthCallbackComponent', () => {
   let navigate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    complete = vi.fn<OAuthFlow['complete']>().mockResolvedValue('id-token-verificado');
+    complete = vi
+      .fn<OAuthFlow['complete']>()
+      .mockResolvedValue({ idToken: 'id-token-verificado', purpose: 'claim' });
     establish = vi.fn();
     navigate = vi.fn().mockResolvedValue(true);
 
@@ -99,7 +103,7 @@ describe('OAuthCallbackComponent', () => {
     );
   }
 
-  it('entrega el id_token al reclamo, guarda la sesión y vuelve al evento', async () => {
+  it('reclama el evento cuando el propósito es claim, guarda la sesión y vuelve al evento', async () => {
     const fixture = await render();
 
     const claim = httpTesting.expectOne('/api/auth/claim');
@@ -114,12 +118,44 @@ describe('OAuthCallbackComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/eventos', 'event-1'], { replaceUrl: true });
   });
 
-  it('no reclama nada cuando el state no corresponde a esta visita', async () => {
+  it('vuelve a entrar cuando el propósito es signin, sin pedir invitación', async () => {
+    complete.mockResolvedValue({ idToken: 'id-token-del-regreso', purpose: 'signin' });
+
+    const fixture = await render();
+
+    const signin = httpTesting.expectOne('/api/auth/sessions');
+    expect(signin.request.method).toBe('POST');
+    expect(signin.request.body).toMatchObject({ oauthToken: 'id-token-del-regreso' });
+    signin.flush(ISSUED);
+
+    await fixture.whenStable();
+
+    expect(establish).toHaveBeenCalledWith(ISSUED);
+    expect(navigate).toHaveBeenCalledWith(['/eventos', 'event-1'], { replaceUrl: true });
+  });
+
+  it('explica que la cuenta no tiene evento cuando el regreso no encuentra membresía', async () => {
+    complete.mockResolvedValue({ idToken: 'id-token-del-regreso', purpose: 'signin' });
+
+    const fixture = await render();
+
+    const signin = httpTesting.expectOne('/api/auth/sessions');
+    signin.flush({ error: 'account_not_linked' }, { status: 401, statusText: 'Unauthorized' });
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(establish).not.toHaveBeenCalled();
+    expect(errorText(fixture)).toContain('todavía no tiene ningún evento');
+  });
+
+  it('no canjea nada cuando el state no corresponde a esta visita', async () => {
     complete.mockRejectedValue(new OAuthFlowError('oauth_state_mismatch'));
 
     const fixture = await render();
 
     httpTesting.expectNone('/api/auth/claim');
+    httpTesting.expectNone('/api/auth/sessions');
     expect(establish).not.toHaveBeenCalled();
     expect(errorText(fixture)).toContain('no corresponde a esta visita');
   });

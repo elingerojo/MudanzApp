@@ -71,13 +71,15 @@ describe('AccountLinkComponent', () => {
     expect(ui.button()).toBeNull();
   });
 
-  it('delega el flujo en OAuthFlow al pulsar', async () => {
+  it('abre el flujo con propósito de reclamo al pulsar', async () => {
     const ui = render();
 
     ui.button()?.click();
     await ui.fixture.whenStable();
 
     expect(begin).toHaveBeenCalledTimes(1);
+    // Reclamar es lo único que esta acción puede hacer: el regreso con cuenta vive en la portada.
+    expect(begin).toHaveBeenCalledWith('claim');
   });
 
   it('explica un proveedor sin configurar sin dejar el botón bloqueado', async () => {

@@ -39,6 +39,8 @@ export const UNAUTHORIZED = 'unauthorized';
 export const OAUTH_INVALID_TOKEN = 'oauth_invalid_token';
 export const OAUTH_NOT_CONFIGURED = 'oauth_not_configured';
 export const SESSION_NOT_CLAIMABLE = 'session_not_claimable';
+/** La cuenta existe pero no tiene ningún evento: haber entrado no es tener acceso (4c-1c). */
+export const ACCOUNT_NOT_LINKED = 'account_not_linked';
 
 /** Fallos de la integración de IA (`ai-draft`, ciclo 3d), cada uno con su mensaje en la captura. */
 export const AI_UNAVAILABLE = 'ai_unavailable';

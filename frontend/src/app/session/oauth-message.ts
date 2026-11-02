@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_NOT_LINKED,
   OAUTH_INVALID_TOKEN,
   OAUTH_NOT_CONFIGURED,
   SESSION_NOT_CLAIMABLE,
@@ -31,6 +32,8 @@ export function oauthFailureMessage(failure: unknown): string {
       return 'El proveedor devolvió una identidad que no se pudo verificar.';
     case SESSION_NOT_CLAIMABLE:
       return 'Este dispositivo ya tiene una cuenta vinculada.';
+    case ACCOUNT_NOT_LINKED:
+      return 'Esta cuenta todavía no tiene ningún evento. Entra con el enlace de invitación.';
     case SESSION_REVOKED:
     case UNAUTHORIZED:
       return 'La sesión de este dispositivo ya no sirve: entra otra vez con un enlace.';

@@ -45,12 +45,30 @@ export class OAuthFlowError extends Error {
   }
 }
 
-export interface OAuthFlow {
-  /** Arranca el flujo: guarda el verificador y el `state`, y lleva al proveedor. */
-  begin(): Promise<void>;
+/**
+ * Para qué se abrió el flujo (ciclo 4c-1c). Es el único dato de producto que cruza esta costura:
+ *
+ * - `claim` — un dispositivo con sesión de evento vincula su cuenta; el backend lo canjea con
+ *   `POST /auth/claim`, que exige esa sesión.
+ * - `signin` — un dispositivo sin credencial vuelve a entrar con una cuenta ya vinculada; el backend
+ *   lo canjea con `POST /auth/sessions`, que no exige nada más que la identidad.
+ *
+ * Sin este dato el callback tendría que adivinar por el estado de la sesión, y un dispositivo con una
+ * credencial revocada adivinaría mal.
+ */
+export type OAuthPurpose = 'claim' | 'signin';
 
-  /** Completa la vuelta y devuelve el `id_token` que se entrega al backend. */
-  complete(params: OAuthCallbackParams): Promise<string>;
+export interface OAuthResult {
+  readonly idToken: string;
+  readonly purpose: OAuthPurpose;
+}
+
+export interface OAuthFlow {
+  /** Arranca el flujo: guarda el verificador, el `state` y el propósito, y lleva al proveedor. */
+  begin(purpose: OAuthPurpose): Promise<void>;
+
+  /** Completa la vuelta y devuelve el `id_token` junto al propósito con el que se abrió. */
+  complete(params: OAuthCallbackParams): Promise<OAuthResult>;
 }
 
 export const OAUTH_FLOW = new InjectionToken<OAuthFlow>('OAUTH_FLOW');

@@ -11,25 +11,10 @@
       <p class="text-sm text-slate-700" data-testid="home-no-session">
         Este dispositivo no tiene sesión todavía.
       </p>
-      <p class="mt-2 text-sm text-slate-600">
-        Abre el enlace que te compartió el administrador, o pega su token en la pantalla de canje.
-      </p>
-
-      <div class="mt-4">
-        <app-ui-button link="/invitacion" testId="home-invitation-link">
-          Canjear una invitación
-        </app-ui-button>
-      </div>
     } @else if (identityFailed()) {
       <p class="text-sm text-red-600" data-testid="home-session-invalid">
-        La sesión de este dispositivo ya no es válida. Canjea una invitación nueva.
+        La sesión de este dispositivo ya no es válida.
       </p>
-
-      <div class="mt-4">
-        <app-ui-button link="/invitacion" testId="home-invitation-link">
-          Canjear una invitación
-        </app-ui-button>
-      </div>
     } @else {
       <p class="text-sm text-slate-700" data-testid="home-session">
         Sesión activa
@@ -65,6 +50,47 @@
         >
           Cerrar sesión
         </button>
+      </div>
+    }
+
+    <!-- Dos puertas y un orden: primero el enlace, que es cómo se entra; después la cuenta, que es
+         cómo se vuelve (decisión §30 y ciclo 4c-1c). -->
+    @if (offersAccountDoor()) {
+      <div class="mt-6 space-y-4 border-t border-slate-200 pt-4">
+        <div class="space-y-2" data-testid="home-door-invitation">
+          <p class="text-xs font-medium tracking-wide text-slate-500 uppercase">
+            Con una invitación
+          </p>
+          <p class="text-sm text-slate-600">
+            Abre el enlace que te compartió el administrador, o pega su token en la pantalla de
+            canje.
+          </p>
+
+          <app-ui-button link="/invitacion" testId="home-invitation-link">
+            Canjear una invitación
+          </app-ui-button>
+        </div>
+
+        <div class="space-y-2" data-testid="home-door-account">
+          <p class="text-xs font-medium tracking-wide text-slate-500 uppercase">Con tu cuenta</p>
+          <p class="text-sm text-slate-600">
+            Si ya vinculaste una cuenta a un evento, entra con ella: no necesitas una invitación
+            nueva.
+          </p>
+
+          <app-ui-button
+            variant="secondary"
+            testId="home-account-signin"
+            [disabled]="connecting()"
+            (click)="signIn()"
+          >
+            {{ connecting() ? 'Abriendo el proveedor…' : 'Tengo una cuenta' }}
+          </app-ui-button>
+
+          @if (oauthError(); as message) {
+            <p class="text-xs text-red-600" data-testid="home-account-error">{{ message }}</p>
+          }
+        </div>
       </div>
     }
   </app-ui-card>

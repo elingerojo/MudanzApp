@@ -4,12 +4,12 @@ import { LiveOAuthFlow } from './oauth-flow.live';
 import { clearPendingFlow, savePendingFlow } from './oauth-session';
 
 /**
- * El adaptador `live` del flujo de identidad (ciclos 4c-1 y 4c-1b).
+ * El adaptador `live` del flujo de identidad (ciclos 4c-1, 4c-1b y 4c-1c).
  *
  * `fetch` se sustituye por un doble. Desde 4c-1b el navegador **no** canjea contra el proveedor: entrega
- * código y verificador al backend, que es el único que puede guardar el secreto. Lo que se comprueba
- * aquí es esa mitad pública —el `state` de esta visita, el cuerpo que viaja al backend y la traducción
- * del fallo por código— y que el navegador nunca lleva un secreto.
+ * código y verificador al backend, que es el único que puede guardar el secreto. Desde 4c-1c el flujo
+ * además lleva **propósito**, y la prueba comprueba que vuelve intacto: es lo que decide si el callback
+ * reclama un evento o vuelve a entrar con una cuenta.
  */
 const CONFIG: OAuthClientConfig = {
   mode: 'live',
@@ -45,21 +45,21 @@ describe('LiveOAuthFlow', () => {
   it('no empieza sin emisor y cliente: falla con un código estable', async () => {
     const flow = new LiveOAuthFlow({ mode: 'live', issuer: '', clientId: 'x' }, API);
 
-    await expect(flow.begin()).rejects.toMatchObject({ code: 'oauth_not_configured' });
+    await expect(flow.begin('claim')).rejects.toMatchObject({ code: 'oauth_not_configured' });
     expect(calls).toHaveLength(0);
   });
 
-  it('entrega el código y el verificador al backend y devuelve su id_token', async () => {
-    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado-de-esta-visita' });
+  it('entrega el código y el verificador al backend y devuelve el token con su propósito', async () => {
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado-de-esta-visita', purpose: 'claim' });
 
     const flow = new LiveOAuthFlow(CONFIG, API);
-    const token = await flow.complete({
+    const result = await flow.complete({
       code: 'codigo',
       state: 'estado-de-esta-visita',
       error: null,
     });
 
-    expect(token).toBe('id-token-verificado');
+    expect(result).toEqual({ idToken: 'id-token-verificado', purpose: 'claim' });
     expect(calls).toHaveLength(1);
 
     const exchange = calls[0];
@@ -81,8 +81,17 @@ describe('LiveOAuthFlow', () => {
     expect(String(exchange?.init?.body)).not.toContain('client_secret');
   });
 
+  it('devuelve el propósito del regreso sin cambiarlo', async () => {
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado', purpose: 'signin' });
+
+    const flow = new LiveOAuthFlow(CONFIG, API);
+    const result = await flow.complete({ code: 'codigo', state: 'estado', error: null });
+
+    expect(result.purpose).toBe('signin');
+  });
+
   it('no entrega nada al backend cuando el state no es de esta visita', async () => {
-    savePendingFlow({ verifier: 'v'.repeat(43), state: 'esperado' });
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'esperado', purpose: 'claim' });
 
     const flow = new LiveOAuthFlow(CONFIG, API);
 
@@ -107,7 +116,7 @@ describe('LiveOAuthFlow', () => {
     vi.stubGlobal('fetch', () =>
       Promise.resolve(jsonResponse({ error: 'oauth_invalid_token' }, false, 401)),
     );
-    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado' });
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado', purpose: 'claim' });
 
     const flow = new LiveOAuthFlow(CONFIG, API);
 
@@ -118,7 +127,7 @@ describe('LiveOAuthFlow', () => {
 
   it('trata un fallo sin código conocido como indisponibilidad', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve(jsonResponse({}, false, 500)));
-    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado' });
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado', purpose: 'claim' });
 
     const flow = new LiveOAuthFlow(CONFIG, API);
 
@@ -129,7 +138,7 @@ describe('LiveOAuthFlow', () => {
 
   it('no acepta una respuesta sin oauthToken', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve(jsonResponse({ token: 'otro' })));
-    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado' });
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado', purpose: 'claim' });
 
     const flow = new LiveOAuthFlow(CONFIG, API);
 

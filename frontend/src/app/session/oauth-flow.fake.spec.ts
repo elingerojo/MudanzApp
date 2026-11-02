@@ -2,10 +2,11 @@ import { FAKE_OAUTH_CODE, FAKE_ID_TOKEN, FakeOAuthFlow } from './oauth-flow.fake
 import { clearPendingFlow, readPendingFlow } from './oauth-session';
 
 /**
- * El doble del flujo (ciclo 4c-1, `stack` §9).
+ * El doble del flujo (ciclos 4c-1 y 4c-1c).
  *
- * El doble es determinista pero **no** permisivo: verifica el `state` igual que `live`, porque esa
- * defensa es parte del corte y un doble que la saltara escondería el defecto que debe atrapar.
+ * El doble es determinista pero **no** permisivo: verifica el `state` igual que `live` y devuelve el
+ * propósito con el que se abrió, porque de eso depende que el callback reclame un evento o vuelva a
+ * entrar con una cuenta. Un doble más laxo escondería justo el defecto que este corte debe atrapar.
  */
 interface NavigateArgs {
   readonly commands: readonly unknown[];
@@ -40,10 +41,11 @@ describe('FakeOAuthFlow', () => {
     const router = fakeRouter();
     const flow = new FakeOAuthFlow(router as never);
 
-    await flow.begin();
+    await flow.begin('claim');
 
     const pending = readPendingFlow();
     expect(pending).not.toBeNull();
+    expect(pending?.purpose).toBe('claim');
     expect(router.calls).toHaveLength(1);
     expect(router.calls[0]?.commands).toEqual(['/auth/callback']);
     expect(router.calls[0]?.extras?.queryParams).toEqual({
@@ -52,23 +54,33 @@ describe('FakeOAuthFlow', () => {
     });
   });
 
-  it('devuelve un id_token fijo cuando el state corresponde', async () => {
+  it('guarda el propósito del regreso cuando se abre para entrar', async () => {
     const router = fakeRouter();
     const flow = new FakeOAuthFlow(router as never);
 
-    await flow.begin();
+    await flow.begin('signin');
+
+    expect(readPendingFlow()?.purpose).toBe('signin');
+  });
+
+  it('devuelve un id_token fijo y el propósito cuando el state corresponde', async () => {
+    const router = fakeRouter();
+    const flow = new FakeOAuthFlow(router as never);
+
+    await flow.begin('signin');
     const state = readPendingFlow()?.state ?? '';
 
-    await expect(flow.complete({ code: FAKE_OAUTH_CODE, state, error: null })).resolves.toBe(
-      FAKE_ID_TOKEN,
-    );
+    await expect(flow.complete({ code: FAKE_OAUTH_CODE, state, error: null })).resolves.toEqual({
+      idToken: FAKE_ID_TOKEN,
+      purpose: 'signin',
+    });
   });
 
   it('rechaza un state ajeno y un rechazo explícito del proveedor', async () => {
     const router = fakeRouter();
     const flow = new FakeOAuthFlow(router as never);
 
-    await flow.begin();
+    await flow.begin('claim');
 
     await expect(
       flow.complete({ code: FAKE_OAUTH_CODE, state: 'otro', error: null }),

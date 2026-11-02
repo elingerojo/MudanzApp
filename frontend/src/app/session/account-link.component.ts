@@ -38,7 +38,10 @@ export class AccountLinkComponent {
     this.error.set(null);
 
     try {
-      await this.flow.begin();
+      // `claim`: este dispositivo ya tiene una sesión de evento y le añade un sujeto. El regreso con
+      // una cuenta ya vinculada es la otra puerta, en la portada, y viaja con propósito `signin`
+      // (ciclo 4c-1c).
+      await this.flow.begin('claim');
     } catch (failure: unknown) {
       this.error.set(oauthFailureMessage(failure));
     } finally {

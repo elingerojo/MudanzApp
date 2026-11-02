@@ -11,15 +11,20 @@ import { oauthFailureMessage } from './oauth-message';
 import { SessionStore } from './session.store';
 
 /**
- * Vuelta del proveedor (`/auth/callback`, ciclo 4c-1).
+ * Vuelta del proveedor (`/auth/callback`, ciclos 4c-1 y 4c-1c).
  *
- * Dos pasos y ninguno más: completar el flujo —que valida el `state` y devuelve el `id_token`— y
- * entregar ese token a `POST /auth/claim`, que es quien emite la sesión de cuenta y revoca la de
- * evento que se está reclamando. La credencial nueva se guarda en el dispositivo y la pantalla vuelve
- * al evento.
+ * Dos pasos y ninguno más: completar el flujo —que valida el `state` y devuelve el `id_token` junto al
+ * propósito— y entregar ese token a la ruta que corresponda. El **propósito** es lo que distingue los
+ * dos caminos del producto y evita adivinarlo por el estado de la sesión:
+ *
+ * - `claim` → `POST /auth/claim`: este dispositivo tenía una sesión de evento y le añade un sujeto; el
+ *   backend revoca esa sesión y emite la de cuenta.
+ * - `signin` → `POST /auth/sessions`: el dispositivo llegó sin credencial y vuelve a entrar con una
+ *   cuenta ya vinculada. Si esa cuenta no tiene ningún evento, el backend responde
+ *   `account_not_linked` y la pantalla lo dice: haber entrado no es tener acceso.
  *
  * La ruta es pública a propósito: llega un navegador recién redirigido, y el guard de sesión no tiene
- * nada que proteger aquí; sin sesión de evento, el reclamo responde `unauthorized`.
+ * nada que proteger aquí.
  */
 @Component({
   selector: 'app-oauth-callback',
@@ -46,15 +51,16 @@ export class OAuthCallbackComponent {
     const query = this.route.snapshot.queryParamMap;
 
     try {
-      const idToken = await this.flow.complete({
+      const result = await this.flow.complete({
         code: query.get('code'),
         state: query.get('state'),
         error: query.get('error'),
       });
 
+      const path = result.purpose === 'signin' ? '/auth/sessions' : '/auth/claim';
       const issued = await firstValueFrom(
-        this.http.post<IssuedSession>(`${this.apiBaseUrl}/auth/claim`, {
-          oauthToken: idToken,
+        this.http.post<IssuedSession>(`${this.apiBaseUrl}${path}`, {
+          oauthToken: result.idToken,
           deviceLabel: deviceLabel(),
         }),
       );

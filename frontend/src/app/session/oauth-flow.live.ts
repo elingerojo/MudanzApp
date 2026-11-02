@@ -14,6 +14,8 @@ import {
   type OAuthCallbackParams,
   type OAuthFlow,
   type OAuthFlowErrorCode,
+  type OAuthPurpose,
+  type OAuthResult,
 } from './oauth-flow';
 import { clearPendingFlow, readPendingFlow, savePendingFlow } from './oauth-session';
 
@@ -37,14 +39,14 @@ export class LiveOAuthFlow implements OAuthFlow {
     private readonly apiBaseUrl: string,
   ) {}
 
-  async begin(): Promise<void> {
+  async begin(purpose: OAuthPurpose): Promise<void> {
     if (!oauthConfigured(this.config)) {
       throw new OAuthFlowError('oauth_not_configured');
     }
 
     const verifier = createCodeVerifier();
     const state = createOAuthState();
-    savePendingFlow({ verifier, state });
+    savePendingFlow({ verifier, state, purpose });
 
     const discovery = await discover(this.config.issuer);
     const codeChallenge = await codeChallengeS256(verifier);
@@ -60,7 +62,7 @@ export class LiveOAuthFlow implements OAuthFlow {
     );
   }
 
-  async complete(params: OAuthCallbackParams): Promise<string> {
+  async complete(params: OAuthCallbackParams): Promise<OAuthResult> {
     if (params.error !== null) {
       clearPendingFlow();
       throw new OAuthFlowError('oauth_denied');
@@ -80,11 +82,13 @@ export class LiveOAuthFlow implements OAuthFlow {
       throw new OAuthFlowError('oauth_invalid_token');
     }
 
-    return this.exchange({
+    const idToken = await this.exchange({
       code,
       codeVerifier: pending.verifier,
       redirectUri: oauthRedirectUri(),
     });
+
+    return { idToken, purpose: pending.purpose };
   }
 
   /**

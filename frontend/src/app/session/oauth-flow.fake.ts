@@ -1,7 +1,13 @@
 import { Router } from '@angular/router';
 import { createCodeVerifier, createOAuthState, oauthStateMatches } from '@mudanzapp/shared';
 
-import { OAuthFlowError, type OAuthCallbackParams, type OAuthFlow } from './oauth-flow';
+import {
+  OAuthFlowError,
+  type OAuthCallbackParams,
+  type OAuthFlow,
+  type OAuthPurpose,
+  type OAuthResult,
+} from './oauth-flow';
 import { clearPendingFlow, readPendingFlow, savePendingFlow } from './oauth-session';
 
 /** Código y token del doble: constantes, para que el arnés no dependa de nada externo. */
@@ -19,17 +25,17 @@ export const FAKE_ID_TOKEN = 'fake-id-token';
 export class FakeOAuthFlow implements OAuthFlow {
   constructor(private readonly router: Router) {}
 
-  async begin(): Promise<void> {
+  async begin(purpose: OAuthPurpose): Promise<void> {
     const verifier = createCodeVerifier();
     const state = createOAuthState();
-    savePendingFlow({ verifier, state });
+    savePendingFlow({ verifier, state, purpose });
 
     await this.router.navigate(['/auth/callback'], {
       queryParams: { code: FAKE_OAUTH_CODE, state },
     });
   }
 
-  async complete(params: OAuthCallbackParams): Promise<string> {
+  async complete(params: OAuthCallbackParams): Promise<OAuthResult> {
     if (params.error !== null) {
       clearPendingFlow();
       throw new OAuthFlowError('oauth_denied');
@@ -42,6 +48,6 @@ export class FakeOAuthFlow implements OAuthFlow {
       throw new OAuthFlowError('oauth_state_mismatch');
     }
 
-    return FAKE_ID_TOKEN;
+    return { idToken: FAKE_ID_TOKEN, purpose: pending.purpose };
   }
 }
