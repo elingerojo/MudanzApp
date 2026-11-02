@@ -8,9 +8,10 @@
   // `env.ASSETS.fetch()` y componer la página con el snapshot dentro.
   //
   // `API_BASE_URL` es el origen del backend que el Worker pide para el snapshot. Wrangler no lee
-  // TypeScript, así que el valor se escribe aquí; `src/worker-config.spec.ts` falla si deja de
-  // coincidir con `src/environments/environment.production.ts`, de modo que el origen sigue teniendo
-  // una sola verdad verificada y no dos copias libres (disparador de `plan-ciclo-4a` §10).
+  // TypeScript, así que el valor se escribe aquí; `backend/test/config/shop-worker-origin.test.ts`
+  // falla si deja de coincidir con `src/environments/environment.production.ts`, de modo que el
+  // origen sigue teniendo una sola verdad verificada y no dos copias libres (disparador de
+  // `plan-ciclo-4a` §10).
   "name": "mudanzapp-shop",
   "main": "./src/worker.ts",
   "compatibility_date": "2026-10-06",
