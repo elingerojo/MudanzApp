@@ -24,18 +24,31 @@ El corte 3c-optimizar agrega `app.item_photo_variant`: la foto se guarda en tres
 de la IA es efímero —se valida en la frontera y no se persiste— y `app.item` solo cambia de contenido
 cuando el humano confirma la revisión con `PATCH`, sobre las mismas columnas (decisión §34).
 
+El **ciclo 4** está aprobado y se implementa un corte a la vez. El **4a (`event-index`) está
+implementado** y su DDL vive en
+[`007_event_public_slug.sql`](../backend/sql/007_event_public_slug.sql:1), que agrega
+`app.event.public_slug`. Los cortes restantes siguen declarados antes de que exista su DDL, que es el
+orden normal: el 4b agrega `app.item.price_cents` y `app.listing.sold_at`; el 4c agrega
+`app.event.admin_user_id`; el 4e agrega `app.purchase_interest`; y el 4f agrega `app.cart` y
+`app.cart_item` (decisiones §35 a §40). Esos cambios no viven todavía en `backend/sql/`: los archivos
+`008`–`011` están **reservados** y solo se crean con su corte, aditivos, idempotentes y sin `DROP`,
+como los anteriores.
+
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
 | `app.user` | Sujeto: administrador, cuenta vinculada al evento o comprador | `id`, `display_name`, `account_status`, `is_admin`, `created_at` |
 | `app.auth_factor` | Cómo se prueba el sujeto; aditivo por diseño | `id`, `user_id`, `kind`, `issuer`, `subject`, `created_at`, `last_used_at` |
 | `app.session` | Prueba temporal por dispositivo; de cuenta o de evento | `id`, `user_id`, `event_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
 | `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at` |
-| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
+| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `public_slug`, `admin_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
-| `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `created_at` |
+| `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `price_cents`, `created_at` |
 | `app.item_photo` | Foto de un artículo, una por posición; sus columnas describen el tamaño `large` | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
 | `app.item_photo_variant` | Objeto de cada tamaño estándar de la foto | `photo_id`, `variant`, `object_key`, `content_type`, `width_px`, `height_px`, `created_at` |
-| `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `created_at` |
+| `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `sold_at`, `created_at` |
+| `app.purchase_interest` | Quién quiere qué artículo, hasta que el vendedor lo descarta | `id`, `listing_id`, `user_id`, `title_snapshot`, `price_cents_snapshot`, `created_at`, `dismissed_at`, `dismissed_by`, `cancelled_at` |
+| `app.cart` | Carrito de un visitante dentro de un evento | `id`, `user_id`, `event_id`, `created_at`, `updated_at` |
+| `app.cart_item` | Artículo dentro de un carrito | `cart_id`, `listing_id`, `added_at` |
 
 Restricciones que van con el DDL:
 
@@ -69,7 +82,7 @@ Restricciones que van con el DDL:
   `byte_size`— describen el tamaño `large` y siguen siendo obligatorias, así que la subida de ese
   tamaño las rellena. `byte_size` sobrevive como peso del tamaño `large`: nadie lo lee y se retira con
   la contracción (`backend/sql/contract/`) cuando el GC elimine las fotos anteriores al ciclo;
-- `app.item` no guarda estado de publicación, precio ni moneda: el estado publicado es
+- `app.item` no guarda estado de publicación y **sí** guarda el precio: el estado publicado es
   `app.listing`. Un artículo sin fila en `app.listing` no está publicado;
 - `app.listing.item_id` es **único**: publicar es idempotente y republicar devuelve la misma fila y la
   misma URL. `slug` es único y su `CHECK` exige entre 3 y 140 caracteres con el patrón
@@ -93,9 +106,27 @@ la forma de §9: aditivos, idempotentes (`IF NOT EXISTS` en tablas e índices), 
 transacción propia. El archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro
 archivo.
 
-Candidatas sin compromiso, cada una con su ciclo: `app.sale`, `app.packing_step`,
-`app.packing_material` y `app.receive_check`. `app.reservation` no figura: la decisión §25 del
-apartado declara que no hay fila propia.
+Restricciones que el ciclo 4 agrega, cuando su corte escriba el DDL:
+
+- `app.event.public_slug` es único, cumple el mismo patrón que el `slug` del artículo y **no se
+  reescribe** una vez emitido: el enlace existe desde que el evento se crea (decisión §36).
+  `app.event.admin_user_id` es el event-administrator reclamado por la primera autenticación de un
+  invitado de ese evento y no cambia después (decisión §37);
+- `app.item.price_cents` es **nulo** por defecto y su moneda es `app.event.currency`, nunca una columna
+  propia; un precio nulo no impide publicar y deshabilita la pulsación de interés (decisión §35);
+- `app.listing.sold_at` marca `Vendido` en cualquier estado, sin monto y sin exigir precio. Borrar un
+  artículo **no** es venderlo (decisión §40);
+- `app.purchase_interest` guarda **una fila por artículo y visitante** mientras está abierta, con
+  instantánea de título y precio, y su referencia al `listing` **puede quedar nula** si el vendedor
+  borra el artículo: la solicitud sobrevive al borrado. No bloquea, no vence y no cambia el estado del
+  artículo (decisión §38);
+- `app.cart` tiene una fila por (visitante, evento) y `app.cart_item` una por (carrito, artículo). La
+  tabla es la verdad y **el total no se guarda**: se deriva en `shared` (decisión §39).
+
+Candidatas sin compromiso, cada una con su ciclo: `app.sale` —solo si el monto de una venta llega a
+tener consumidor—, `app.packing_step`, `app.packing_material` y `app.receive_check`.
+`app.reservation` **no existe ni se creará**: el apartado de 15 minutos fue sustituido por
+`app.purchase_interest` (decisión §38, que supera a §25).
 
 ## 2. Motor
 
@@ -196,3 +227,9 @@ apartado declara que no hay fila propia.
 | Retención de la foto publicada («mientras exista el `listing`», barrido manual de huérfanos) | Architect / Backend | Primer borrado, costo de almacenamiento visible o política de retención nueva |
 | `slug` publicado (`CHECK` y derivación desde el título) | Architect / Backend | Necesidad de `slug` editable o de estabilidad entre cambios de título |
 | Tamaños estándar de la foto y objetivo de peso (fuera de la base, en `ITEM_PHOTO_SIZES` e `ITEM_PHOTO_ENCODING`) | Architect / Frontend | 400 KB dejen de ser suficientes para el zoom, o aparezca un catálogo con decenas de tarjetas |
+| `public_slug` del evento y su inmutabilidad (ciclo 4a) | Architect / Backend | Necesidad de renombrar un evento ya publicado |
+| `admin_user_id` y la regla de reclamo (ciclo 4c) | Architect / Backend | Un evento con dos administradores |
+| `price_cents` y su moneda heredada del evento (ciclo 4b) | Architect / Backend | Precio en moneda distinta o con fracciones |
+| `sold_at` y la frontera entre vender y borrar (ciclo 4b) | Architect / Backend | Primera venta que haya que revertir |
+| `purchase_interest` y su instantánea (ciclo 4e) | Architect / Backend | El vendedor pida exclusividad |
+| `cart` y `cart_item` (ciclo 4f) | Architect / Backend | Carrito compartido entre dispositivos, o costo de lectura de carrito |

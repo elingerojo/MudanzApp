@@ -75,12 +75,39 @@ Vocabulario de acceso:
 | 3b | El tercer frontend se despliega y se enruta igual que los otros dos | `shop` |
 | 3c | El valor se percibe en el primer artículo compartido por WhatsApp | `frontend` y `shop` |
 | 3d | La ficha borrador de la IA se revisa en vez de escribirse | `frontend` y `wiki` |
-| 4 | El catálogo público se navega y el bloqueo protege al vendedor sin frenar al comprador | `shop` |
+| 4 | El enlace del evento abre un índice público, su event-administrator administra la ficha y el comprador señala lo que quiere sin ceder datos personales | `frontend` y `shop` |
 | 5 | La regla 4/11/21 convierte la cuenta en red de seguridad sin frenar el inicio | `frontend` |
 | 6 | La lista de empaque y la de cotización sustituyen la estimación burda | `frontend` y `wiki` |
 
 - El ciclo 3 se descompone en 3a–3d. El orden, lo que cada corte compra y su costo viven en
   [`plans/plan-ciclo-3a-captura-articulo.md`](../plans/plan-ciclo-3a-captura-articulo.md:1) §13.
+
+### 3.1 Descomposición del ciclo 4
+
+El ciclo 4 no es un solo corte: el enlace del evento existe desde que el evento se crea, el
+event-administrator administra la ficha y el comprador necesita una cuenta para señalar lo que
+quiere. Se descompone en seis cortes, cada uno con su hipótesis y su evidencia.
+
+| Corte | Hipótesis | Superficies |
+| --- | --- | --- |
+| 4a `event-index` | Quien recibe el enlace de un artículo llega por su índice a todo el evento, y el enlace existe desde que el evento se crea, aunque el índice esté vacío | `shop` y `frontend` |
+| 4b `item-edit` | Cualquier co-dispositivo corrige la ficha y fija el precio, y el catálogo lo refleja; el vendedor declara `Vendido` | `frontend` y `shop` |
+| 4c `event-admin` | Solo el event-administrator autenticado administra el evento, y una sesión de co-dispositivo no entra al dashboard | `frontend` |
+| 4d `shop-account` | Un visitante se registra y entra en la tienda sin tocar el evento | `shop` |
+| 4e `purchase-interest` | Un visitante señala un artículo y el vendedor lo ve en su dashboard y lo descarta | `shop` y `frontend` |
+| 4f `cart` | El comprador reúne artículos, conoce el total y entrega la compra a WhatsApp | `shop` |
+
+Reglas que ordenan la secuencia:
+
+- **El precio y el `Vendido` no esperan al dashboard**: la página de edición de `Capturados` los
+  pone en manos de quien ya captura, así que el corte de identidad llega después.
+- **El hecho del servidor antes de la comodidad del cliente**: el interés por artículo existe antes
+  del carrito, y el carrito solo multiplica artículos sobre un contrato que ya funciona.
+- **Vender no es borrar**: `sold` cierra una venta y conserva la evidencia; `delete` retira una
+  captura equivocada y solo lo ejerce el event-administrator.
+- **`account-upgrade` (4/11/21) pasa después del ciclo 4**; es el costo declarado de esta ampliación.
+- Ninguno de los seis cortes autoriza implementación por sí solo: cada uno abre con su plan, su
+  evidencia y su commit.
 
 ## 4. Capacidades core declaradas
 
@@ -91,10 +118,15 @@ Vocabulario de acceso:
 | `account-link` | En alcance del ciclo 1 | Reclamar un evento con una cuenta OAuth: vincula el sujeto y añade una sesión de cuenta. Es aditivo: no cierra el enlace ni revoca otras sesiones. No es obligatorio para documentar; es el camino de regreso |
 | `invite-device` | En alcance del ciclo 2 (cerrado) | Cualquier sesión del evento emite invitaciones para otro co-dispositivo del mismo evento |
 | `capture` | En alcance del ciclo 3a | Foto y datos mínimos del artículo; la foto se lee solo con sesión del evento hasta `publish` |
-| `publish` | En alcance del ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto resuelta en `R2_MODE` (decisión §26). Sin precio ni moneda; publicar exige foto y no hay despublicar ni `slug` editable |
+| `publish` | En alcance del ciclo 3c | URL legible por artículo, indexable; lectura pública de la foto resuelta en `R2_MODE` (decisión §26). Sin precio ni moneda en 3c: el precio entra nulo en el ciclo 4b (decisión §35). Publicar exige foto y no hay despublicar ni `slug` editable; el borrado de una captura equivocada llega con `event-admin` (4c) |
 | `ai-draft` | En alcance del ciclo 3d (cerrado) | Ficha borrador con salida validada en la frontera; produce **solo** título y nota, nunca medidas, peso, precio ni destino; el borrador es efímero (no hay tabla ni historial) y solo la revisión humana escribe (decisión §34); el transporte por bytes de la mediana se confirmó `live` en producción el 2026-11-01 |
-| `reserve` | Tentativa, ciclo 4 | Bloqueo de 15 minutos por visitante con cuenta |
-| `settle-sale` | Tentativa, ciclo 4 | El vendedor marca `Vendido` en cualquier estado |
+| `event-index` | En alcance del ciclo 4a (cerrado) | `public_slug` del evento, inmutable una vez publicado; índice público con estado vacío y enlace de vuelta desde cada ficha (decisión §36); se sirve como snapshot HTML con clave de versión desde la primera publicación y el componente solo reemplaza la lista si la versión difiere; revisado `live` en el móvil del dueño el 2026-11-02 |
+| `item-edit` | Tentativa, ciclo 4b | Página de edición desde `Capturados` para cualquier sesión del evento; `price_cents` nulo deshabilita «Lo quiero» (decisión §35) |
+| `event-admin` | Tentativa, ciclo 4c | El primer invitado del evento que se autentica lo reclama y `is_admin` también entra; una sesión de co-dispositivo responde `forbidden` (decisión §37) |
+| `shop-account` | Tentativa, ciclo 4d | Registro igual al primer acceso OAuth, con nombre opcional; sesión de alcance `shop` |
+| `purchase-interest` | Tentativa, ciclo 4e | Sin bloqueo ni vencimiento: la pulsación registra el interés con instantánea de título y precio; el vendedor lo descarta y el comprador puede cancelarlo (decisión §38) |
+| `cart` | Tentativa, ciclo 4f | Carrito con tabla propia y `PUT /public/cart`; el total es derivado y la compra se cierra en WhatsApp (decisión §39) |
+| `settle-sale` | Tentativa, ciclo 4b | El vendedor marca `Vendido` en cualquier estado, con `sold_at` y sin monto registrado (decisión §40) |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |
 | `packing`, `quote-brief`, `receive-check` | Tentativa, ciclo 6 | Empaque, lista para cotizar y verificación en destino |
 | `decide-destination` | Propuesta, sin ciclo | Los cinco destinos y la clase A B C |

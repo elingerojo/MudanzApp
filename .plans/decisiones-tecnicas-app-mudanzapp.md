@@ -761,3 +761,126 @@ Reglas del crecimiento:
 - **Disparador de revisión:** primera factura inesperada, cambio de política del proveedor, aparición
   de un dato personal en una foto enviada, una tanda de capturas reales en la que el borrador obligue a
   reescribir todo, o una errata publicada que no se pueda corregir.
+
+## 35. El precio vive en el artículo, puede ser nulo y deshabilita la pulsación (2026-11-01)
+
+- **Decisión:** el precio vive en `app.item.price_cents`, entero en la moneda del evento —`currency`
+  ya existe en `app.event` (§002)—, es **nulo** por defecto y lo edita cualquier sesión del evento
+  desde la página de edición de `Capturados`. Publicar **no** exige precio. Un artículo con precio
+  nulo muestra «precio a consultar», su botón «Lo quiero» está **deshabilitado** y la frontera
+  rechaza el intento con `price_missing` (409).
+- **Motivo:** el precio es lo que convierte el catálogo en una decisión y lo que da sentido al total
+  del carrito; pero exigirlo al publicar bloquea la publicación mientras el vendedor decide y reabre
+  un hecho que el ciclo 3c ya había cerrado sin él.
+- **Alternativa descartada — precio en `app.listing`:** parte el hecho en dos tablas y deja la ficha
+  sin el dato que alimentan el catálogo, el carrito y la cotización futura.
+- **Alternativa descartada — precio obligatorio al publicar:** convierte un hecho pendiente del
+  vendedor en un bloqueo del corte de publicación, que ya está cerrado.
+- **Consecuencia aceptada — la moneda no viaja con el precio:** se lee de `app.event.currency`, así
+  que un artículo no puede tener una moneda distinta de la de su evento.
+- **Consecuencia aceptada — no hay relleno de datos:** los artículos publicados antes de este corte
+  quedan con precio nulo y su pulsación deshabilitada; ninguna migración escribe valores.
+- **Artefactos:** `shared/src/item.ts`, `shared/src/listing.ts`, `backend/sql/007_item_price.sql`,
+  `backend/src/routes/items-router.ts` y la página de edición de `frontend`.
+- **Disparador de revisión:** precios en moneda distinta de la del evento, o la primera venta que
+  necesite fracciones (entero a decimal).
+
+## 36. El evento estrena slug público e inmutable al crearse (2026-11-01)
+
+- **Decisión:** `app.event.public_slug`, derivado de las ciudades más seis caracteres del `eventId`,
+  único y con el mismo patrón que el `slug` del artículo. Se emite al crear el evento, existe **antes**
+  de que haya artículos y **no se reescribe**. La ruta pública es `/evento/<slug>` en `shop` y el
+  contrato `GET /public/events/:publicSlug` no publica `eventId`.
+- **Motivo:** el enlace del evento se comparte desde el minuto cero —el índice nace vacío— y el
+  contrato público no publica identificadores internos (§24).
+- **Alternativa descartada — el `eventId` en la URL:** gratis hoy y un identificador público
+  permanente mañana, sin poder leerse ni dictarse por teléfono.
+- **Alternativa descartada — token secreto por evento:** no es indexable y el token se convierte en la
+  credencial de lectura, que es lo que §24 descartó.
+- **Consecuencia aceptada — el índice de un evento vacío es público:** responde su estado vacío y no
+  entra en la indexación hasta que tenga artículos publicados.
+- **Evidencia `live` (2026-11-02):** el corte 4a se desplegó y el dueño lo revisó en el móvil. El
+  índice de un evento recién creado abre sin sesión con su estado vacío y el enlace sigue siendo
+  válido; desde la primera publicación se sirve ya renderizado y la ficha vuelve a él.
+- **Revisada por:** el corte del ciclo 4a (`event-index`).
+- **Disparador de revisión:** necesidad de renombrar un evento ya publicado, o de un dominio por evento.
+
+## 37. El event-administrator se reclama con la primera autenticación (2026-11-01)
+
+- **Decisión:** `app.event.admin_user_id` (nullable). El **primer invitado de ese evento que se
+  autentica con cuenta** lo reclama; el reclamo es idempotente y no cambia después. `is_admin` también
+  entra al dashboard de cualquier evento. Una sesión de co-dispositivo —sin sujeto— responde
+  `forbidden`. `ADMIN_TOKEN` conserva crear eventos, invitarlos y revocar sesiones, y **no** se usa
+  para las escrituras del evento.
+- **Motivo:** hoy `app.event.owner_user_id` es siempre el administrador de la plataforma, porque
+  [`admin-router`](../backend/src/routes/admin-router.ts:58) lo fija al crear el evento. «El usuario
+  del evento» no tenía campo, y el dashboard exige autenticación mientras que el co-dispositivo no
+  tiene sujeto con el que identificarse (§30).
+- **Alternativa descartada — reasignar `owner_user_id`:** borra el hecho de quién creó el evento.
+- **Alternativa descartada — designarlo desde el dashboard del administrador de la plataforma:**
+  obliga a construir ese dashboard en este ciclo, que no está declarado.
+- **Consecuencia aceptada — el reclamo depende de quién abra primero el enlace:** si el enlace se
+  reenvía a la persona equivocada, se corrige revocando la sesión y emitiendo una invitación nueva, no
+  editando el modelo.
+- **Disparador de revisión:** un evento con dos administradores, o un reclamo equivocado que no se
+  pueda corregir con una revocación.
+
+## 38. El interés de compra sustituye al apartado de 15 minutos (2026-11-01, supera a §25)
+
+- **Decisión:** el visitante **no** aparta. Pulsa «Lo quiero» y eso registra un
+  `app.purchase_interest` por artículo y por visitante, con instantánea de título y precio, sin
+  bloqueo, sin vencimiento y sin exclusividad. Varios visitantes pueden señalar el mismo artículo. El
+  event-administrator los ve en su dashboard, decide fuera de la aplicación y **descarta** el interés;
+  el comprador puede cancelarlo. Ningún estado del artículo cambia por un interés.
+- **Motivo:** apartar exigía un reloj, un vencimiento perezoso y una reconciliación con el estado del
+  artículo. El hecho que el vendedor necesita es «quién lo quiere», y ninguna columna del artículo lo
+  guarda. **Supera a §25** porque el argumento de aquélla —una fila solo guardaría un instante que el
+  artículo ya guarda— no aplica a un dato que solo la fila puede guardar.
+- **Alternativa descartada — mantener el bloqueo de 15 minutos:** introduce reloj, carrera y estados
+  que este producto resuelve fuera de la aplicación.
+- **Alternativa descartada — un estado `reservado` en el artículo:** excluye a los demás compradores
+  por una decisión que el vendedor toma fuera de la aplicación.
+- **Consecuencia aceptada — «notificado» es un distintivo en el dashboard:** refresco al enfocar y
+  recarga manual, sin push ni proveedor externo. Disparador: que el vendedor pida aviso real.
+- **Consecuencia aceptada — el único canal con el comprador es el WhatsApp que él inicia:** la base no
+  guarda nombre, teléfono, correo ni dirección del visitante (§24 y `resumen-funcional` §5).
+- **Disparador de revisión:** que el vendedor necesite sostener una exclusividad, o que dos compradores
+  reclamen el mismo artículo ya vendido.
+
+## 39. El carrito vive en una tabla y `localStorage` es solo un espejo (2026-11-01)
+
+- **Decisión:** `app.cart` por visitante y evento, y `app.cart_item` por artículo. La verdad es la
+  tabla: `GET /public/cart` la lee y `PUT /public/cart` la reemplaza entera, de forma idempotente. El
+  navegador guarda una copia en `localStorage` **solo** para pintar sin esperar y la reconcilia contra
+  el `GET`. El total es derivado en `shared`, nunca almacenado. **No hay caché en RAM en este ciclo.**
+- **Motivo:** el carrito es un dato del comprador que debe sobrevivir al navegador y al dispositivo, y
+  `localStorage` no es ni confiable ni autoritativo. La caché en RAM del referente
+  (`ClaimItApp/backend/src/cache/appStore.ts`) responde a un perfil de lectura de feed, no al de un
+  carrito de pocas filas.
+- **Alternativa descartada — copiar el store en RAM con volcado a Neon:** añade una segunda fuente de
+  verdad, acopla el servicio a una instancia y un proceso de volcado que este corte no necesita.
+- **Alternativa descartada — carrito solo en el cliente:** se pierde al limpiar el navegador y no
+  puede alimentar el interés ni el total en la superficie del vendedor.
+- **Consecuencia aceptada — una lectura de carrito por visita con sesión:** si esa lectura domina el
+  consumo de Neon, la caché entra como decisión propia con su medición, no a escondidas.
+- **Disparador de revisión:** lectura de carrito que domine el consumo de Neon, o un carrito que deba
+  compartirse entre dispositivos.
+
+## 40. Vender no es borrar (2026-11-01)
+
+- **Decisión:** `sold` es un acto del vendedor que escribe `app.listing.sold_at` y conserva el
+  artículo, la foto y su URL; el índice deja de ofrecerlo y la ficha responde `Vendido`. `delete`
+  retira una **captura equivocada**, solo lo ejerce el event-administrator y no es la forma de cerrar
+  una venta. `sold_at` se gana en cualquier estado y no exige precio.
+- **Motivo:** cerrar una venta y corregir un error son hechos distintos. El modelo de 3c ya advirtió
+  que borrar deja objetos huérfanos en el almacén y que el barrido es manual
+  ([`modelo-datos`](modelo-datos-app-mudanzapp.md:82)).
+- **Alternativa descartada — usar `delete` para vender:** destruye la evidencia de lo que se vendió y
+  deja el objeto en el bucket.
+- **Alternativa descartada — `sold` con monto:** el monto no tiene consumidor en este ciclo; queda como
+  hecho pendiente con disparador en `resumen-funcional` §6.
+- **Consecuencia aceptada — el barrido de huérfanos se vuelve urgente:** sigue sin script y su
+  disparador se adelanta al primer borrado real.
+- **Consecuencia aceptada — una venta no se deshace desde la interfaz:** revertirla es un acto de base.
+- **Disparador de revisión:** la primera venta que haya que revertir, o el primer borrado que deje
+  objetos que importen.
