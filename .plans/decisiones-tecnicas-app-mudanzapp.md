@@ -822,6 +822,12 @@ Reglas del crecimiento:
   `DELETE /events/:eventId/sessions/:sessionId` des-invita a un co-dispositivo, rechazando la sesión en
   curso. La lista de invitaciones y `Cancelar enlace` siguen en 4c-3: ese corte ya no construye la
   lectura del panel ni la revocación por dispositivo.
+- **Evidencia `live` (2026-11-03):** el dueño reclamó un evento con su cuenta de Google desde
+  `localhost` —canje, `Vincular cuenta`, vuelta a `/auth/callback`—, abrió el panel con quién administra
+  y los co-dispositivos, comprobó que un co-dispositivo en otra ventana recibe el aviso en lugar del
+  panel, y lo des-invitó: la fila quedó en «sin acceso» y ese dispositivo perdió el acceso. La
+  migración `009` se aplicó a la base local; el destino remoto queda pendiente y va **antes** de
+  integrar a `main`.
 - **Motivo:** hoy `app.event.owner_user_id` es siempre el administrador de la plataforma, porque
   [`admin-router`](../backend/src/routes/admin-router.ts:58) lo fija al crear el evento. «El usuario
   del evento» no tenía campo, y el dashboard exige autenticación mientras que el co-dispositivo no
