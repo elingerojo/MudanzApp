@@ -905,3 +905,27 @@ Reglas del crecimiento:
   2026-11-02.**
 - **Disparador de revisión:** la primera venta que haya que revertir, el primer borrado que deje
   objetos que importen, o la aparición de un fin de evento que extienda la cortesía.
+
+## 41. El entorno de producción se inyecta al crear el contenedor (2026-11-03)
+
+- **Decisión:** un cambio de variables en Railway no lo adopta un contenedor que ya está corriendo. La
+  primera acción ante un síntoma de configuración en producción es **Restart**, que recrea el
+  contenedor sin compilar; `Redeploy` compila desde el mismo commit y queda para cuando la imagen
+  misma sea la sospechosa. Los valores se revisan después, no antes.
+- **Motivo:** el servidor lee el entorno **una sola vez**
+  ([`config.ts`](../backend/src/config.ts:97) y [`index.ts`](../backend/src/index.ts:15)) y construye
+  el adaptador en ese mismo arranque; nada se recarga en caliente. Es el mismo hecho que obliga a
+  reiniciar `dev:api` cuando cambia `.env.local`.
+- **Evidencia (2026-11-03):** con el cliente público de Google ya compilado en el bundle de producción
+  (`37ea7bc`), el canje seguía respondiendo `503 oauth_not_configured` aunque las cuatro variables del
+  servicio eran correctas. Un **Restart**, sin tocar un solo valor, dejó la autenticación funcionando
+  en el teléfono contra el sitio desplegado. **Cerrada con revisión `live` del dueño el 2026-11-03.**
+- **Consecuencia aceptada — el fallo no deja rastro:** `oauth_not_configured` es un `AppError`
+  reconocido, y el manejador solo registra lo que no reconoce, así que repetir el fallo no escribe
+  ninguna línea. La evidencia se busca en el navegador y en el arranque del contenedor, no en el log
+  de la petición.
+- **Consecuencia aceptada — `OAUTH_MODE=fake` es silencioso en producción:** las advertencias cubren
+  el modo inválido y el `live` incompleto, pero no el `fake`, a diferencia de `R2_MODE=fake`, que sí
+  avisa. Queda como hueco de diagnosticabilidad.
+- **Disparador de revisión:** el primer despliegue que se quede en `fake` sin que nadie lo note, o un
+  entorno servido con variables montadas fuera del contenedor.
