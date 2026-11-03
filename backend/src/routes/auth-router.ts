@@ -13,6 +13,7 @@ import { AppError } from '../errors.js';
 import { OAuthError } from '../identity/oauth.js';
 import {
   addEventMember,
+  claimEventAdmin,
   createFactor,
   createSession,
   createUser,
@@ -171,6 +172,11 @@ export function createAuthRouter(deps: IdentityDeps): Router {
           role: 'member',
           invitedBy: ownerUserId,
         });
+
+        // El event-administrator se reclama aquí y solo aquí: la primera autenticación de cuenta que
+        // llega desde una sesión de **este** evento. Es idempotente y su resultado se ignora a
+        // propósito —un evento ya reclamado no es un fallo de la autenticación— (decisión §37).
+        await claimEventAdmin(transaction, { eventId, userId: factor.user.id });
 
         await createSession(transaction, {
           userId: factor.user.id,

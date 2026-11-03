@@ -816,6 +816,12 @@ Reglas del crecimiento:
   entra al dashboard de cualquier evento. Una sesión de co-dispositivo —sin sujeto— responde
   `forbidden`. `ADMIN_TOKEN` conserva crear eventos, invitarlos y revocar sesiones, y **no** se usa
   para las escrituras del evento.
+- **Implementado (2026-11-03, corte 4c-2):** el reclamo ocurre dentro de la transacción de
+  `POST /auth/claim`, con `UPDATE … WHERE admin_user_id IS NULL`; `GET /events/:eventId/dashboard`
+  publica **en una sola lectura** quién administra y los co-dispositivos del evento; y
+  `DELETE /events/:eventId/sessions/:sessionId` des-invita a un co-dispositivo, rechazando la sesión en
+  curso. La lista de invitaciones y `Cancelar enlace` siguen en 4c-3: ese corte ya no construye la
+  lectura del panel ni la revocación por dispositivo.
 - **Motivo:** hoy `app.event.owner_user_id` es siempre el administrador de la plataforma, porque
   [`admin-router`](../backend/src/routes/admin-router.ts:58) lo fija al crear el evento. «El usuario
   del evento» no tenía campo, y el dashboard exige autenticación mientras que el co-dispositivo no

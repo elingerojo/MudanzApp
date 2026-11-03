@@ -30,11 +30,17 @@ implementado** y su DDL vive en
 `app.event.public_slug`. El **4b (`item-edit`) está implementado, aplicado en local y remoto y
 revisado `live` por el dueño el 2026-11-02**; su DDL vive en
 [`008_item_price_and_sold.sql`](../backend/sql/008_item_price_and_sold.sql:1), que agrega
-`app.item.price_cents` y `app.listing.sold_at` (decisiones §35 y §40). Los cortes restantes siguen
-declarados antes de que exista su DDL, que es el orden normal: el 4c agrega
-`app.event.admin_user_id`; el 4e agrega `app.purchase_interest`; y el 4f agrega `app.cart` y
-`app.cart_item`. Esos cambios no viven todavía en `backend/sql/`: los archivos `009`–`011` están
-**reservados** y solo se crean con su corte, aditivos, idempotentes y sin `DROP`, como los anteriores.
+`app.item.price_cents` y `app.listing.sold_at` (decisiones §35 y §40). El **4c-2 (`event-admin`) está
+implementado el 2026-11-03**; su DDL vive en
+[`009_event_admin.sql`](../backend/sql/009_event_admin.sql:1), que agrega `app.event.admin_user_id` con
+su clave foránea a `app."user" (id)`, nullable y sin índice porque se lee con la fila del evento. Ese
+corte **no** agrega columnas de acceso: la lista de co-dispositivos se resuelve con
+`app.session.event_id` y la revocación con `app.session.revoked_at`, que existen desde
+[`002_identity.sql`](../backend/sql/002_identity.sql:60) y
+[`003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:30). Los cortes
+restantes siguen declarados antes de que exista su DDL: el 4e agrega `app.purchase_interest` y el 4f
+agrega `app.cart` y `app.cart_item`. Los archivos `010` y `011` están **reservados** y solo se crean con
+su corte, aditivos, idempotentes y sin `DROP`, como los anteriores.
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |

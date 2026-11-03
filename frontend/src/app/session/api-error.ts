@@ -30,6 +30,8 @@ export const LISTING_NOT_PUBLISHED = 'listing_not_published';
 export const LISTING_GONE = 'listing_gone';
 export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';
+/** La sesión no administra el evento (ciclo 4c-2): el evento se ve, el derecho no existe. */
+export const FORBIDDEN = 'forbidden';
 
 /**
  * Identidad de cuenta del ciclo 4c (`oauth-login`): el reclamo exige un sujeto y el proveedor puede

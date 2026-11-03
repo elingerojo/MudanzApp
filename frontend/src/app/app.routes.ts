@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 
+import { requireEventAdmin } from './events/dashboard/dashboard.guard';
 import { HomeComponent } from './home/home.component';
 import { RedeemComponent } from './session/redeem.component';
 import { requireSession } from './session/session.guard';
@@ -44,6 +45,17 @@ export const routes: Routes = [
         path: 'articulos/:itemId',
         loadComponent: () =>
           import('./items/item-edit.component').then((module) => module.ItemEditComponent),
+      },
+      // El dashboard del event-administrator (ciclo 4c-2, decisión §37). Es una ruta hija del marco,
+      // como sus hermanas: la barra global de la aplicación no cambia y el guard pregunta al borde
+      // quién administra en vez de deducirlo de la sesión.
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./events/dashboard/dashboard.component').then(
+            (module) => module.DashboardComponent,
+          ),
+        canActivate: [requireEventAdmin],
       },
     ],
   },

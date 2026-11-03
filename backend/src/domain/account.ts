@@ -129,6 +129,43 @@ export function canActOnEvent(
 }
 
 /**
+ * Quién administra el evento (ciclo 4c-2, decisión §37).
+ *
+ * Es una regla distinta de `canActOnEvent`: aquélla dice si la sesión **alcanza** el evento —y por
+ * eso lo no alcanzado responde `not_found`—, y ésta dice si su sujeto **lo administra** —y por eso lo no
+ * administrado responde `forbidden`, porque el evento ya está a la vista—.
+ *
+ * Sin sujeto no hay administración posible: una sesión de co-dispositivo no entra, aunque su evento sea
+ * el de la ruta. `is_admin` de la plataforma entra a cualquier evento sin reclamarlo.
+ *
+ * No conoce HTTP, base ni reloj: quien llama resuelve `isAdmin` y el administrador reclamado.
+ */
+export function canAdministerEvent(
+  session: { readonly userId: string | null; readonly isAdmin: boolean },
+  adminUserId: string | null,
+): boolean {
+  if (session.userId === null) {
+    return false;
+  }
+
+  return session.isAdmin || session.userId === adminUserId;
+}
+
+/**
+ * Un co-dispositivo es una sesión **de evento**: sin sujeto y con evento. Es la definición única del
+ * hecho que el panel lista, el acto des-invita y la prueba comprueba.
+ *
+ * Una fila con sujeto y evento a la vez es imposible por `session_owner_check`; la función no la
+ * interpreta, simplemente no es un co-dispositivo.
+ */
+export function isCoDeviceSession(session: {
+  readonly userId: string | null;
+  readonly eventId: string | null;
+}): boolean {
+  return session.userId === null && session.eventId !== null;
+}
+
+/**
  * El emisor identifica al proveedor de identidad y es parte de la clave del sujeto. Se normaliza
  * sin barra final para que `https://id.example/` y `https://id.example` no creen dos cuentas.
  */

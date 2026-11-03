@@ -1,0 +1,114 @@
+<app-ui-card title="Dashboard">
+  @if (store.loading() && store.dashboard() === null) {
+    <p class="text-sm text-slate-600" data-testid="dashboard-loading">Cargando…</p>
+  } @else {
+    <div class="space-y-4" data-testid="dashboard-panel">
+      <div>
+        <p class="text-sm text-slate-700">
+          @if (event(); as current) {
+            {{ current.originCity }} → {{ current.destinationCity }}
+          } @else {
+            Evento
+          }
+        </p>
+
+        @if (publicUrl(); as link) {
+          <p class="text-sm text-slate-700" data-testid="dashboard-public-link">
+            Enlace público:
+            <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{
+              link
+            }}</a>
+          </p>
+        }
+      </div>
+
+      <!-- Quién administra es el hecho que el borde publica: la pantalla no lo deduce de la sesión. -->
+      @if (store.administrator(); as administrator) {
+        <p class="text-sm text-slate-700" data-testid="dashboard-administrator">
+          Administra: <span class="font-medium">{{ administrator.displayName }}</span>
+          @if (administrator.isAdmin) {
+            <span class="text-slate-500">· administrador de la plataforma</span>
+          }
+        </p>
+      } @else {
+        <p
+          class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
+          data-testid="dashboard-unclaimed"
+        >
+          Este evento todavía no tiene administrador. La primera persona que entre con su cuenta lo
+          reclama.
+        </p>
+      }
+
+      <p class="text-sm text-slate-700" data-testid="dashboard-counts">
+        Capturados: {{ items.count() }}
+      </p>
+
+      <section class="space-y-2" data-testid="dashboard-access">
+        <h2 class="text-sm font-semibold text-slate-900">Acceso</h2>
+        <p class="text-xs text-slate-600">
+          Estos dispositivos entraron con el enlace y no tienen cuenta. Quitar el acceso no borra lo
+          que documentaron.
+        </p>
+
+        @if (store.devices().length === 0) {
+          <p class="text-sm text-slate-600" data-testid="access-empty">
+            No hay dispositivos sin cuenta en este evento.
+          </p>
+        } @else {
+          <ul class="divide-y divide-slate-200">
+            @for (device of store.devices(); track device.id) {
+              <li
+                class="flex flex-wrap items-center gap-3 py-3"
+                [attr.data-testid]="'access-device-' + device.id"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-slate-900">
+                    {{ deviceLabel(device) }}
+                  </p>
+                  <p class="text-xs text-slate-600">
+                    alta {{ day(device.createdAt) }} · {{ lastSeen(device) }}
+                  </p>
+                </div>
+
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs"
+                  [class]="deviceStateClasses(device)"
+                  data-testid="access-device-state"
+                >
+                  {{ deviceState(device) }}
+                </span>
+
+                @if (device.revokedAt === null) {
+                  <button
+                    type="button"
+                    [class]="dangerClasses"
+                    [disabled]="store.revokingId() !== null"
+                    (click)="confirmRevoke(device)"
+                    [attr.data-testid]="
+                      confirmingRevokeId() === device.id
+                        ? 'access-device-revoke-confirm'
+                        : 'access-device-revoke'
+                    "
+                  >
+                    {{
+                      confirmingRevokeId() === device.id
+                        ? store.revokingId() === device.id
+                          ? 'Retirando…'
+                          : 'Confirmar'
+                        : 'Des-invitar'
+                    }}
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (store.accessFailure(); as failure) {
+          <p class="text-sm text-red-600" data-testid="access-error">{{ failure }}</p>
+        }
+      </section>
+    </div>
+  }
+</app-ui-card>

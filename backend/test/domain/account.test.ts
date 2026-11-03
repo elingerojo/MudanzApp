@@ -2,8 +2,10 @@ import {
   INVITATION_MAX_USES,
   INVITATION_TTL_MS,
   canActOnEvent,
+  canAdministerEvent,
   invitationExpiry,
   invitationUsability,
+  isCoDeviceSession,
   normalizeIssuer,
   sessionCoversScope,
   sessionOwner,
@@ -140,6 +142,39 @@ describe('canActOnEvent', () => {
 
   it('refuses an impossible session with neither an event nor a subject', () => {
     expect(canActOnEvent({ eventId: null, userId: null }, 'event-1', true)).toBe(false);
+  });
+});
+
+describe('canAdministerEvent', () => {
+  it('lets the claimed administrator enter', () => {
+    expect(canAdministerEvent({ userId: 'user-1', isAdmin: false }, 'user-1')).toBe(true);
+  });
+
+  it('lets the platform administrator enter an event nobody claimed', () => {
+    expect(canAdministerEvent({ userId: 'root', isAdmin: true }, null)).toBe(true);
+  });
+
+  it('refuses a member without the claim', () => {
+    expect(canAdministerEvent({ userId: 'user-2', isAdmin: false }, 'user-1')).toBe(false);
+  });
+
+  it('refuses a co-device session, which has no subject to compare', () => {
+    expect(canAdministerEvent({ userId: null, isAdmin: false }, 'user-1')).toBe(false);
+  });
+
+  it('refuses the platform flag when there is no subject at all', () => {
+    expect(canAdministerEvent({ userId: null, isAdmin: true }, null)).toBe(false);
+  });
+});
+
+describe('isCoDeviceSession', () => {
+  it('accepts an event session with no subject', () => {
+    expect(isCoDeviceSession({ userId: null, eventId: 'event-1' })).toBe(true);
+  });
+
+  it('refuses an account session and an impossible row', () => {
+    expect(isCoDeviceSession({ userId: 'user-1', eventId: null })).toBe(false);
+    expect(isCoDeviceSession({ userId: null, eventId: null })).toBe(false);
   });
 });
 

@@ -105,6 +105,7 @@ export type {
   CreatedEvent,
   CreatedInvitation,
   CurrentIdentity,
+  EventDashboard,
   EventRole,
   EventSummary,
   IdentityUser,

@@ -149,6 +149,11 @@ export const ERROR_CATALOG = {
     status: 503,
     message: 'Database is not configured',
   },
+  forbidden: {
+    code: 'forbidden',
+    status: 403,
+    message: 'The session may not administer this event',
+  },
   not_found: {
     code: 'not_found',
     status: 404,

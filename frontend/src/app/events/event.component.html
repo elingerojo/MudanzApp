@@ -33,6 +33,16 @@
     </p>
   }
 
+  <!-- El rechazo del dashboard es evidencia: se enseña en la pestaña a la que el guard devuelve. -->
+  @if (deniedDashboard()) {
+    <p
+      class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
+      data-testid="event-dashboard-denied"
+    >
+      Esta sección la administra la cuenta del evento. Vuelve a «Capturados» o vincula tu cuenta.
+    </p>
+  }
+
   <nav class="flex gap-2" data-testid="event-tabs" aria-label="Secciones del evento">
     <a
       [routerLink]="capturePath"
@@ -51,6 +61,17 @@
       data-testid="event-tab-captured"
     >
       Capturados ({{ store.count() }})
+    </a>
+
+    <!-- Siempre visible: esconderla exigiría que el cliente supiera quién administra antes de pedirlo y
+         el rechazo dejaría de ser la prueba de la frontera (decisión §37). -->
+    <a
+      [routerLink]="dashboardPath"
+      routerLinkActive="border-slate-900 bg-slate-900 text-white"
+      class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
+      data-testid="event-tab-dashboard"
+    >
+      Dashboard
     </a>
   </nav>
 

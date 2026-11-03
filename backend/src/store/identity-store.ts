@@ -24,10 +24,15 @@ export type UserRecord = {
  * El evento con su identificador público. `publicSlug` es `null` en un evento anterior al ciclo 4a:
  * la derivación es **perezosa** y se persiste una sola vez, la primera vez que el evento se lee
  * (`plan-ciclo-4a` §3). El `CHECK` y el índice único admiten ese nulo a propósito.
+ *
+ * `adminUserId` es el event-administrator reclamado (ciclo 4c-2, decisión §37): `null` mientras nadie
+ * lo reclame. Viaja en la misma fila que el evento porque se lee con ella; por eso la columna no lleva
+ * índice.
  */
 export type EventRecord = {
   readonly id: string;
   readonly publicSlug: string | null;
+  readonly adminUserId: string | null;
   readonly originCity: string;
   readonly destinationCity: string;
   readonly currency: string;
@@ -42,8 +47,8 @@ export type EventMembershipRecord = EventRecord & {
 };
 
 const EVENT_COLUMNS =
-  'id, public_slug AS "publicSlug", origin_city AS "originCity", ' +
-  'destination_city AS "destinationCity", currency, state';
+  'id, public_slug AS "publicSlug", admin_user_id AS "adminUserId", ' +
+  'origin_city AS "originCity", destination_city AS "destinationCity", currency, state';
 
 /** ¿El índice único del `public_slug` rechazó la escritura? Es la única colisión que se reintenta. */
 function isPublicSlugConflict(error: unknown): boolean {
@@ -303,6 +308,59 @@ export async function findEventOwnerUserId(
   return rows[0]?.ownerUserId ?? null;
 }
 
+/**
+ * Reclamo idempotente del event-administrator (decisión §37): lo escribe la primera autenticación de
+ * cuenta que llega desde una sesión de ese evento.
+ *
+ * La condición `admin_user_id IS NULL` es todo el mecanismo: dos reclamos concurrentes intentan escribir
+ * y solo uno lo consigue. El que pierde **no** es un error, es el hecho de que el evento ya tenía
+ * administrador, y por eso la función devuelve `false` en vez de lanzar.
+ */
+export async function claimEventAdmin(
+  database: Queryable,
+  input: { readonly eventId: string; readonly userId: string },
+): Promise<boolean> {
+  const { rowCount } = await database.query(
+    `UPDATE app.event
+        SET admin_user_id = $2
+      WHERE id = $1
+        AND admin_user_id IS NULL`,
+    [input.eventId, input.userId],
+  );
+
+  return rowCount === 1;
+}
+
+/** El administrador reclamado con el nombre que el panel pinta; los nulos son la ausencia del hecho. */
+export type EventAdministratorRecord = {
+  readonly adminUserId: string | null;
+  readonly displayName: string | null;
+  readonly isAdmin: boolean | null;
+};
+
+/**
+ * Una sola lectura que resuelve el derecho (`adminUserId`) y el nombre del panel.
+ *
+ * `null` es «el evento no existe»; `adminUserId` nulo es «sin reclamar». El borde decide con esta fila
+ * antes de responder, así que el cliente no necesita una segunda petición para saber si entra.
+ */
+export async function readEventAdministrator(
+  database: Queryable,
+  eventId: string,
+): Promise<EventAdministratorRecord | null> {
+  const { rows } = await database.query<EventAdministratorRecord>(
+    `SELECT e.admin_user_id AS "adminUserId",
+            u.display_name AS "displayName",
+            u.is_admin AS "isAdmin"
+       FROM app.event e
+       LEFT JOIN app."user" u ON u.id = e.admin_user_id
+      WHERE e.id = $1`,
+    [eventId],
+  );
+
+  return rows[0] ?? null;
+}
+
 export async function listEventsForUser(
   database: Queryable,
   userId: string,
@@ -310,6 +368,7 @@ export async function listEventsForUser(
   const { rows } = await database.query<EventMembershipRecord>(
     `SELECT e.id,
             e.public_slug AS "publicSlug",
+            e.admin_user_id AS "adminUserId",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             e.currency,
@@ -333,6 +392,7 @@ export async function findEventForUser(
   const { rows } = await database.query<EventMembershipRecord>(
     `SELECT e.id,
             e.public_slug AS "publicSlug",
+            e.admin_user_id AS "adminUserId",
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             e.currency,
@@ -616,4 +676,93 @@ export async function listEventSessions(
   );
 
   return rows;
+}
+
+/**
+ * Los co-dispositivos del evento: sesiones **sin sujeto** y de ese evento.
+ *
+ * No reusa `listEventSessions` a propósito: aquella sirve a `/admin/*` y trae también las sesiones
+ * de cuenta de los miembros; en el panel eso ofrecería la propia sesión del rey y permitiría retirar una
+ * cuenta, que es un acto de membresía que este corte no declara. El filtro **es** la regla.
+ *
+ * Las sesiones ya revocadas siguen apareciendo con su `revokedAt`: ese estado es la evidencia del acto,
+ * no basura que se esconde.
+ */
+export async function listEventCoDeviceSessions(
+  database: Queryable,
+  eventId: string,
+): Promise<EventSessionRecord[]> {
+  const { rows } = await database.query<EventSessionRecord>(
+    `SELECT s.id,
+            s.user_id AS "userId",
+            u.display_name AS "userDisplayName",
+            s.scope,
+            s.device_label AS "deviceLabel",
+            s.created_at AS "createdAt",
+            s.last_seen_at AS "lastSeenAt",
+            s.revoked_at AS "revokedAt"
+       FROM app.session s
+       LEFT JOIN app."user" u ON u.id = s.user_id
+      WHERE s.event_id = $1
+        AND s.user_id IS NULL
+      ORDER BY s.created_at DESC`,
+    [eventId],
+  );
+
+  return rows;
+}
+
+/** La fila mínima de una sesión para decidir un acto antes de escribirlo. */
+export type SessionSubjectRecord = {
+  readonly id: string;
+  readonly userId: string | null;
+  readonly eventId: string | null;
+  readonly revokedAt: Date | null;
+};
+
+/**
+ * Una sesión por su identificador.
+ *
+ * `revokeSession` revoca por id sin mirar a quién pertenece, y esa ceguera es correcta para la
+ * superficie de `ADMIN_TOKEN`. Desde el evento no sirve: el acto tiene alcance de un evento y de un tipo
+ * de sesión, así que el borde lee esta fila y decide con ella.
+ */
+export async function findSessionById(
+  database: Queryable,
+  sessionId: string,
+): Promise<SessionSubjectRecord | null> {
+  const { rows } = await database.query<SessionSubjectRecord>(
+    `SELECT id,
+            user_id AS "userId",
+            event_id AS "eventId",
+            revoked_at AS "revokedAt"
+       FROM app.session
+      WHERE id = $1`,
+    [sessionId],
+  );
+
+  return rows[0] ?? null;
+}
+
+/**
+ * Retira el acceso de un co-dispositivo del evento.
+ *
+ * La condición repite el hecho —esa sesión, de ese evento, sin sujeto— para que la sentencia no pueda
+ * tocar nada más. `COALESCE` la hace idempotente y conserva el primer instante de la revocación como
+ * evidencia; un segundo acto responde igual y no reescribe la fecha.
+ */
+export async function revokeEventCoDeviceSession(
+  database: Queryable,
+  input: { readonly eventId: string; readonly sessionId: string },
+): Promise<boolean> {
+  const { rowCount } = await database.query(
+    `UPDATE app.session
+        SET revoked_at = COALESCE(revoked_at, now())
+      WHERE id = $2
+        AND event_id = $1
+        AND user_id IS NULL`,
+    [input.eventId, input.sessionId],
+  );
+
+  return rowCount === 1;
 }

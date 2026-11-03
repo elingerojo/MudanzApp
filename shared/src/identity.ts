@@ -85,6 +85,25 @@ export interface CurrentIdentity {
   readonly events: readonly EventSummary[];
 }
 
+/**
+ * El panel del event-administrator (ciclo 4c-2, decisión §37): **una** lectura para autorizar y para
+ * pintar.
+ *
+ * `administrator` es `null` mientras nadie reclama el evento: el contrato no inventa un nombre ni deja
+ * que el cliente deduzca el derecho desde su propia sesión. Los contadores de capturas **no** viajan
+ * aquí: salen de la misma lectura de artículos que la sección ya tiene, y duplicarlos sería una segunda
+ * fuente del mismo hecho.
+ *
+ * `devices` son solo co-dispositivos del evento —sesiones sin sujeto—, ordenados del más reciente al
+ * más antiguo. Una sesión de cuenta no aparece: su retiro es un acto de membresía, no de sesión. Una
+ * sesión des-invitada sigue en la lista con su `revokedAt` escrito, porque ese estado es la evidencia
+ * del acto.
+ */
+export interface EventDashboard {
+  readonly administrator: IdentityUser | null;
+  readonly devices: readonly SessionSummary[];
+}
+
 const oauthToken = z.string().trim().min(1).max(4_096);
 const deviceLabel = z.string().trim().min(1).max(80);
 
