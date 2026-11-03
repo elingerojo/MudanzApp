@@ -4,12 +4,13 @@ import type { CreatedEvent, CreatedInvitation, IssuedSession } from '@mudanzapp/
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
- * Evidencia del ciclo 4c-2 (`event-admin` y el control de acceso por dispositivo, `plan-ciclo-4c-2` §8).
+ * Evidencia de `event-admin` (ciclo 4c-2) y del control de acceso (ciclo 4c-3).
  *
- * La hipótesis tiene dos mitades y aquí se recorren las dos: la cuenta que se autentica desde el evento
- * lo reclama y abre el dashboard —con una fila de acceso por co-dispositivo, no la propia—, y un
- * co-dispositivo que pulsa la pestaña vuelve a `Capturados` con el aviso, porque el borde le responde
- * `403`.
+ * La hipótesis se recorre entera: la cuenta que se autentica desde el evento lo reclama y abre el
+ * dashboard —con una fila de acceso por co-dispositivo, no la propia—; un co-dispositivo que pulsa la
+ * pestaña vuelve a `Capturados` con el aviso porque el borde le responde `403`; el rey des-invita a un
+ * dispositivo y ese token deja de servir; y cancela un enlace pendiente, tras lo cual el canje responde
+ * `410 invitation_invalid`.
  *
  * **Límite declarado.** El verificador `fake` fija un sujeto, así que todas las cuentas del arnés son la
  * misma: aquí se demuestra el reclamo y el rechazo, no que una segunda cuenta no se lleve el evento. Eso
@@ -40,18 +41,25 @@ async function createEvent(request: APIRequestContext): Promise<CreatedEvent['ev
   return event;
 }
 
+/** Un enlace emitido y todavía sin canjear: el que el panel lista como «activo». */
+async function createInvitationLink(
+  request: APIRequestContext,
+  eventId: string,
+): Promise<CreatedInvitation> {
+  const response = await request.post(`${BACKEND_URL}/admin/events/${eventId}/invitations`, {
+    headers: adminHeaders,
+  });
+  expect(response.status()).toBe(201);
+  return (await response.json()) as CreatedInvitation;
+}
+
 /** Un co-dispositivo nuevo: una invitación propia y su canje, sin cuenta. */
 async function redeemCoDevice(
   request: APIRequestContext,
   eventId: string,
   deviceLabel: string,
 ): Promise<IssuedSession> {
-  const invitationResponse = await request.post(
-    `${BACKEND_URL}/admin/events/${eventId}/invitations`,
-    { headers: adminHeaders },
-  );
-  expect(invitationResponse.status()).toBe(201);
-  const invitation = (await invitationResponse.json()) as CreatedInvitation;
+  const invitation = await createInvitationLink(request, eventId);
 
   const redeemed = await request.post(`${BACKEND_URL}/auth/redeem`, {
     data: { inviteToken: invitation.token, deviceLabel },
@@ -70,7 +78,7 @@ async function seedSession(page: Page, token: string): Promise<void> {
   );
 }
 
-test('the event administrator opens its dashboard and revokes a co-device', async ({
+test('the event administrator opens its dashboard, revokes a co-device and cancels a link', async ({
   request,
   page,
   browser,
@@ -88,9 +96,10 @@ test('the event administrator opens its dashboard and revokes a co-device', asyn
   expect(claimed.status()).toBe(201);
   const king = (await claimed.json()) as IssuedSession;
 
-  // Dos co-dispositivos que no tienen cuenta.
+  // Dos co-dispositivos que no tienen cuenta, y un enlace que nadie canjeó todavía.
   const firstDevice = await redeemCoDevice(request, event.id, 'Tableta');
   const secondDevice = await redeemCoDevice(request, event.id, 'Teléfono viejo');
+  const pendingInvitation = await createInvitationLink(request, event.id);
 
   // 1. El rey abre la pestaña y el panel publica lo que el borde decidió.
   await seedSession(page, king.sessionToken);
@@ -112,6 +121,12 @@ test('the event administrator opens its dashboard and revokes a co-device', asyn
   ).toHaveCount(1);
   await expect(page.getByTestId('access-device-revoke')).toHaveCount(2);
 
+  // El enlace pendiente se publica «activo» y es cancelable; la fila se localiza por su id, no por el
+  // orden de la lista, que no se asume.
+  const pendingRow = page.getByTestId(`access-invitation-${pendingInvitation.id}`);
+  await expect(pendingRow).toBeVisible();
+  await expect(pendingRow.getByTestId('access-invitation-state')).toHaveText('activo');
+
   // 2. Des-invitar: dos toques y la lectura se rehace.
   await page.getByTestId('access-device-revoke').first().click();
   await page.getByTestId('access-device-revoke-confirm').first().click();
@@ -120,7 +135,20 @@ test('the event administrator opens its dashboard and revokes a co-device', asyn
     page.getByTestId('access-device-state').filter({ hasText: 'sin acceso' }),
   ).toHaveCount(2);
 
-  // 3. Uno de los dos tokens dejó de servir; el otro sigue dentro. El orden de la lista no se asume:
+  // 3. Cancelar el enlace pendiente: dos toques, la fila queda cancelada y el token deja de admitir.
+  await pendingRow.getByTestId('access-invitation-cancel').click();
+  await pendingRow.getByTestId('access-invitation-cancel-confirm').click();
+
+  await expect(pendingRow.getByTestId('access-invitation-state')).toHaveText('cancelado');
+  await expect(pendingRow.getByTestId('access-invitation-cancel')).toHaveCount(0);
+
+  const afterCancel = await request.post(`${BACKEND_URL}/auth/redeem`, {
+    data: { inviteToken: pendingInvitation.token, deviceLabel: 'Intento tras cancelar' },
+  });
+  expect(afterCancel.status()).toBe(410);
+  await expect(afterCancel.json()).resolves.toEqual({ error: 'invitation_invalid' });
+
+  // 4. Uno de los dos tokens dejó de servir; el otro sigue dentro. El orden de la lista no se asume:
   //    se pregunta por cada token y se conserva el que sobrevive.
   const statusOf = async (token: string): Promise<number> => {
     const response = await request.get(`${BACKEND_URL}/auth/session`, {
@@ -133,7 +161,7 @@ test('the event administrator opens its dashboard and revokes a co-device', asyn
   const secondStatus = await statusOf(secondDevice.sessionToken);
   expect([firstStatus, secondStatus].sort()).toEqual([200, 401]);
 
-  // 4. El co-dispositivo que sobrevive ve la pestaña y no entra: vuelve a `Capturados` con el aviso.
+  // 5. El co-dispositivo que sobrevive ve la pestaña y no entra: vuelve a `Capturados` con el aviso.
   const survivorToken = firstStatus === 200 ? firstDevice.sessionToken : secondDevice.sessionToken;
   const context = await browser.newContext();
   try {

@@ -16,12 +16,14 @@ import {
 } from '../domain/account.js';
 import { AppError } from '../errors.js';
 import {
+  cancelInvitation,
   createInvitation,
   findEventById,
   findEventForUser,
   findEventOwnerUserId,
   findSessionById,
   listEventCoDeviceSessions,
+  listEventInvitations,
   listEventsForUser,
   readEventAdministrator,
   revokeEventCoDeviceSession,
@@ -30,11 +32,12 @@ import {
 import { createOpaqueToken, hashToken } from '../tokens.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
-import { toEventSummary, toSessionSummary } from './presenters.js';
+import { toEventSummary, toInvitationSummary, toSessionSummary } from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
 const sessionParamsSchema = z.object({ eventId: z.uuid(), sessionId: z.uuid() });
+const invitationParamsSchema = z.object({ eventId: z.uuid(), invitationId: z.uuid() });
 
 /**
  * Eventos de la sesión: lectura y emisión de invitaciones.
@@ -171,11 +174,11 @@ export function createEventsRouter(deps: IdentityDeps): Router {
   });
 
   /**
-   * El panel del event-administrator (ciclo 4c-2): **una** lectura que autoriza y pinta.
+   * El panel del event-administrator (ciclos 4c-2 y 4c-3): **una** lectura que autoriza y pinta.
    *
-   * Publica quién administra —`null` mientras nadie reclama— y los co-dispositivos del evento. Los
-   * contadores de capturas no viajan aquí: la sección ya los tiene en su propia lectura de artículos y
-   * duplicarlos sería una segunda fuente del mismo hecho.
+   * Publica quién administra —`null` mientras nadie reclama—, los co-dispositivos del evento y los
+   * enlaces que emitió. Los contadores de capturas no viajan aquí: la sección ya los tiene en su propia
+   * lectura de artículos y duplicarlos sería una segunda fuente del mismo hecho.
    */
   router.get('/events/:eventId/dashboard', requireSession, (request, response, next) => {
     const handle = async (): Promise<void> => {
@@ -184,6 +187,7 @@ export function createEventsRouter(deps: IdentityDeps): Router {
 
       const administrator = await requireAdministrator(identity, eventId);
       const devices = await listEventCoDeviceSessions(deps.database, eventId);
+      const invitations = await listEventInvitations(deps.database, eventId);
 
       const payload: EventDashboard = {
         administrator:
@@ -195,6 +199,7 @@ export function createEventsRouter(deps: IdentityDeps): Router {
                 isAdmin: administrator.isAdmin === true,
               },
         devices: devices.map(toSessionSummary),
+        invitations: invitations.map(toInvitationSummary),
       };
       response.json(payload);
     };
@@ -237,6 +242,45 @@ export function createEventsRouter(deps: IdentityDeps): Router {
         }
 
         await revokeEventCoDeviceSession(deps.database, { eventId, sessionId });
+        response.status(204).end();
+      };
+
+      void handle().catch(next);
+    },
+  );
+
+  /**
+   * Cancela un enlace del evento (ciclo 4c-3): el rey que lee el panel impide que ese enlace admita
+   * más canjes.
+   *
+   * La autorización va **antes** del acto, igual que en la des-invitación: un evento que la sesión no
+   * alcanza responde `not_found` y un sujeto que no lo administra responde `forbidden`, sin distinguir
+   * si la invitación existe. Después, una fila que no es de este evento —o que no existe— responde
+   * `not_found`: la condición de la sentencia es el alcance del acto.
+   *
+   * Es idempotente: repetir responde `204` y no reescribe el instante de la cancelación.
+   */
+  router.delete(
+    '/events/:eventId/invitations/:invitationId',
+    requireSession,
+    (request, response, next) => {
+      const handle = async (): Promise<void> => {
+        const { eventId, invitationId } = parseOrThrow(invitationParamsSchema, request.params);
+        const identity = identityOf(request);
+
+        await requireAdministrator(identity, eventId);
+
+        const cancelled = await cancelInvitation(deps.database, {
+          eventId,
+          invitationId,
+          now: deps.now(),
+        });
+
+        if (!cancelled) {
+          // No existe o es de otro evento: desde aquí no se distingue de una que no existe.
+          throw new AppError('not_found');
+        }
+
         response.status(204).end();
       };
 

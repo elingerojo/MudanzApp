@@ -73,13 +73,22 @@ const device = {
   revokedAt: null,
 };
 
+const invitation = {
+  id: 'invitation-1',
+  createdAt: new Date('2026-11-01T09:00:00.000Z'),
+  expiresAt: new Date('2026-11-04T09:00:00.000Z'),
+  useCount: 2,
+  revokedAt: null,
+};
+
 describe('GET /events/:eventId/dashboard', () => {
-  it('serves the administrator and the co-devices to the claimed account', async () => {
+  it('serves the administrator, the co-devices and the invitation links', async () => {
     const app = await start({
       sessions: [kingSession],
       administrator: KING,
       memberUserId: KING.id,
       devices: [device],
+      invitations: [invitation],
     });
 
     try {
@@ -98,6 +107,15 @@ describe('GET /events/:eventId/dashboard', () => {
             revokedAt: null,
             createdAt: '2026-11-01T10:00:00.000Z',
             lastSeenAt: '2026-11-02T10:00:00.000Z',
+          },
+        ],
+        invitations: [
+          {
+            id: invitation.id,
+            createdAt: '2026-11-01T09:00:00.000Z',
+            expiresAt: '2026-11-04T09:00:00.000Z',
+            useCount: 2,
+            revokedAt: null,
           },
         ],
       });
@@ -119,7 +137,11 @@ describe('GET /events/:eventId/dashboard', () => {
       });
 
       expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toEqual({ administrator: null, devices: [] });
+      await expect(response.json()).resolves.toEqual({
+        administrator: null,
+        devices: [],
+        invitations: [],
+      });
     } finally {
       await app.close();
     }

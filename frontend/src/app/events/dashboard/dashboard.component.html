@@ -105,6 +105,68 @@
           </ul>
         }
 
+        <div class="space-y-2 border-t border-slate-200 pt-3">
+          <h3 class="text-sm font-semibold text-slate-900">Enlaces</h3>
+          <p class="text-xs text-slate-600">
+            Cada fila es un enlace que se compartió. Cancelarlo impide que se siga usando para
+            entrar; no cierra las sesiones que ya abrió.
+          </p>
+
+          @if (store.invitations().length === 0) {
+            <p class="text-sm text-slate-600" data-testid="access-invitations-empty">
+              No hay enlaces emitidos en este evento.
+            </p>
+          } @else {
+            <ul class="divide-y divide-slate-200">
+              @for (invitation of store.invitations(); track invitation.id) {
+                <li
+                  class="flex flex-wrap items-center gap-3 py-3"
+                  [attr.data-testid]="'access-invitation-' + invitation.id"
+                >
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-slate-900">
+                      Enlace emitido el {{ day(invitation.createdAt) }}
+                    </p>
+                    <p class="text-xs text-slate-600">
+                      vence {{ day(invitation.expiresAt) }} · {{ uses(invitation) }}
+                    </p>
+                  </div>
+
+                  <span
+                    class="rounded-full px-2 py-0.5 text-xs"
+                    [class]="invitationStateClasses(invitation)"
+                    data-testid="access-invitation-state"
+                  >
+                    {{ invitationState(invitation) }}
+                  </span>
+
+                  @if (invitation.revokedAt === null) {
+                    <button
+                      type="button"
+                      [class]="dangerClasses"
+                      [disabled]="store.cancellingId() !== null"
+                      (click)="confirmCancel(invitation)"
+                      [attr.data-testid]="
+                        confirmingCancelId() === invitation.id
+                          ? 'access-invitation-cancel-confirm'
+                          : 'access-invitation-cancel'
+                      "
+                    >
+                      {{
+                        confirmingCancelId() === invitation.id
+                          ? store.cancellingId() === invitation.id
+                            ? 'Cancelando…'
+                            : 'Confirmar'
+                          : 'Cancelar enlace'
+                      }}
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </div>
+
         @if (store.accessFailure(); as failure) {
           <p class="text-sm text-red-600" data-testid="access-error">{{ failure }}</p>
         }

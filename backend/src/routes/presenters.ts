@@ -3,6 +3,7 @@ import {
   type EventRole,
   type EventSummary,
   type IdentityUser,
+  type InvitationSummary,
   type ItemPhoto,
   type ItemPhotoVariant,
   type ItemSummary,
@@ -16,7 +17,12 @@ import {
   listingVersion,
 } from '@mudanzapp/shared';
 
-import type { EventRecord, EventSessionRecord, UserRecord } from '../store/identity-store.js';
+import type {
+  EventInvitationRecord,
+  EventRecord,
+  EventSessionRecord,
+  UserRecord,
+} from '../store/identity-store.js';
 import type { ItemWithPhotoRecord, PhotoVariantRecord } from '../store/item-store.js';
 import type {
   ListingWithItemRecord,
@@ -63,6 +69,20 @@ export function toSessionSummary(session: EventSessionRecord): SessionSummary {
     createdAt: session.createdAt.toISOString(),
     lastSeenAt: session.lastSeenAt?.toISOString() ?? null,
     revokedAt: session.revokedAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * El enlace cancelable del panel (ciclo 4c-3). El presentador no compone estado: publica lo que la
+ * fila dice, y `revokedAt` nulo es «sigue admitiendo canjes». Ni el token ni su hash cruzan aquí.
+ */
+export function toInvitationSummary(invitation: EventInvitationRecord): InvitationSummary {
+  return {
+    id: invitation.id,
+    createdAt: invitation.createdAt.toISOString(),
+    expiresAt: invitation.expiresAt.toISOString(),
+    useCount: invitation.useCount,
+    revokedAt: invitation.revokedAt?.toISOString() ?? null,
   };
 }
 

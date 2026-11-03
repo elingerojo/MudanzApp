@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import type { SessionSummary } from '@mudanzapp/shared';
+import type { InvitationSummary, SessionSummary } from '@mudanzapp/shared';
 
 import { SessionStore } from '../../session/session.store';
 import { SHOP_BASE_URL } from '../../shop-base-url.token';
@@ -10,15 +10,15 @@ import { eventPublicUrl } from '../event-public-url';
 import { DashboardStore } from './dashboard.store';
 
 /**
- * Pestaña `Dashboard` del marco del evento (ciclo 4c-2, decisión §37).
+ * Pestaña `Dashboard` del marco del evento (ciclos 4c-2 y 4c-3, decisión §37).
  *
- * Muestra el hecho que el borde autorizó: quién administra, el enlace público, el contador de capturas y
- * los co-dispositivos con su acceso. Los contadores **no** se piden aquí: salen del mismo recurso de
- * artículos que pinta `Capturados`, así que publicar recarga una sola vez y las dos pestañas ven el
- * mismo número.
+ * Muestra el hecho que el borde autorizó: quién administra, el enlace público, el contador de capturas,
+ * los co-dispositivos con su acceso y los enlaces que el evento emitió. Los contadores **no** se piden
+ * aquí: salen del mismo recurso de artículos que pinta `Capturados`, así que publicar recarga una sola
+ * vez y las dos pestañas ven el mismo número.
  *
- * Lo que esta pantalla no hace también declara el corte: no lista invitaciones ni cancela enlaces (4c-3)
- * y no borra capturas (4c-4).
+ * Lo que esta pantalla no hace también declara el corte: no borra capturas (4c-4), no edita el evento y
+ * no reemite un enlace cancelado.
  */
 @Component({
   selector: 'app-dashboard',
@@ -48,6 +48,9 @@ export class DashboardComponent {
 
   /** Sesión cuyo botón ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingRevokeId = signal<string | null>(null);
+
+  /** Enlace cuyo botón ya se pulsó una vez y espera la confirmación. */
+  protected readonly confirmingCancelId = signal<string | null>(null);
 
   protected deviceLabel(device: SessionSummary): string {
     return device.deviceLabel ?? 'Dispositivo sin nombre';
@@ -87,5 +90,31 @@ export class DashboardComponent {
     }
 
     this.confirmingRevokeId.set(device.id);
+  }
+
+  protected invitationState(invitation: InvitationSummary): string {
+    return invitation.revokedAt === null ? 'activo' : 'cancelado';
+  }
+
+  protected invitationStateClasses(invitation: InvitationSummary): string {
+    return invitation.revokedAt === null
+      ? 'bg-emerald-100 text-emerald-900'
+      : 'bg-slate-200 text-slate-700';
+  }
+
+  /** Cuántas entradas admitió ya. El máximo es del borde y no se repite aquí. */
+  protected uses(invitation: InvitationSummary): string {
+    return invitation.useCount === 1 ? '1 canje' : `${String(invitation.useCount)} canjes`;
+  }
+
+  /** Cancelar tampoco tiene vuelta atrás desde la interfaz: los mismos dos toques. */
+  protected confirmCancel(invitation: InvitationSummary): void {
+    if (this.confirmingCancelId() === invitation.id) {
+      this.confirmingCancelId.set(null);
+      void this.store.cancel(this.eventId, invitation);
+      return;
+    }
+
+    this.confirmingCancelId.set(invitation.id);
   }
 }

@@ -2,13 +2,13 @@ import type { Database } from '../../src/db.js';
 import { hashToken } from '../../src/tokens.js';
 
 /**
- * Doble de `Database` para la frontera del dashboard (ciclo 4c-2).
+ * Doble de `Database` para la frontera del dashboard (ciclos 4c-2 y 4c-3).
  *
  * Responde por **forma** de la sentencia y no por orden de llamadas: el middleware de sesión, el
  * `touch`, la lectura del administrador, la membresía, la lista de co-dispositivos, la lectura de una
- * sesión por id y la revocación son las consultas que el borde puede hacer. Cualquier otra **falla** en
- * vez de devolver una fila inventada: un doble que responde a todo esconde justo el defecto que la
- * prueba busca.
+ * sesión por id, la revocación, la lista de invitaciones y la cancelación son las consultas que el
+ * borde puede hacer. Cualquier otra **falla** en vez de devolver una fila inventada: un doble que
+ * responde a todo esconde justo el defecto que la prueba busca.
  *
  * Es un doble, no la regla: la base real y el SQL se ejercen en `test/db/event-admin.test.ts` y
  * `test/db/event-access.test.ts`. Aquí solo se demuestra qué responde el borde a cada veredicto.
@@ -36,6 +36,15 @@ export interface DeviceRow {
   readonly revokedAt: Date | null;
 }
 
+/** Una fila de invitación tal como la devuelve el listado real: sin el hash, que no sale de la base. */
+export interface InvitationRow {
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly expiresAt: Date;
+  readonly useCount: number;
+  readonly revokedAt: Date | null;
+}
+
 /** La sesión que el acto encuentra al leer por identificador. */
 export interface TargetSession {
   readonly id: string;
@@ -56,6 +65,7 @@ export interface DashboardFixture {
   readonly memberUserId?: string | null;
   readonly eventId?: string;
   readonly devices?: readonly DeviceRow[];
+  readonly invitations?: readonly InvitationRow[];
   readonly target?: TargetSession;
 }
 
@@ -135,6 +145,18 @@ export function dashboardDatabase(fixture: DashboardFixture): Database {
         // El listado real selecciona `s.user_id`, nulo por definición: el presentador lo publica y el
         // contrato lo exige, así que el doble no puede omitirlo.
         return rows((fixture.devices ?? []).map((device) => ({ userId: null, ...device })));
+      }
+
+      if (text.includes('FROM app.invitation')) {
+        return rows([...(fixture.invitations ?? [])]);
+      }
+
+      if (text.includes('UPDATE app.invitation')) {
+        // La condición real es `id = $1 AND event_id = $2`: una fila de otro evento no se toca.
+        const found = (fixture.invitations ?? []).some(
+          (invitation) => invitation.id === value(0) && value(1) === eventId,
+        );
+        return rows([], found ? 1 : 0);
       }
 
       if (text.includes('COALESCE(revoked_at')) {

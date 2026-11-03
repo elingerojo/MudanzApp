@@ -76,6 +76,23 @@ export interface CreatedInvitation {
   readonly maxUses: number;
 }
 
+/**
+ * Una invitación tal como el panel la publica (ciclo 4c-3).
+ *
+ * No lleva `token` —la capacidad se muestra **una sola vez**, al emitirla— ni `token_hash`, que no
+ * sale de la base. Tampoco lleva «vencida»: el canje lo decide el borde con su reloj
+ * (`invitationUsability`) y publicarlo aquí sería una segunda fuente del mismo hecho con el reloj del
+ * navegador.
+ */
+export interface InvitationSummary {
+  readonly id: string;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  readonly useCount: number;
+  /** `null` mientras el enlace sigue admitiendo canjes; instante del acto cuando se canceló. */
+  readonly revokedAt: string | null;
+}
+
 export interface CurrentIdentity {
   readonly user: IdentityUser | null;
   readonly session: {
@@ -86,8 +103,8 @@ export interface CurrentIdentity {
 }
 
 /**
- * El panel del event-administrator (ciclo 4c-2, decisión §37): **una** lectura para autorizar y para
- * pintar.
+ * El panel del event-administrator (ciclos 4c-2 y 4c-3, decisión §37): **una** lectura para autorizar
+ * y para pintar.
  *
  * `administrator` es `null` mientras nadie reclama el evento: el contrato no inventa un nombre ni deja
  * que el cliente deduzca el derecho desde su propia sesión. Los contadores de capturas **no** viajan
@@ -98,10 +115,15 @@ export interface CurrentIdentity {
  * más antiguo. Una sesión de cuenta no aparece: su retiro es un acto de membresía, no de sesión. Una
  * sesión des-invitada sigue en la lista con su `revokedAt` escrito, porque ese estado es la evidencia
  * del acto.
+ *
+ * `invitations` son los enlaces que el evento emitió, incluidos los cancelados y los agotados, del más
+ * reciente al más antiguo. Es la pareja del acto `Cancelar enlace`: sin la lista, el rey no sabría qué
+ * enlace cancelar.
  */
 export interface EventDashboard {
   readonly administrator: IdentityUser | null;
   readonly devices: readonly SessionSummary[];
+  readonly invitations: readonly InvitationSummary[];
 }
 
 const oauthToken = z.string().trim().min(1).max(4_096);

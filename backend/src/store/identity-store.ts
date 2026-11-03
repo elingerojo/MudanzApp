@@ -100,6 +100,21 @@ export type EventSessionRecord = {
   readonly revokedAt: Date | null;
 };
 
+/**
+ * Una invitación del evento tal como el panel la publica (ciclo 4c-3).
+ *
+ * `token_hash` **no** está: la capacidad se muestra una sola vez, al emitirla, y desde entonces solo
+ * vive como hash. El panel necesita el hecho —cuándo vence, cuántos canjes lleva y si se canceló—, no
+ * el secreto.
+ */
+export type EventInvitationRecord = {
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly expiresAt: Date;
+  readonly useCount: number;
+  readonly revokedAt: Date | null;
+};
+
 const USER_COLUMNS = 'id, display_name AS "displayName", is_admin AS "isAdmin"';
 
 /**
@@ -712,6 +727,32 @@ export async function listEventCoDeviceSessions(
   return rows;
 }
 
+/**
+ * Los enlaces que el evento emitió, del más reciente al más antiguo (ciclo 4c-3).
+ *
+ * Se listan **todos**, incluidos los cancelados y los agotados: su estado es la evidencia de que el
+ * enlace existió y de lo que se hizo con él, no basura que se esconde. El filtro por evento es la
+ * regla: una invitación de otro evento no se publica en este panel.
+ */
+export async function listEventInvitations(
+  database: Queryable,
+  eventId: string,
+): Promise<EventInvitationRecord[]> {
+  const { rows } = await database.query<EventInvitationRecord>(
+    `SELECT id,
+            created_at AS "createdAt",
+            expires_at AS "expiresAt",
+            use_count AS "useCount",
+            revoked_at AS "revokedAt"
+       FROM app.invitation
+      WHERE event_id = $1
+      ORDER BY created_at DESC`,
+    [eventId],
+  );
+
+  return rows;
+}
+
 /** La fila mínima de una sesión para decidir un acto antes de escribirlo. */
 export type SessionSubjectRecord = {
   readonly id: string;
@@ -762,6 +803,31 @@ export async function revokeEventCoDeviceSession(
         AND event_id = $1
         AND user_id IS NULL`,
     [input.eventId, input.sessionId],
+  );
+
+  return rowCount === 1;
+}
+
+/**
+ * Cancela un enlace del evento (ciclo 4c-3).
+ *
+ * La condición repite el hecho —esa invitación y ese evento— para que el acto no alcance a otro
+ * evento; `COALESCE` lo hace idempotente y conserva el primer instante de la cancelación, que es su
+ * evidencia. `invitationUsability` ya devuelve `revoked` primero e `increaseInvitationUse` exige
+ * `revoked_at IS NULL`, así que el canje responde `invitation_invalid` sin tocar el núcleo.
+ *
+ * `now` viaja como argumento porque el instante lo posee el borde, no la base (`03` §3).
+ */
+export async function cancelInvitation(
+  database: Queryable,
+  input: { readonly eventId: string; readonly invitationId: string; readonly now: Date },
+): Promise<boolean> {
+  const { rowCount } = await database.query(
+    `UPDATE app.invitation
+        SET revoked_at = COALESCE(revoked_at, $3)
+      WHERE id = $1
+        AND event_id = $2`,
+    [input.invitationId, input.eventId, input.now],
   );
 
   return rowCount === 1;

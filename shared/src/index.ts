@@ -109,6 +109,7 @@ export type {
   EventRole,
   EventSummary,
   IdentityUser,
+  InvitationSummary,
   IssuedSession,
   OAuthExchange,
   OAuthExchangeRequest,

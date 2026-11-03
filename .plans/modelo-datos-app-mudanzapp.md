@@ -37,7 +37,9 @@ su clave foránea a `app."user" (id)`, nullable y sin índice porque se lee con 
 corte **no** agrega columnas de acceso: la lista de co-dispositivos se resuelve con
 `app.session.event_id` y la revocación con `app.session.revoked_at`, que existen desde
 [`002_identity.sql`](../backend/sql/002_identity.sql:60) y
-[`003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:30). Los cortes
+[`003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:30). El **4c-3
+(`access-control`) está implementado el 2026-11-03** y tampoco agrega DDL: la lista de enlaces se
+resuelve con `app.invitation` y su cancelación escribe `app.invitation.revoked_at`. Los cortes
 restantes siguen declarados antes de que exista su DDL: el 4e agrega `app.purchase_interest` y el 4f
 agrega `app.cart` y `app.cart_item`. Los archivos `010` y `011` están **reservados** y solo se crean con
 su corte, aditivos, idempotentes y sin `DROP`, como los anteriores.
@@ -71,7 +73,9 @@ Restricciones que van con el DDL:
   `INVITATION_MAX_USES` en el núcleo de la regla); `consumed_at` marca el primer canje y `use_count`
   cuenta todos. `claimed_at` es **histórico**: el reclamo ya no la inutiliza (`decisiones` §30,
   revisada), así que ningún camino lo escribe y el veredicto `claimed` del núcleo se conserva para
-  leer las filas anteriores. `revoked_at` queda para la revocación del administrador;
+  leer las filas anteriores. `revoked_at` lo escribe la cancelación del event-administrator desde el
+  panel del evento (ciclo 4c-3), con `COALESCE` para que sea idempotente y conserve el primer
+  instante del acto;
 - `event_member.invited_by` registra al **dueño del evento**: es el único invitante de registro que el
   modelo reconoce (`decisiones` §30) y no distingue qué co-dispositivo emitió el enlace;
 - ningún campo de nombre, correo, teléfono ni dirección del visitante;

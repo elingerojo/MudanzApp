@@ -2,7 +2,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import type { IdentityUser, ItemSummary, SessionSummary } from '@mudanzapp/shared';
+import type {
+  IdentityUser,
+  InvitationSummary,
+  ItemSummary,
+  SessionSummary,
+} from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../../api-base-url.token';
 import { SessionStore } from '../../session/session.store';
@@ -12,14 +17,16 @@ import { DashboardComponent } from './dashboard.component';
 import { DashboardStore } from './dashboard.store';
 
 /**
- * El panel del event-administrator (ciclo 4c-2, `plan-ciclo-4c-2` §8).
+ * El panel del event-administrator (ciclos 4c-2 y 4c-3).
  *
  * Se prueba lo que la pantalla **publica**, no lo que deduce: quién administra llega del borde, el
- * contador sale del recurso compartido de artículos y la lista de acceso es solo de co-dispositivos.
- * También se prueba lo que no hace: no lista invitaciones ni borra capturas.
+ * contador sale del recurso compartido de artículos, y las dos listas —co-dispositivos y enlaces— son
+ * las del payload. También se prueba lo que no hace: no ofrece un acto sobre una fila ya cancelada ni
+ * sobre una sesión ya des-invitada.
  */
 const DASHBOARD_URL = '/api/events/event-1/dashboard';
-const DELETE_URL = '/api/events/event-1/sessions/device-1';
+const REVOKE_URL = '/api/events/event-1/sessions/device-1';
+const CANCEL_URL = '/api/events/event-1/invitations/invitation-1';
 const ITEMS_URL = '/api/events/event-1/items';
 
 const EVENT = {
@@ -46,6 +53,16 @@ const DEVICE: SessionSummary = {
 };
 
 const REVOKED: SessionSummary = { ...DEVICE, revokedAt: '2026-11-03T10:00:00.000Z' };
+
+const INVITATION: InvitationSummary = {
+  id: 'invitation-1',
+  createdAt: '2026-11-01T09:00:00.000Z',
+  expiresAt: '2026-11-04T09:00:00.000Z',
+  useCount: 2,
+  revokedAt: null,
+};
+
+const CANCELLED: InvitationSummary = { ...INVITATION, revokedAt: '2026-11-03T10:00:00.000Z' };
 
 const ITEM: ItemSummary = {
   id: 'item-1',
@@ -99,14 +116,19 @@ describe('DashboardComponent', () => {
   async function render(
     devices: readonly SessionSummary[],
     administrator: IdentityUser | null,
+    invitations: readonly InvitationSummary[] = [],
   ): Promise<Awaited<ReturnType<typeof build>>> {
-    return build(devices, administrator);
+    return build(devices, administrator, invitations);
   }
 
-  async function build(devices: readonly SessionSummary[], administrator: IdentityUser | null) {
+  async function build(
+    devices: readonly SessionSummary[],
+    administrator: IdentityUser | null,
+    invitations: readonly InvitationSummary[],
+  ) {
     const store = TestBed.inject(DashboardStore);
     const loading = store.load('event-1');
-    httpTesting.expectOne(DASHBOARD_URL).flush({ administrator, devices });
+    httpTesting.expectOne(DASHBOARD_URL).flush({ administrator, devices, invitations });
     await loading;
 
     const fixture = TestBed.createComponent(DashboardComponent);
@@ -131,8 +153,8 @@ describe('DashboardComponent', () => {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
-  it('publishes who administers, the public link, the count and the co-devices', async () => {
-    const fixture = await render([DEVICE], ADMINISTRATOR);
+  it('publishes who administers, the public link, the count, the co-devices and the links', async () => {
+    const fixture = await render([DEVICE], ADMINISTRATOR, [INVITATION]);
 
     expect(query(fixture, 'dashboard-administrator')?.textContent).toContain('Ana');
     expect(query(fixture, 'dashboard-public-link')?.textContent).toContain(
@@ -143,6 +165,15 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'access-device-revoke')).not.toBeNull();
     expect(query(fixture, 'access-device-revoke-confirm')).toBeNull();
     expect(query(fixture, 'access-empty')).toBeNull();
+
+    // El enlace publica su vencimiento, sus canjes y su estado, y ofrece el acto una sola vez.
+    expect(query(fixture, 'access-invitation-invitation-1')?.textContent).toContain(
+      'vence 2026-11-04 · 2 canjes',
+    );
+    expect(query(fixture, 'access-invitation-state')?.textContent).toContain('activo');
+    expect(query(fixture, 'access-invitation-cancel')).not.toBeNull();
+    expect(query(fixture, 'access-invitation-cancel-confirm')).toBeNull();
+    expect(query(fixture, 'access-invitations-empty')).toBeNull();
   });
 
   it('says the event has no administrator instead of inventing one', async () => {
@@ -151,6 +182,7 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'dashboard-unclaimed')).not.toBeNull();
     expect(query(fixture, 'dashboard-administrator')).toBeNull();
     expect(query(fixture, 'access-empty')).not.toBeNull();
+    expect(query(fixture, 'access-invitations-empty')).not.toBeNull();
   });
 
   it('shows a revoked device as evidence and offers no act over it', async () => {
@@ -158,6 +190,14 @@ describe('DashboardComponent', () => {
 
     expect(query(fixture, 'access-device-state')?.textContent).toContain('sin acceso');
     expect(query(fixture, 'access-device-revoke')).toBeNull();
+  });
+
+  it('shows a cancelled link as evidence and offers no act over it', async () => {
+    const fixture = await render([], ADMINISTRATOR, [CANCELLED]);
+
+    expect(query(fixture, 'access-invitation-state')?.textContent).toContain('cancelado');
+    expect(query(fixture, 'access-invitation-cancel')).toBeNull();
+    expect(query(fixture, 'access-invitation-cancel-confirm')).toBeNull();
   });
 
   it('asks for confirmation in two touches and reloads after revoking', async () => {
@@ -168,18 +208,60 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'access-device-revoke-confirm')).not.toBeNull();
 
     query(fixture, 'access-device-revoke-confirm')?.click();
-    httpTesting.expectOne(DELETE_URL).flush(null, { status: 204, statusText: 'No Content' });
+    httpTesting.expectOne(REVOKE_URL).flush(null, { status: 204, statusText: 'No Content' });
 
     await tick();
     httpTesting
       .expectOne(DASHBOARD_URL)
-      .flush({ administrator: ADMINISTRATOR, devices: [REVOKED] });
+      .flush({ administrator: ADMINISTRATOR, devices: [REVOKED], invitations: [] });
 
     await tick();
     fixture.detectChanges();
 
     expect(query(fixture, 'access-device-revoke')).toBeNull();
     expect(query(fixture, 'access-device-state')?.textContent).toContain('sin acceso');
+  });
+
+  it('asks for confirmation in two touches and reloads after cancelling a link', async () => {
+    const fixture = await render([], ADMINISTRATOR, [INVITATION]);
+
+    query(fixture, 'access-invitation-cancel')?.click();
+    fixture.detectChanges();
+    expect(query(fixture, 'access-invitation-cancel-confirm')).not.toBeNull();
+
+    query(fixture, 'access-invitation-cancel-confirm')?.click();
+    httpTesting.expectOne(CANCEL_URL).flush(null, { status: 204, statusText: 'No Content' });
+
+    await tick();
+    httpTesting
+      .expectOne(DASHBOARD_URL)
+      .flush({ administrator: ADMINISTRATOR, devices: [], invitations: [CANCELLED] });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'access-invitation-cancel')).toBeNull();
+    expect(query(fixture, 'access-invitation-state')?.textContent).toContain('cancelado');
     expect(text(fixture)).not.toContain('Cancelar enlace');
+  });
+
+  it('translates the forbidden cancel into its own phrase', async () => {
+    const fixture = await render([], ADMINISTRATOR, [INVITATION]);
+
+    query(fixture, 'access-invitation-cancel')?.click();
+    fixture.detectChanges();
+    query(fixture, 'access-invitation-cancel-confirm')?.click();
+
+    httpTesting
+      .expectOne(CANCEL_URL)
+      .flush({ error: 'forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'access-error')?.textContent).toContain(
+      'No puedes cancelar un enlace de este evento.',
+    );
+    expect(query(fixture, 'access-invitation-cancel')).not.toBeNull();
   });
 });
