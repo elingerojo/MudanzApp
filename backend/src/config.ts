@@ -69,6 +69,39 @@ export interface Config {
   readonly warnings: readonly string[];
 }
 
+/**
+ * Avisos de la integración de identidad sobre la configuración **ya leída** (ciclos 1 y 4c-3).
+ *
+ * Es una función pura a propósito: el orden de sus ramas es el contrato del arranque —un modo
+ * inválido manda sobre cualquier otra cosa, después el doble determinista y por último la
+ * credencial que falta— y así se prueba sin reimportar el módulo ni tocar `process.env`.
+ *
+ * El `fake` advierte igual que R2 y AI (ciclo 4c-3): un despliegue que resuelve cuentas con el doble
+ * no llama a ningún proveedor, y sin esta señal el único indicio sería el nombre que el doble
+ * atribuye al sujeto.
+ */
+export function oauthWarnings(oauth: OAuthConfig): string[] {
+  if (oauth.mode !== 'live' && oauth.mode !== 'fake') {
+    return [
+      'OAUTH_MODE is not live or fake; the first identity request will report oauth_mode_invalid',
+    ];
+  }
+
+  if (oauth.mode === 'fake') {
+    return [
+      'OAUTH_MODE is fake: accounts come from a deterministic double and no identity provider is called',
+    ];
+  }
+
+  if (oauth.issuer === null || oauth.clientId === null || oauth.clientSecret === null) {
+    return [
+      'OAUTH_MODE is live but its configuration is incomplete; the first identity request will report oauth_not_configured',
+    ];
+  }
+
+  return [];
+}
+
 function readOptional(name: string): string | null {
   const raw = process.env[name];
   if (raw === undefined) {
@@ -114,18 +147,7 @@ const oauth: OAuthConfig = {
 
 // La integración OAUTH ya tiene lector (ciclo 1). No se imprime ningún valor: solo se avisa de lo
 // que falta para que el primer fallo sea diagnosticable desde el arranque.
-if (oauth.mode !== 'live' && oauth.mode !== 'fake') {
-  warnings.push(
-    'OAUTH_MODE is not live or fake; the first identity request will report oauth_mode_invalid',
-  );
-} else if (
-  oauth.mode === 'live' &&
-  (oauth.issuer === null || oauth.clientId === null || oauth.clientSecret === null)
-) {
-  warnings.push(
-    'OAUTH_MODE is live but its configuration is incomplete; the first identity request will report oauth_not_configured',
-  );
-}
+warnings.push(...oauthWarnings(oauth));
 
 const storage: StorageConfig = {
   mode: readOptional('R2_MODE') ?? DEFAULT_R2_MODE,
