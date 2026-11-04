@@ -1010,5 +1010,9 @@ Reglas del crecimiento:
   barra de la tienda permite entrar desde `/evento/:publicSlug` o desde una ficha y vuelve al mismo
   camino; no crea interés ni abre el evento. El interés de compra y su mensaje de WhatsApp son 4e.
 - **Implementada por:** el corte del ciclo 4d (`plan-ciclo-4d-shop-account`); sin migración.
+- **Revisión `live` del dueño, 2026-11-04:** el enlace público del evento carga sin sesión, `Entrar`
+  completa el flujo con Google y regresa a la misma página, el nombre visible se fija desde `/cuenta`
+  y `Salir` devuelve la barra a `Entrar`. El URI de vuelta de `shop` quedó registrado en el cliente
+  público de Google; el backend y el Worker se desplegaron desde `main` con los commits de 4d.
 - **Disparador de revisión:** interés de compra que deba admitir visitantes sin cuenta, o una petición
   de sesión única entre superficies.
