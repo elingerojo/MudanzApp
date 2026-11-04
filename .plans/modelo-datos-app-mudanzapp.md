@@ -40,7 +40,8 @@ corte **no** agrega columnas de acceso: la lista de co-dispositivos se resuelve 
 [`003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:30). El **4c-3
 (`access-control`) está implementado el 2026-11-03** y tampoco agrega DDL: la lista de enlaces se
 resuelve con `app.invitation` y su cancelación escribe `app.invitation.revoked_at`. El **corte
-`4c-fix` (`invitation-label`) está implementado el 2026-11-04**; su DDL vive en
+`4c-fix` (`invitation-label`) está implementado y aplicado en la base remota que lee el servicio el
+2026-11-04**; su DDL vive en
 [`012_invitation_label.sql`](../backend/sql/012_invitation_label.sql:1), que agrega
 `app.invitation.label`, la tabla singleton `app.invitation_label_sequence` y el relleno cronológico de
 las invitaciones anteriores (decisión §42). Los cortes restantes siguen declarados antes de que exista

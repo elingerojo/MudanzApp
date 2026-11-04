@@ -972,5 +972,9 @@ Reglas del crecimiento:
   bloqueo es global: toda emisión espera a la misma fila. Es deliberado: el puntero es un hecho escrito,
   no una deducción sobre timestamps, y sobrevive a un reinicio, a un `Redeploy` y a varias instancias.
 - **Implementada por:** el corte `4c-fix` (`plan-ciclo-4c-fix-etiqueta-enlaces`), migración `012`.
+- **Revisión `live` del dueño, 2026-11-04:** los tres enlaces de la revisión figuran con nombre en el
+  panel, la emisión siguiente continuó el anillo, la cancelación por nombre dejó la fila en `cancelado`,
+  el canje de ese token respondió `410` y la URL del enlace termina en `&etiqueta=<palabra>`. Con eso
+  queda cerrado el hallazgo de 4c-3.
 - **Disparador de revisión:** el primer evento con más de veinte enlaces donde dos se confundan, o el
   primer dueño que quiera escribir el nombre a mano.
