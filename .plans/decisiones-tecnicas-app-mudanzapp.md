@@ -820,8 +820,21 @@ Reglas del crecimiento:
   `POST /auth/claim`, con `UPDATE … WHERE admin_user_id IS NULL`; `GET /events/:eventId/dashboard`
   publica **en una sola lectura** quién administra y los co-dispositivos del evento; y
   `DELETE /events/:eventId/sessions/:sessionId` des-invita a un co-dispositivo, rechazando la sesión en
-  curso. La lista de invitaciones y `Cancelar enlace` siguen en 4c-3: ese corte ya no construye la
-  lectura del panel ni la revocación por dispositivo.
+  curso.
+- **Implementado (2026-11-04, corte 4c-3):** la misma lectura del panel publica los enlaces emitidos
+  (sin `token_hash`), y `DELETE /events/:eventId/invitations/:invitationId` escribe `revoked_at` de
+  forma idempotente. Cancelar un enlace no revoca las sesiones que ya creó: se retiran una por una,
+  que es la limitación declarada. La frontera de administración vive en una sola función
+  (`requireEventAdministrator`) y la comparten la lectura del panel, la des-invitación y la
+  cancelación.
+- **Implementado (2026-11-04, corte 4c-4):** el event-administrator retira una captura equivocada con
+  `DELETE /events/:eventId/items/:itemId`. Un artículo vendido responde `409 item_sold` porque es la
+  evidencia de la venta (§40). El borrado reusa la misma frontera y la cascada —foto, variantes y
+  `app.listing`— la impone el DDL; la ficha pública responde `404` en la siguiente lectura.
+- **Evidencia del gate local (2026-11-04):** 4c-3 y 4c-4 integrados en lineal sobre `main`; gate
+  completo verde con OAuth `fake`: `test:api` (187), `test:api:db:branch` (196, con cascada y
+  revocación efectivas), `test:web:frontend` (114) y `test:e2e:branch` (20, con los dos recorridos del
+  panel). La revisión `live` de ambos cortes queda pendiente del dueño.
 - **Evidencia `live` (2026-11-03):** el dueño reclamó un evento con su cuenta de Google desde
   `localhost` —canje, `Vincular cuenta`, vuelta a `/auth/callback`—, abrió el panel con quién administra
   y los co-dispositivos, comprobó que un co-dispositivo en otra ventana recibe el aviso en lugar del
@@ -903,6 +916,13 @@ Reglas del crecimiento:
   responde `410 listing_gone` con el mismo `noindex`. El modelo no tiene fin de evento, así que hoy el
   único límite operativo es el de treinta días. **Cerrada con revisión `live` del dueño el
   2026-11-02.**
+- **Implementado el borrado (2026-11-04, corte 4c-4):** solo el event-administrator ejerce
+  `DELETE /events/:eventId/items/:itemId`; un vendido responde `409 item_sold` y no se borra. La
+  cascada retira foto, variantes y `app.listing`, así que el índice deja de ofrecer la tarjeta y la
+  ficha pública responde `404 not_found` sin lápida ni `410`. Los objetos del almacén quedan
+  huérfanos: el barrido sigue manual y su disparador se adelanta al primer borrado real. Evidencia:
+  unit de base con cascada, frontera `403`/`409` y e2e que publica, borra y comprueba el `404`; la
+  revisión `live` queda pendiente del dueño.
 - **Disparador de revisión:** la primera venta que haya que revertir, el primer borrado que deje
   objetos que importen, o la aparición de un fin de evento que extienda la cortesía.
 
@@ -924,8 +944,8 @@ Reglas del crecimiento:
   reconocido, y el manejador solo registra lo que no reconoce, así que repetir el fallo no escribe
   ninguna línea. La evidencia se busca en el navegador y en el arranque del contenedor, no en el log
   de la petición.
-- **Consecuencia aceptada — `OAUTH_MODE=fake` es silencioso en producción:** las advertencias cubren
-  el modo inválido y el `live` incompleto, pero no el `fake`, a diferencia de `R2_MODE=fake`, que sí
-  avisa. Queda como hueco de diagnosticabilidad.
+- **Consecuencia aceptada — `OAUTH_MODE=fake` avisa desde 4c-3:** el arranque emite
+  `OAUTH_MODE is fake` con el mismo criterio que `R2_MODE=fake` y `AI_MODE=fake` (commit `c3cb9f0`),
+  así que el hueco de diagnosticabilidad que dejó este corte queda cerrado.
 - **Disparador de revisión:** el primer despliegue que se quede en `fake` sin que nadie lo note, o un
   entorno servido con variables montadas fuera del contenedor.
