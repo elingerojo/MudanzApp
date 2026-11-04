@@ -5,10 +5,11 @@ plantillas `.html` separadas) del monorepo MudanzApp. Es la tercera superficie: 
 privada del administrador y de los co-dispositivos del evento, y `wiki` es el dossier técnico.
 
 Este workspace arrancó como **bootstrap**, desde el ciclo 3c sirve la **primera página pública de
-producto**, desde el ciclo 4a el **índice público del evento** y desde el ciclo 4b la ficha muestra
-**precio y estado de venta** y también llega como snapshot. El ciclo 4 le agrega la cuenta del
-visitante (4d), el interés de compra (4e) y el carrito (4f). Las rutas de este documento son el mapa
-**vigente**; las de ciclo 4 se marcan como pendientes hasta que su corte las implante.
+producto**, desde el ciclo 4a el **índice público del evento**, desde el ciclo 4b la ficha muestra
+**precio y estado de venta** y también llega como snapshot, y desde el ciclo 4d tiene **cuenta de
+visitante**. El ciclo 4 le agrega el interés de compra (4e) y el carrito (4f). Las rutas de este
+documento son el mapa **vigente**; las de ciclo 4 se marcan como pendientes hasta que su corte las
+implante.
 
 ## Rutas
 
@@ -25,6 +26,12 @@ visitante (4d), el interés de compra (4e) y el carrito (4f). Las rutas de este 
   siendo un enlace válido. Cada tarjeta abre su ficha. La página llega **ya renderizada** por el
   backend (`GET /public/events/:publicSlug/page`) y el Worker la guarda como snapshot; el componente
   la retira cuando su propia lista está al día.
+- `/cuenta` — `ShopAccountComponent`: cuenta del visitante desde el ciclo 4d. Sin sesión ofrece
+  `Entrar o registrarme` con el mismo flujo OAuth del evento; con sesión muestra el nombre y permite
+  fijarlo **después** del primer acceso. `Cerrar sesión` es local. La sesión tiene alcance `shop` y no
+  abre el evento ni la identidad privada.
+- `/auth/callback` — `ShopOAuthCallbackComponent`: vuelta pública del proveedor. Canjea el `id_token`
+  en `POST /auth/shop/sessions` y aterriza en `/cuenta`.
 - `/carrito` — pendiente del ciclo 4f: carrito del visitante con sesión de alcance `shop`, con el total
   derivado y la entrega de la compra a WhatsApp.
 - `**` — redirección a `/`: fallback de la SPA.
@@ -47,9 +54,11 @@ noindex` en una ficha vendida, que el Worker propaga del backend.
   `listing-parity.spec.ts`.
 - La foto pública la descarga el navegador del almacén (`R2_PUBLIC_BASE_URL`), no del backend
   (decisión §26); el contrato entrega la URL ya compuesta.
-- Todavía no hay sesión de visitante: el alcance `shop` existe en el modelo de sesiones desde el ciclo
-  1, y lo emite y lo consume el corte 4d (registro igual al primer acceso OAuth, con nombre opcional).
-  El interés (4e) y el carrito (4f) exigen esa sesión; la ficha y el índice no.
+- La cuenta de la tienda (ciclo 4d) usa el mismo flujo OAuth que `frontend`, pero emite una sesión de
+  alcance `shop` con su propia clave en `localStorage` (`mudanzapp.shop.session`). El nombre visible es
+  opcional y se fija después del primer acceso; no hay membresía de evento ni inicio de sesión único
+  entre superficies. El proveedor debe tener registrado `<origen-de-shop>/auth/callback` además del de
+  `frontend`. El interés (4e) y el carrito (4f) consumen esa sesión; la ficha y el índice no.
 
 ## Operación
 

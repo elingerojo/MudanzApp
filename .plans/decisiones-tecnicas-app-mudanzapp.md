@@ -416,6 +416,9 @@ Reglas del crecimiento:
   dispositivo sin una lista negra, que es `app.session` con otro nombre.
 - **Consecuencia aceptada:** documentar no exige cuenta; recuperar el acceso en otro navegador sí
   exige la cuenta. Ese paso y su costo se fijan en §30.
+- **Consecuencia aceptada (ciclo 4d):** el alcance `shop` deja de ser una declaración sin escritor:
+  `POST /auth/shop/sessions` emite la sesión del visitante y `GET /auth/shop/session` la lee. Es la
+  **misma** cuenta OAuth, con otra sesión y otro alcance (decisión §43).
 - **Consecuencia aceptada:** un token de sesión **nunca** viaja en una URL. Un token que tiene que ir
   en un enlace es de un solo uso y de vida corta; el de sesión, revocable y de vida larga, se queda en
   `Authorization: Bearer` (§27).
@@ -872,7 +875,9 @@ Reglas del crecimiento:
 - **Consecuencia aceptada — «notificado» es un distintivo en el dashboard:** refresco al enfocar y
   recarga manual, sin push ni proveedor externo. Disparador: que el vendedor pida aviso real.
 - **Consecuencia aceptada — el único canal con el comprador es el WhatsApp que él inicia:** la base no
-  guarda nombre, teléfono, correo ni dirección del visitante (§24 y `resumen-funcional` §5).
+  guarda teléfono, correo ni dirección del visitante (§24 y `resumen-funcional` §5). **Corrección
+  (ciclo 4d):** un visitante **registrado** en la tienda sí tiene una cuenta OAuth con nombre de
+  perfil; ese nombre no es un dato de contacto y no cambia la regla sobre los demás.
 - **Disparador de revisión:** que el vendedor necesite sostener una exclusividad, o que dos compradores
   reclamen el mismo artículo ya vendido.
 
@@ -978,3 +983,29 @@ Reglas del crecimiento:
   queda cerrado el hallazgo de 4c-3.
 - **Disparador de revisión:** el primer evento con más de veinte enlaces donde dos se confundan, o el
   primer dueño que quiera escribir el nombre a mano.
+
+## 43. La cuenta de la tienda es la misma cuenta OAuth con alcance `shop` (2026-11-04)
+
+- **Decisión:** el visitante se registra con el **mismo primer acceso OAuth** del producto y recibe una
+  sesión de alcance `shop`, con sujeto y sin evento. El registro no crea membresía ni reclama evento.
+  El nombre visible es **opcional y posterior**: el primer acceso usa el nombre verificado por el
+  proveedor —`Invitado` cuando no lo trae— y `PATCH /auth/shop/profile` permite fijarlo desde
+  `/cuenta`; escribe solo la fila del sujeto que la sesión resolvió.
+- **Motivo:** el alcance `shop` existía en `app.session` desde el ciclo 1 sin escritor ni lector, y el
+  interés de compra (4e) necesita un visitante identificable que sobreviva al navegador. La misma
+  cuenta evita duplicar identidad; la sesión distinta evita que un comprador alcance el evento.
+- **Alternativa descartada — una cuenta de tienda separada:** el par `(issuer, subject)` ya identifica
+  a la persona; duplicarlo obligaría a reconciliar dos identidades y a decidir cuál manda.
+- **Alternativa descartada — pedir el nombre en el alta:** el nombre no hace falta para registrar ni
+  para el interés, y un formulario en el primer acceso agrega fricción y un campo que el proveedor ya
+  puede aportar.
+- **Consecuencia aceptada — un mismo sujeto tiene dos sesiones, una por superficie:** no hay inicio de
+  sesión único entre `frontend` y `shop`; cada origen entra una vez. Disparador: el primer vendedor que
+  pida una sola sesión para las dos.
+- **Consecuencia aceptada — editar el nombre en la tienda cambia el de la cuenta en la aplicación
+  privada:** es la misma fila de `app."user"`. Disparador: un producto que quiera perfiles separados.
+- **Consecuencia aceptada — `Cerrar sesión` es local:** igual que la sesión de cuenta de la aplicación.
+  La revocación del servidor queda como su propio acto si aparece un dispositivo perdido.
+- **Implementada por:** el corte del ciclo 4d (`plan-ciclo-4d-shop-account`); sin migración.
+- **Disparador de revisión:** interés de compra que deba admitir visitantes sin cuenta, o una petición
+  de sesión única entre superficies.

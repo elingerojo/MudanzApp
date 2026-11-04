@@ -622,6 +622,28 @@ export async function createUser(database: Queryable, displayName: string): Prom
   return user;
 }
 
+/**
+ * Nombre visible de una cuenta (ciclo 4d, `shop-account`).
+ *
+ * El sujeto lo pone la sesión que el middleware resolvió, nunca el cuerpo de la petición: el acto solo
+ * alcanza la propia fila. Devuelve `null` si la fila no existe, que el borde trata como una sesión que
+ * ya no sirve en vez de inventar un usuario.
+ */
+export async function updateUserDisplayName(
+  database: Queryable,
+  input: { readonly userId: string; readonly displayName: string },
+): Promise<UserRecord | null> {
+  const { rows } = await database.query<UserRecord>(
+    `UPDATE app."user"
+     SET display_name = $2
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [input.userId, input.displayName],
+  );
+
+  return rows[0] ?? null;
+}
+
 export async function createFactor(
   database: Queryable,
   input: { readonly userId: string; readonly issuer: string; readonly subject: string },

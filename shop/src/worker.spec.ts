@@ -369,3 +369,21 @@ describe('injectSnapshot', () => {
     expect(injectSnapshot('<html></html>', FRAGMENT)).toContain('id="evento-snapshot"');
   });
 });
+
+describe('reserved map paths', () => {
+  it('serves the shell for /cuenta instead of treating it as a listing slug', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleListingRequest(
+      new Request('https://shop.test/cuenta', { headers: { accept: 'text/html' } }),
+      workerEnv(),
+      context(),
+      memoryCache(),
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers.get('X-Snapshot')).toBeNull();
+    await expect(response.text()).resolves.toBe(SHELL);
+  });
+});

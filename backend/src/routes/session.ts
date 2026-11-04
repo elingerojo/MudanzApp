@@ -36,8 +36,15 @@ export function identityOf(request: Request): RequestIdentity {
  *
  * La sesión puede ser **de cuenta** o **de evento** (`decisiones` §30). El middleware no exige
  * sujeto: eso lo decide la ruta que consume la sesión.
+ *
+ * El alcance es exacto (`sessionCoversScope`): una sesión de aplicación no sirve en la tienda y una de
+ * tienda no sirve en las rutas del evento (ciclo 4d). El default `app` conserva los llamadores que ya
+ * existían; solo el router de la tienda pide `shop`.
  */
-export function createSessionMiddleware(database: Database): RequestHandler {
+export function createSessionMiddleware(
+  database: Database,
+  requiredScope: SessionScope = 'app',
+): RequestHandler {
   return (request, _response, next): void => {
     const resolve = async (): Promise<void> => {
       const token = bearerToken(request.headers.authorization);
@@ -55,7 +62,7 @@ export function createSessionMiddleware(database: Database): RequestHandler {
         throw new AppError('session_revoked');
       }
 
-      if (!sessionCoversScope(session.scope, 'app')) {
+      if (!sessionCoversScope(session.scope, requiredScope)) {
         throw new AppError('unauthorized');
       }
 

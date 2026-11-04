@@ -1,0 +1,72 @@
+<section class="rounded-lg border border-slate-300 p-4">
+  <h2 class="mb-2 text-lg font-medium">Cuenta</h2>
+
+  @if (identityFailed()) {
+    <p class="mb-2 text-sm text-red-600" data-testid="shop-account-session-error">
+      Tu sesión de la tienda ya no sirve. Entra otra vez.
+    </p>
+  }
+
+  @if (current(); as account) {
+    <p class="mb-3 text-sm">
+      Sesión de
+      <span class="font-medium" data-testid="shop-account-name">{{ account.displayName }}</span>
+    </p>
+
+    <label class="mb-1 block text-sm font-medium" for="shop-account-name-input"
+      >Nombre visible (opcional)</label
+    >
+    <div class="flex gap-2">
+      <input
+        id="shop-account-name-input"
+        data-testid="shop-account-name-input"
+        class="min-w-0 flex-1 rounded border border-slate-400 px-2 py-1"
+        type="text"
+        maxlength="80"
+        [value]="name()"
+        (input)="onName($event)"
+      />
+      <button
+        type="button"
+        class="rounded bg-slate-800 px-3 py-1 text-white disabled:opacity-50"
+        data-testid="shop-account-name-save"
+        [disabled]="saving()"
+        (click)="saveName()"
+      >
+        Guardar
+      </button>
+    </div>
+
+    @if (saved()) {
+      <p class="mt-2 text-sm text-green-700" data-testid="shop-account-saved">Nombre guardado.</p>
+    }
+
+    <button
+      type="button"
+      class="mt-3 text-sm font-medium underline"
+      data-testid="shop-account-signout"
+      (click)="signOut()"
+    >
+      Cerrar sesión
+    </button>
+  } @else if (hasSession()) {
+    <p class="text-sm" data-testid="shop-account-loading">Cargando la cuenta…</p>
+  } @else {
+    <p class="mb-3 text-sm">
+      Entra o crea tu cuenta con el proveedor de identidad. No necesitas ningún enlace de evento.
+    </p>
+    <button
+      type="button"
+      class="rounded bg-slate-800 px-3 py-2 text-white disabled:opacity-50"
+      data-testid="shop-account-signin"
+      [disabled]="connecting()"
+      (click)="signIn()"
+    >
+      Entrar o registrarme
+    </button>
+  }
+
+  @if (error()) {
+    <p class="mt-2 text-sm text-red-600" data-testid="shop-account-error">{{ error() }}</p>
+  }
+</section>

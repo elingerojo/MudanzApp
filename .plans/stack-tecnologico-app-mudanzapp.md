@@ -159,6 +159,7 @@ scaffold (nota E3 en `.roo/rules/05-deps.md`).
 | Vitest | ^4.0.8 | dev | 2026-10-19 | Pruebas unitarias | Jest | Stack §8 y decisión 9 |
 | Playwright | ^1.63.0 | dev | 2026-10-19 | E2E | Cypress | Stack §8 y decisión 11 |
 | *(ninguna)* | — | — | 2026-10-31 | La optimización de la foto del ciclo 3c-optimizar usa `canvas`, `toBlob` y `createImageBitmap`, **nativos del navegador** | `sharp` en el backend (dependencia de runtime nueva y obligaría a que la original viaje primero) | Decisión §33 y `plan-ciclo-3c-optimizar` §1 |
+| *(ninguna)* | — | — | 2026-11-04 | La cuenta de la tienda (ciclo 4d) reusa `crypto.subtle`, `crypto.getRandomValues` y el `fetch` ya existente; el flujo vive en `shared` | Un cliente OAuth o un SDK de identidad, que ocultaría la mitad pública del flujo y agregaría una dependencia de runtime sin consumidor | Decisión §43 y `plan-ciclo-4d-shop-account` §6 |
 
 > Las versiones son las del bootstrap; se actualizan aquí cuando cambien. Una dependencia nueva
 > no se considera autorizada hasta que aparezca en esta tabla. La fila `(ninguna)` registra un corte

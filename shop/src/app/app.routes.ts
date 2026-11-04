@@ -3,15 +3,25 @@ import type { Routes } from '@angular/router';
 import { StatusComponent } from './status/status.component';
 
 /**
- * Mapa vigente del ciclo 4a: `/` sigue siendo el humo del arranque, `/evento/:publicSlug` es el
- * índice público del evento y `/:slug` la ficha pública de un artículo publicado.
+ * Mapa vigente de `shop`: `/` sigue siendo el humo del arranque, `/evento/:publicSlug` es el índice
+ * público del evento, `/:slug` la ficha pública y, desde el ciclo 4d, `/cuenta` es la cuenta del
+ * visitante con su vuelta pública `/auth/callback`.
  *
- * El índice va **antes** de `:slug` a propósito: `:slug` solo casa un segmento, así que hoy no
- * colisionan, pero el orden deja escrito que el índice es una ruta de dos segmentos y no un `slug`
- * afortunado.
+ * `cuenta` va **antes** de `:slug`: es una ruta de un segmento y, sin el orden explícito, la ficha la
+ * capturaría como un `slug`. El Worker conserva la misma exclusión en `RESERVED_PATHS`.
  */
 export const routes: Routes = [
   { path: '', component: StatusComponent },
+  {
+    path: 'auth/callback',
+    loadComponent: () =>
+      import('./session/shop-oauth-callback.component').then((m) => m.ShopOAuthCallbackComponent),
+  },
+  {
+    path: 'cuenta',
+    loadComponent: () =>
+      import('./account/shop-account.component').then((m) => m.ShopAccountComponent),
+  },
   {
     path: 'evento/:publicSlug',
     loadComponent: () =>

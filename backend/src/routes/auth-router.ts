@@ -3,8 +3,11 @@ import {
   createSessionSchema,
   oauthExchangeSchema,
   redeemInvitationSchema,
+  shopSessionSchema,
+  updateShopProfileSchema,
   type IssuedSession,
   type OAuthExchange,
+  type ShopIdentity,
 } from '@mudanzapp/shared';
 import { Router } from 'express';
 
@@ -26,6 +29,7 @@ import {
   listEventsForUser,
   revokeSession,
   touchFactor,
+  updateUserDisplayName,
 } from '../store/identity-store.js';
 import { createOpaqueToken, hashToken } from '../tokens.js';
 import { parseOrThrow } from '../validation.js';
@@ -45,6 +49,9 @@ import { createSessionMiddleware, identityOf } from './session.js';
 export function createAuthRouter(deps: IdentityDeps): Router {
   const router = Router();
   const requireSession = createSessionMiddleware(deps.database);
+  // La tienda consume el mismo middleware con su alcance exacto (ciclo 4d): un token de aplicación
+  // no abre estas rutas y uno de tienda no abre las del evento.
+  const requireShopSession = createSessionMiddleware(deps.database, 'shop');
 
   router.post('/auth/redeem', (request, response, next) => {
     const handle = async (): Promise<void> => {
@@ -243,6 +250,109 @@ export function createAuthRouter(deps: IdentityDeps): Router {
         event: firstEvent === undefined ? null : toEventSummary(firstEvent),
       };
       response.status(201).json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Primer acceso o regreso de un visitante de la tienda (ciclo 4d, `shop-account`).
+   *
+   * No exige credencial: la identidad la prueba el `id_token` que el proveedor firma. Si el par
+   * `(issuer, subject)` no tiene factor, este es el **alta**: crea la cuenta y su factor. Después emite
+   * una sesión de alcance `shop` con sujeto y sin evento. No añade membresía, no reclama el evento y no
+   * revoca ninguna sesión de otra superficie.
+   */
+  router.post('/auth/shop/sessions', (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const input = parseOrThrow(shopSessionSchema, request.body);
+      const verified = await deps.oauth.verify(input.oauthToken);
+      const issuer = normalizeIssuer(verified.issuer);
+      const sessionToken = createOpaqueToken();
+
+      const user = await deps.database.transaction(async (transaction) => {
+        let factor = await findFactor(transaction, issuer, verified.subject);
+        if (factor === null) {
+          const created = await createUser(transaction, verified.displayName);
+          const factorId = await createFactor(transaction, {
+            userId: created.id,
+            issuer,
+            subject: verified.subject,
+          });
+          factor = { factorId, user: created };
+        } else {
+          await touchFactor(transaction, factor.factorId);
+        }
+
+        await createSession(transaction, {
+          userId: factor.user.id,
+          eventId: null,
+          tokenHash: hashToken(sessionToken),
+          scope: 'shop',
+          deviceLabel: input.deviceLabel ?? null,
+        });
+
+        return factor.user;
+      });
+
+      const payload: IssuedSession = {
+        sessionToken,
+        scope: 'shop',
+        user: toIdentityUser(user),
+        event: null,
+      };
+      response.status(201).json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Identidad de la tienda (ciclo 4d): solo una sesión de alcance `shop`.
+   *
+   * Una fila `shop` sin sujeto es imposible por `session_owner_check`; si apareciera, falla con
+   * `unauthorized` en vez de inventar un dueño.
+   */
+  router.get('/auth/shop/session', requireShopSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const identity = identityOf(request);
+      if (identity.user === null) {
+        throw new AppError('unauthorized');
+      }
+
+      const payload: ShopIdentity = {
+        user: identity.user,
+        session: { id: identity.sessionId, scope: identity.scope },
+      };
+      response.json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Nombre visible opcional del visitante (ciclo 4d).
+   *
+   * El objetivo es siempre la fila del sujeto que la sesión resolvió; el cuerpo no lleva ni acepta un
+   * identificador de usuario. Es la única escritura de perfil de la tienda.
+   */
+  router.patch('/auth/shop/profile', requireShopSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const identity = identityOf(request);
+      if (identity.user === null) {
+        throw new AppError('unauthorized');
+      }
+
+      const input = parseOrThrow(updateShopProfileSchema, request.body);
+      const user = await updateUserDisplayName(deps.database, {
+        userId: identity.user.id,
+        displayName: input.displayName,
+      });
+      if (user === null) {
+        throw new AppError('unauthorized');
+      }
+
+      response.json({ user: toIdentityUser(user) });
     };
 
     void handle().catch(next);

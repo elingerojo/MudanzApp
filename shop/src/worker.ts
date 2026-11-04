@@ -26,10 +26,10 @@ const SNAPSHOT_SUFFIX = '/page';
 /**
  * Una ficha pública es **un** segmento con la forma del `slug` del artículo. Los assets llevan
  * extensión (`/main.js`, `/favicon.svg`) y las rutas del mapa llevan más segmentos, así que no
- * entran. `evento` y `carrito` se excluyen por nombre: son rutas del mapa, no fichas.
+ * entran. `evento`, `carrito` y `cuenta` se excluyen por nombre: son rutas del mapa, no fichas.
  */
 const LISTING_PATH = /^\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-const RESERVED_PATHS = new Set(['evento', 'carrito']);
+const RESERVED_PATHS = new Set(['evento', 'carrito', 'cuenta']);
 
 /**
  * La ventana de la copia: exactamente el valor de `plan-ciclo-4a` §5 y el que el backend ya envía en
