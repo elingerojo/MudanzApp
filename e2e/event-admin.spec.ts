@@ -181,6 +181,13 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
   await expect(pendingRow).toBeVisible();
   await expect(pendingRow.getByTestId('access-invitation-state')).toHaveText('activo');
 
+  // El nombre del enlace lo decide el servidor y la fila lo publica: es lo que permite cancelar el
+  // correcto entre varios activos. Se afirma la palabra que devolvió el `201`, nunca una literal: el
+  // anillo comparte estado entre corridas.
+  await expect(pendingRow.getByTestId('access-invitation-name')).toContainText(
+    `Enlace ${pendingInvitation.label}`,
+  );
+
   // 2. Des-invitar: dos toques y la lectura se rehace.
   await page.getByTestId('access-device-revoke').first().click();
   await page.getByTestId('access-device-revoke-confirm').first().click();

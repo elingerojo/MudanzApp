@@ -24,9 +24,15 @@ import { SessionStore } from './session.store';
  * - los términos no se reinventan aquí: son los del servidor, 72 horas y cinco canjes.
  */
 
-/** El enlace de canje: el token **sí** viaja en la URL porque es la capacidad (`decisiones` §22). */
-export function invitationLink(token: string): string {
-  return `${globalThis.location.origin}/invitacion?token=${encodeURIComponent(token)}`;
+/**
+ * El enlace de canje: el token **sí** viaja en la URL porque es la capacidad (`decisiones` §22).
+ *
+ * Desde el corte 4c-fix lleva `etiqueta`, el nombre que el servidor le dio al enlace. Es decorativo:
+ * el canje lee `token` y corta en el `&`, así que un valor ausente o alterado no cambia ninguna
+ * decisión.
+ */
+export function invitationLink(token: string, label: string): string {
+  return `${globalThis.location.origin}/invitacion?token=${encodeURIComponent(token)}&etiqueta=${encodeURIComponent(label)}`;
 }
 
 @Component({
@@ -49,6 +55,8 @@ export class InviteDeviceComponent {
   protected readonly inviting = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly link = signal<string | null>(null);
+  /** El nombre del enlace tal como lo devolvió el servidor: el card no elige palabras. */
+  protected readonly label = signal<string | null>(null);
   protected readonly copied = signal(false);
 
   protected async invite(): Promise<void> {
@@ -60,13 +68,15 @@ export class InviteDeviceComponent {
     this.inviting.set(true);
     this.error.set(null);
     this.copied.set(false);
+    this.label.set(null);
     this.link.set(null);
 
     try {
       const created = await firstValueFrom(
         this.http.post<CreatedInvitation>(`${this.apiBaseUrl}/events/${event.id}/invitations`, {}),
       );
-      this.link.set(invitationLink(created.token));
+      this.label.set(created.label);
+      this.link.set(invitationLink(created.token, created.label));
     } catch (failure: unknown) {
       this.error.set(
         apiErrorCode(failure) === UNAUTHORIZED

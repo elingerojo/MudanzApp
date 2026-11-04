@@ -16,11 +16,11 @@ import {
 import { AppError } from '../errors.js';
 import {
   cancelInvitation,
-  createInvitation,
   findEventById,
   findEventForUser,
   findEventOwnerUserId,
   findSessionById,
+  issueInvitation,
   listEventCoDeviceSessions,
   listEventInvitations,
   listEventsForUser,
@@ -270,11 +270,13 @@ export function createEventsRouter(deps: IdentityDeps): Router {
       }
 
       const token = createOpaqueToken();
-      const invitation = await createInvitation(deps.database, {
+      const now = deps.now();
+      const invitation = await issueInvitation(deps.database, {
         eventId,
         tokenHash: hashToken(token),
         createdBy: identity.user?.id ?? ownerUserId,
-        expiresAt: invitationExpiry(deps.now()),
+        now,
+        expiresAt: invitationExpiry(now),
       });
 
       const payload: CreatedInvitation = {
@@ -282,6 +284,7 @@ export function createEventsRouter(deps: IdentityDeps): Router {
         token,
         expiresAt: invitation.expiresAt.toISOString(),
         maxUses: INVITATION_MAX_USES,
+        label: invitation.label,
       };
       response.status(201).json(payload);
     };

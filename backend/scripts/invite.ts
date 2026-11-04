@@ -24,6 +24,8 @@ interface CreatedInvitationBody {
   readonly id: string;
   readonly token: string;
   readonly expiresAt: string;
+  /** El nombre humano del enlace, asignado por el servidor (corte 4c-fix). */
+  readonly label: string;
 }
 
 function fail(message: string): never {
@@ -153,6 +155,7 @@ async function main(): Promise<void> {
     console.log(`public-slug: ${publicSlug}`);
   }
   console.log(`invitation: ${invitation.id}`);
+  console.log(`etiqueta: ${invitation.label}`);
   console.log(`token: ${invitation.token}`);
   console.log(`expires: ${invitation.expiresAt}`);
   console.log(

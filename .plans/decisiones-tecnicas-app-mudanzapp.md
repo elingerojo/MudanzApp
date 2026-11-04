@@ -949,3 +949,28 @@ Reglas del crecimiento:
   así que el hueco de diagnosticabilidad que dejó este corte queda cerrado.
 - **Disparador de revisión:** el primer despliegue que se quede en `fake` sin que nadie lo note, o un
   entorno servido con variables montadas fuera del contenedor.
+
+## 42. La etiqueta del enlace es una palabra de un anillo de veinte (2026-11-04)
+
+- **Decisión:** cada invitación nace con **una** palabra de una cola circular de 20 (`caja`, `flete`,
+  `manta`, … `alfombra`), **compartida por todos los eventos**: la emisión siguiente recibe la que
+  sigue y la palabra vuelve al llegar a la vigésima primera emisión del sistema. La palabra se persiste
+  en `app.invitation.label` y viaja en el enlace como `?etiqueta=<palabra>`, un parámetro que el canje
+  no lee.
+- **Motivo:** el panel de 4c-3 publicaba tres enlaces del mismo día indistinguibles —misma fecha, mismo
+  vencimiento, mismos canjes—, así que «qué enlace cancelar» no tenía respuesta. El nombre se lee en la
+  fila y se dice por WhatsApp.
+- **Alternativa descartada — derivar la etiqueta del `id`:** no cuesta esquema, pero no controla la
+  repetición; dos emisiones contiguas pueden coincidir.
+- **Alternativa descartada — anillo por evento:** evita que un evento repita antes de sus veinte
+  emisiones, pero infiere el puntero de `ORDER BY created_at`, que se desvía cuando una transacción
+  espera el bloqueo, y no ahorra el mecanismo.
+- **Consecuencia aceptada — un evento puede repetir palabra antes de sus veinte emisiones**, si entre
+  sus dos enlaces el sistema emitió veinte. La fecha con hora y la referencia corta del `id` lo
+  resuelven en la fila.
+- **Consecuencia aceptada — el puntero es una fila singleton** (`app.invitation_label_sequence`) y el
+  bloqueo es global: toda emisión espera a la misma fila. Es deliberado: el puntero es un hecho escrito,
+  no una deducción sobre timestamps, y sobrevive a un reinicio, a un `Redeploy` y a varias instancias.
+- **Implementada por:** el corte `4c-fix` (`plan-ciclo-4c-fix-etiqueta-enlaces`), migración `012`.
+- **Disparador de revisión:** el primer evento con más de veinte enlaces donde dos se confundan, o el
+  primer dueño que quiera escribir el nombre a mano.

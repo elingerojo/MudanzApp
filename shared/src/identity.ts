@@ -68,12 +68,16 @@ export interface CreatedEvent {
 /**
  * Invitación emitida: el token se muestra una vez y el servidor solo guarda su hash. `id` es la
  * dirección permanente del enlace; `token` es la capacidad, y muere al agotarse o al reclamarse.
+ *
+ * `label` es el nombre humano del enlace (corte 4c-fix): una palabra del anillo de 20 que decide el
+ * servidor y que el cliente solo copia en la URL. No es una credencial ni un estado.
  */
 export interface CreatedInvitation {
   readonly id: string;
   readonly token: string;
   readonly expiresAt: string;
   readonly maxUses: number;
+  readonly label: string;
 }
 
 /**
@@ -91,6 +95,8 @@ export interface InvitationSummary {
   readonly useCount: number;
   /** `null` mientras el enlace sigue admitiendo canjes; instante del acto cuando se canceló. */
   readonly revokedAt: string | null;
+  /** Nombre humano del enlace; `null` solo en una fila anterior a la migración `012`. */
+  readonly label: string | null;
 }
 
 export interface CurrentIdentity {

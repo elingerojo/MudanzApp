@@ -39,17 +39,22 @@ corte **no** agrega columnas de acceso: la lista de co-dispositivos se resuelve 
 [`002_identity.sql`](../backend/sql/002_identity.sql:60) y
 [`003_redeemable_invitation.sql`](../backend/sql/003_redeemable_invitation.sql:30). El **4c-3
 (`access-control`) está implementado el 2026-11-03** y tampoco agrega DDL: la lista de enlaces se
-resuelve con `app.invitation` y su cancelación escribe `app.invitation.revoked_at`. Los cortes
-restantes siguen declarados antes de que exista su DDL: el 4e agrega `app.purchase_interest` y el 4f
-agrega `app.cart` y `app.cart_item`. Los archivos `010` y `011` están **reservados** y solo se crean con
-su corte, aditivos, idempotentes y sin `DROP`, como los anteriores.
+resuelve con `app.invitation` y su cancelación escribe `app.invitation.revoked_at`. El **corte
+`4c-fix` (`invitation-label`) está implementado el 2026-11-04**; su DDL vive en
+[`012_invitation_label.sql`](../backend/sql/012_invitation_label.sql:1), que agrega
+`app.invitation.label`, la tabla singleton `app.invitation_label_sequence` y el relleno cronológico de
+las invitaciones anteriores (decisión §42). Los cortes restantes siguen declarados antes de que exista
+su DDL: el 4e agrega `app.purchase_interest` y el 4f agrega `app.cart` y `app.cart_item`. Los archivos
+`010` y `011` siguen **reservados** para esos dos cortes; el `012` lo tomó este, y todos se crean con su
+corte, aditivos, idempotentes y sin `DROP`.
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
 | `app.user` | Sujeto: administrador, cuenta vinculada al evento o comprador | `id`, `display_name`, `account_status`, `is_admin`, `created_at` |
 | `app.auth_factor` | Cómo se prueba el sujeto; aditivo por diseño | `id`, `user_id`, `kind`, `issuer`, `subject`, `created_at`, `last_used_at` |
 | `app.session` | Prueba temporal por dispositivo; de cuenta o de evento | `id`, `user_id`, `event_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
-| `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at` |
+| `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at`, `label` |
+| `app.invitation_label_sequence` | Puntero del anillo de nombres de invitación; una sola fila posible | `id`, `last_label`, `advanced_at` |
 | `app.event` | El evento de mudanza | `id`, `owner_user_id`, `public_slug`, `admin_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
 | `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `price_cents`, `created_at` |

@@ -105,6 +105,33 @@ export class DashboardComponent {
     this.confirmingRevokeId.set(device.id);
   }
 
+  /**
+   * El nombre humano del enlace (corte 4c-fix). Lo decide el servidor y viaja en el contrato; el panel
+   * solo lo pinta. `null` solo aparece en una fila anterior a la migración `012`.
+   */
+  protected invitationName(invitation: InvitationSummary): string {
+    return invitation.label ?? 'Sin etiqueta';
+  }
+
+  /** Los 8 primeros caracteres del `id`, para encontrar la fila en la base al depurar. */
+  protected invitationReference(invitation: InvitationSummary): string {
+    return invitation.id.slice(0, 8);
+  }
+
+  /**
+   * Emisión con fecha **y hora** UTC: solo la fecha no distingue dos filas cuando el anillo repitió
+   * palabra. La hora se corta de la cadena ISO para que el mismo instante se vea igual en cualquier
+   * navegador, que es lo que hizo el panel desde 4c-3.
+   */
+  protected issuedAt(invitation: InvitationSummary): string {
+    return `${invitation.createdAt.slice(0, 10)} ${invitation.createdAt.slice(11, 16)} UTC`;
+  }
+
+  /** Emisión, vencimiento y canjes en una sola frase: la fila no depende del formato del template. */
+  protected invitationDetail(invitation: InvitationSummary): string {
+    return `${this.issuedAt(invitation)} · vence ${this.day(invitation.expiresAt)} · ${this.uses(invitation)}`;
+  }
+
   protected invitationState(invitation: InvitationSummary): string {
     return invitation.revokedAt === null ? 'activo' : 'cancelado';
   }

@@ -124,11 +124,17 @@
                   [attr.data-testid]="'access-invitation-' + invitation.id"
                 >
                   <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-slate-900">
-                      Enlace emitido el {{ day(invitation.createdAt) }}
+                    <p
+                      class="text-sm font-medium text-slate-900"
+                      data-testid="access-invitation-name"
+                    >
+                      Enlace {{ invitationName(invitation) }} ·
+                      <span class="font-mono text-xs text-slate-500">{{
+                        invitationReference(invitation)
+                      }}</span>
                     </p>
                     <p class="text-xs text-slate-600">
-                      vence {{ day(invitation.expiresAt) }} · {{ uses(invitation) }}
+                      {{ invitationDetail(invitation) }}
                     </p>
                   </div>
 

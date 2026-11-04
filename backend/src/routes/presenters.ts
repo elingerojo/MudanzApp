@@ -83,6 +83,7 @@ export function toInvitationSummary(invitation: EventInvitationRecord): Invitati
     expiresAt: invitation.expiresAt.toISOString(),
     useCount: invitation.useCount,
     revokedAt: invitation.revokedAt?.toISOString() ?? null,
+    label: invitation.label,
   };
 }
 

@@ -30,6 +30,7 @@ const INVITATION = {
   token: 'tok-1',
   expiresAt: '2026-11-05T00:00:00.000Z',
   maxUses: 5,
+  label: 'caja',
 } as const satisfies CreatedInvitation;
 
 describe('InviteDeviceComponent', () => {
@@ -84,8 +85,8 @@ describe('InviteDeviceComponent', () => {
       '[data-testid="shell-invite-url"]',
     ) as HTMLInputElement;
 
-    expect(link.value).toBe(`${globalThis.location.origin}/invitacion?token=tok-1`);
-    expect(link.value).toBe(invitationLink('tok-1'));
+    expect(link.value).toBe(`${globalThis.location.origin}/invitacion?token=tok-1&etiqueta=caja`);
+    expect(link.value).toBe(invitationLink('tok-1', 'caja'));
     expect(link.readOnly).toBe(true);
     expect(fixture.nativeElement.querySelector('[data-testid="shell-invite-error"]')).toBeNull();
   });
@@ -118,7 +119,12 @@ describe('InviteDeviceComponent', () => {
     expect(fixture.nativeElement.querySelector('h2')).toBeNull();
   });
 
-  it('keeps the token encoded in the link', () => {
-    expect(invitationLink('a b')).toBe(`${globalThis.location.origin}/invitacion?token=a%20b`);
+  it('keeps the token and the label encoded in the link', () => {
+    expect(invitationLink('a b', 'caja')).toBe(
+      `${globalThis.location.origin}/invitacion?token=a%20b&etiqueta=caja`,
+    );
+    expect(invitationLink('tok', 'a b')).toBe(
+      `${globalThis.location.origin}/invitacion?token=tok&etiqueta=a%20b`,
+    );
   });
 });

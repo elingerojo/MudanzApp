@@ -2,8 +2,9 @@ import { randomUUID } from 'node:crypto';
 
 import type { EventRole, SessionScope } from '@mudanzapp/shared';
 
-import type { Queryable } from '../db.js';
+import type { Database, Queryable } from '../db.js';
 import { eventPublicSlug, eventPublicSlugRetry } from '../domain/event.js';
+import { nextInvitationLabel } from '../domain/invitation-label.js';
 
 /**
  * Acceso a datos del corte de identidad, en SQL crudo y parametrizado (`modelo-datos` §2).
@@ -113,6 +114,8 @@ export type EventInvitationRecord = {
   readonly expiresAt: Date;
   readonly useCount: number;
   readonly revokedAt: Date | null;
+  /** El nombre humano del enlace (corte 4c-fix); `null` solo en una fila anterior a la migración. */
+  readonly label: string | null;
 };
 
 const USER_COLUMNS = 'id, display_name AS "displayName", is_admin AS "isAdmin"';
@@ -422,6 +425,13 @@ export async function findEventForUser(
   return rows[0] ?? null;
 }
 
+/**
+ * Inserta una invitación con su etiqueta. Es la escritura, no la política: la palabra la elige
+ * `issueInvitation`, que es quien conoce el anillo y la transacción.
+ *
+ * `label` es opcional para que el SQL de base se pueda probar sin la secuencia; una fila sin etiqueta
+ * es válida por el esquema y el panel la muestra como «Sin etiqueta».
+ */
 export async function createInvitation(
   database: Queryable,
   input: {
@@ -429,13 +439,14 @@ export async function createInvitation(
     readonly tokenHash: string;
     readonly createdBy: string;
     readonly expiresAt: Date;
+    readonly label?: string | null;
   },
 ): Promise<{ readonly id: string; readonly expiresAt: Date }> {
   const { rows } = await database.query<{ id: string; expiresAt: Date }>(
-    `INSERT INTO app.invitation (event_id, token_hash, created_by, expires_at)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO app.invitation (event_id, token_hash, created_by, expires_at, label)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id, expires_at AS "expiresAt"`,
-    [input.eventId, input.tokenHash, input.createdBy, input.expiresAt],
+    [input.eventId, input.tokenHash, input.createdBy, input.expiresAt, input.label ?? null],
   );
 
   const invitation = rows[0];
@@ -444,6 +455,75 @@ export async function createInvitation(
   }
 
   return invitation;
+}
+
+/** La fila única del anillo existe siempre antes de bloquearla, también en una base recién migrada. */
+async function ensureInvitationSequence(database: Queryable): Promise<void> {
+  await database.query(
+    `INSERT INTO app.invitation_label_sequence (id) VALUES (true) ON CONFLICT (id) DO NOTHING`,
+  );
+}
+
+/**
+ * Bloquea y devuelve la última palabra emitida en el sistema.
+ *
+ * El `FOR UPDATE` es el candado de la emisión: dos emisiones simultáneas —de dos eventos distintos o
+ * de dos instancias del servicio— hacen cola aquí y no pueden leer el mismo puntero. Un `null` es el
+ * estado inicial: el anillo empieza en `caja`.
+ */
+async function lockInvitationSequence(database: Queryable): Promise<string | null> {
+  const { rows } = await database.query<{ lastLabel: string | null }>(
+    `SELECT last_label AS "lastLabel" FROM app.invitation_label_sequence WHERE id FOR UPDATE`,
+  );
+
+  return rows[0]?.lastLabel ?? null;
+}
+
+async function advanceInvitationSequence(
+  database: Queryable,
+  label: string,
+  now: Date,
+): Promise<void> {
+  await database.query(
+    `UPDATE app.invitation_label_sequence SET last_label = $1, advanced_at = $2 WHERE id`,
+    [label, now],
+  );
+}
+
+/**
+ * Emite una invitación con la siguiente palabra del anillo (corte 4c-fix, decisión §42).
+ *
+ * Es la **única** ruta de emisión: asegura la fila del puntero, la bloquea, elige la palabra y escribe
+ * la invitación y el avance en la misma transacción. El puntero vive en la base y no en el proceso, así
+ * que un reinicio o un `Redeploy` no lo devuelve a `caja`: la siguiente emisión continúa el anillo.
+ */
+export async function issueInvitation(
+  database: Database,
+  input: {
+    readonly eventId: string;
+    readonly tokenHash: string;
+    readonly createdBy: string;
+    readonly now: Date;
+    readonly expiresAt: Date;
+  },
+): Promise<{ readonly id: string; readonly label: string; readonly expiresAt: Date }> {
+  return database.transaction(async (client) => {
+    await ensureInvitationSequence(client);
+    const last = await lockInvitationSequence(client);
+    const label = nextInvitationLabel(last);
+
+    const invitation = await createInvitation(client, {
+      eventId: input.eventId,
+      tokenHash: input.tokenHash,
+      createdBy: input.createdBy,
+      expiresAt: input.expiresAt,
+      label,
+    });
+
+    await advanceInvitationSequence(client, label, input.now);
+
+    return { id: invitation.id, label, expiresAt: invitation.expiresAt };
+  });
 }
 
 /** Bloquea la fila durante el canje: dos dispositivos con el mismo enlace no pueden consumirlo. */
@@ -743,7 +823,8 @@ export async function listEventInvitations(
             created_at AS "createdAt",
             expires_at AS "expiresAt",
             use_count AS "useCount",
-            revoked_at AS "revokedAt"
+            revoked_at AS "revokedAt",
+            label
        FROM app.invitation
       WHERE event_id = $1
       ORDER BY created_at DESC`,

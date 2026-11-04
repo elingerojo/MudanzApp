@@ -43,6 +43,8 @@ export interface InvitationRow {
   readonly expiresAt: Date;
   readonly useCount: number;
   readonly revokedAt: Date | null;
+  /** El nombre humano del enlace (corte 4c-fix); `null` solo en una fila anterior a `012`. */
+  readonly label: string | null;
 }
 
 /** La sesión que el acto encuentra al leer por identificador. */
@@ -74,6 +76,10 @@ export interface DashboardFixture {
   readonly invitations?: readonly InvitationRow[];
   readonly target?: TargetSession;
   readonly item?: ItemFixture | null;
+  /** El dueño del evento que resuelve `findEventOwnerUserId`; ausente usa el administrador. */
+  readonly ownerUserId?: string | null;
+  /** El puntero del anillo en la tabla de secuencia; ausente o `null` significa «no ha empezado». */
+  readonly lastLabel?: string | null;
 }
 
 function rows<Row>(entries: readonly Row[], rowCount = entries.length) {
@@ -98,7 +104,7 @@ export function dashboardDatabase(fixture: DashboardFixture): Database {
     role: 'member',
   };
 
-  return {
+  const database = {
     check: () => Promise.resolve('ok'),
     query: (text: string, values?: readonly unknown[]) => {
       const value = (index: number): string => String(values?.[index] ?? '');
@@ -152,6 +158,36 @@ export function dashboardDatabase(fixture: DashboardFixture): Database {
         // El listado real selecciona `s.user_id`, nulo por definición: el presentador lo publica y el
         // contrato lo exige, así que el doble no puede omitirlo.
         return rows((fixture.devices ?? []).map((device) => ({ userId: null, ...device })));
+      }
+
+      if (text.includes('owner_user_id AS "ownerUserId"')) {
+        if (fixture.eventMissing === true) {
+          return none();
+        }
+
+        return rows([
+          { ownerUserId: fixture.ownerUserId ?? fixture.administrator?.id ?? 'user-owner' },
+        ]);
+      }
+
+      // La secuencia del anillo se resuelve **antes** del listado: `FROM app.invitation` es subcadena
+      // de `FROM app.invitation_label_sequence`, y el doble responde por forma.
+      if (text.includes('INSERT INTO app.invitation_label_sequence')) {
+        return rows([], 1);
+      }
+
+      if (text.includes('FROM app.invitation_label_sequence')) {
+        return rows([{ lastLabel: fixture.lastLabel ?? null }]);
+      }
+
+      if (text.includes('UPDATE app.invitation_label_sequence')) {
+        return rows([], 1);
+      }
+
+      if (text.includes('INSERT INTO app.invitation (')) {
+        return rows([
+          { id: 'invitation-created', expiresAt: new Date('2026-11-07T00:00:00.000Z') },
+        ]);
       }
 
       if (text.includes('FROM app.invitation')) {
@@ -216,7 +252,9 @@ export function dashboardDatabase(fixture: DashboardFixture): Database {
 
       return Promise.reject(new Error(`unexpected-query: ${text}`));
     },
-    transaction: () => Promise.reject(new Error('not-stubbed')),
+    transaction: (work: (client: unknown) => Promise<unknown>) => Promise.resolve(work(database)),
     close: () => Promise.resolve(),
   } as unknown as Database;
+
+  return database;
 }

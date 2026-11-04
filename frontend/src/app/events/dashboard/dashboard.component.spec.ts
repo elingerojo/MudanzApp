@@ -61,6 +61,7 @@ const INVITATION: InvitationSummary = {
   expiresAt: '2026-11-04T09:00:00.000Z',
   useCount: 2,
   revokedAt: null,
+  label: 'caja',
 };
 
 const CANCELLED: InvitationSummary = { ...INVITATION, revokedAt: '2026-11-03T10:00:00.000Z' };

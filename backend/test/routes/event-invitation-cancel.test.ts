@@ -58,6 +58,7 @@ const INVITATION: InvitationRow = {
   expiresAt: new Date('2026-11-04T09:00:00.000Z'),
   useCount: 2,
   revokedAt: null,
+  label: 'caja',
 };
 
 function bearer(token: string): Record<string, string> {

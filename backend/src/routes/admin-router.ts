@@ -6,9 +6,9 @@ import { INVITATION_MAX_USES, invitationExpiry } from '../domain/account.js';
 import { AppError } from '../errors.js';
 import {
   createEvent,
-  createInvitation,
   ensureAdminUser,
   findEventById,
+  issueInvitation,
   listEventSessions,
   revokeSession,
 } from '../store/identity-store.js';
@@ -82,11 +82,13 @@ export function createAdminRouter(deps: IdentityDeps): Router {
       }
 
       const token = createOpaqueToken();
-      const invitation = await createInvitation(deps.database, {
+      const now = deps.now();
+      const invitation = await issueInvitation(deps.database, {
         eventId: event.id,
         tokenHash: hashToken(token),
         createdBy: admin.id,
-        expiresAt: invitationExpiry(deps.now()),
+        now,
+        expiresAt: invitationExpiry(now),
       });
 
       const payload: CreatedInvitation = {
@@ -94,6 +96,7 @@ export function createAdminRouter(deps: IdentityDeps): Router {
         token,
         expiresAt: invitation.expiresAt.toISOString(),
         maxUses: INVITATION_MAX_USES,
+        label: invitation.label,
       };
       response.status(201).json(payload);
     };
