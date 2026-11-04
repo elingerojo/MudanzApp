@@ -33,13 +33,28 @@
     </p>
   }
 
-  <!-- El rechazo del dashboard es evidencia: se enseña en la pestaña a la que el guard devuelve. -->
-  @if (deniedDashboard()) {
+  <!-- El fallo del dashboard es evidencia: se enseña en la pestaña a la que el guard devuelve, con la
+       familia que el borde declaró. Un aviso no puede afirmar un hecho de autorización cuando el
+       fallo fue del servidor (diagnóstico del borde, 2026-11-04). -->
+  @if (deniedReason(); as reason) {
     <p
       class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
       data-testid="event-dashboard-denied"
     >
-      Esta sección la administra la cuenta del evento. Vuelve a «Capturados» o vincula tu cuenta.
+      @switch (reason) {
+        @case ('forbidden') {
+          El borde dice que esta cuenta no administra el evento: puede que nadie lo haya reclamado
+          todavía o que lo administre otra cuenta. Vuelve a «Capturados» o vincula la cuenta que lo
+          administra.
+        }
+        @case ('not_found') {
+          Este evento no aparece entre los de tu sesión. Vuelve a «Capturados».
+        }
+        @default {
+          No se pudo leer el panel y el evento no cambió. Reintenta; si vuelve a pasar, revisa la
+          consola del servidor.
+        }
+      }
     </p>
   }
 

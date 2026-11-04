@@ -10,6 +10,7 @@ import {
 } from '@angular/router';
 import { filter, map } from 'rxjs';
 
+import { type DashboardDenial } from '../session/api-error';
 import { SessionStore } from '../session/session.store';
 import { SHOP_BASE_URL } from '../shop-base-url.token';
 import { EventItemsStore } from './event-items.store';
@@ -60,14 +61,17 @@ export class EventComponent {
   protected readonly sessionInvalid = this.session.identityFailed;
 
   /**
-   * El aviso de rechazo vive en la URL (`denied=dashboard`), no en un estado del store: recargar lo
-   * conserva y navegar a otra pestaña lo borra. Se relee en cada navegación porque este marco se
-   * **reusa** al cambiar de pestaña y su `snapshot` inicial ya no vería el parámetro.
+   * La familia del fallo vive en la URL (`denied=dashboard&reason=…`), no en un estado del store:
+   * recargar la conserva y navegar a otra pestaña la borra. Se relee en cada navegación porque este
+   * marco se **reusa** al cambiar de pestaña y su `snapshot` inicial ya no vería el parámetro.
+   *
+   * `null` significa que no hay aviso. Una URL anterior al diagnóstico del borde (2026-11-04) trae
+   * `denied=dashboard` sin `reason`; se lee como rechazo, que es lo único que el guard escribía.
    */
-  protected readonly deniedDashboard = toSignal(
+  protected readonly deniedReason = toSignal(
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      map(() => this.router.parseUrl(this.router.url).queryParams['denied'] === 'dashboard'),
+      map(() => this.deniedFromCurrentUrl()),
     ),
     { initialValue: this.deniedFromCurrentUrl() },
   );
@@ -78,7 +82,13 @@ export class EventComponent {
   protected readonly dashboardPath = ['/eventos', this.eventId, 'dashboard'];
 
   /** Estado inicial del aviso: la URL con la que el navegador ya llegó a esta pantalla. */
-  private deniedFromCurrentUrl(): boolean {
-    return this.router.parseUrl(this.router.url).queryParams['denied'] === 'dashboard';
+  private deniedFromCurrentUrl(): DashboardDenial | null {
+    const params = this.router.parseUrl(this.router.url).queryParams;
+    if (params['denied'] !== 'dashboard') {
+      return null;
+    }
+
+    const reason: unknown = params['reason'];
+    return reason === 'not_found' || reason === 'unavailable' ? reason : 'forbidden';
   }
 }

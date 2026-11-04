@@ -141,8 +141,14 @@ test('the event administrator opens its dashboard and revokes a co-device', asyn
     await seedSession(coDevice, survivorToken);
     await coDevice.goto(`${FRONTEND_URL}/eventos/${event.id}/dashboard`);
 
-    await expect(coDevice).toHaveURL(/\/eventos\/[0-9a-f-]+\/capturados\?denied=dashboard$/);
-    await expect(coDevice.getByTestId('event-dashboard-denied')).toBeVisible();
+    // La URL lleva la familia del fallo, no solo el aviso: un `500` no puede leerse como un rechazo
+    // de autorización (diagnóstico del borde, 2026-11-04).
+    await expect(coDevice).toHaveURL(
+      /\/eventos\/[0-9a-f-]+\/capturados\?denied=dashboard&reason=forbidden$/,
+    );
+    await expect(coDevice.getByTestId('event-dashboard-denied')).toContainText(
+      'esta cuenta no administra el evento',
+    );
     await expect(coDevice.getByTestId('dashboard-panel')).toHaveCount(0);
   } finally {
     await context.close();

@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { Router, type CanActivateFn } from '@angular/router';
 
+import { dashboardDenial } from '../../session/api-error';
 import { SessionStore } from '../../session/session.store';
 import { DashboardStore } from './dashboard.store';
 
@@ -11,8 +12,11 @@ import { DashboardStore } from './dashboard.store';
  * administra el evento. El guard solo traduce la respuesta.
  *
  * - Sin credencial, el camino es el canje, igual que en [`requireSession`](#) (`/invitacion`).
- * - `forbidden` o `not_found` devuelven a `Capturados` con `denied=dashboard` en la URL: el rechazo es
- *   el hecho que la hipótesis afirma, así que se enseña en vez de esconder la pestaña.
+ * - Un fallo devuelve a `Capturados` con `denied=dashboard` en la URL: el rechazo es el hecho que la
+ *   hipótesis afirma, así que se enseña en vez de esconder la pestaña.
+ * - Desde el diagnóstico del borde (2026-11-04) la URL lleva además `reason`, la familia del fallo
+ *   —`forbidden`, `not_found` o `unavailable`—. Antes, un `500` y un `403` producían la misma frase y
+ *   el aviso afirmaba un hecho de autorización que no conocía.
  *
  * Es asíncrono porque la respuesta es una lectura de red; la pantalla reusa el resultado cacheado y no
  * repite la petición.
@@ -39,6 +43,6 @@ export const requireEventAdmin: CanActivateFn = async (route) => {
   }
 
   return router.createUrlTree(['/eventos', eventId, 'capturados'], {
-    queryParams: { denied: 'dashboard' },
+    queryParams: { denied: 'dashboard', reason: dashboardDenial(result.code) },
   });
 };

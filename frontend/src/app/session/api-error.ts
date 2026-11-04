@@ -32,6 +32,30 @@ export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';
 /** La sesión no administra el evento (ciclo 4c-2): el evento se ve, el derecho no existe. */
 export const FORBIDDEN = 'forbidden';
+/** El evento no está a la vista de la sesión (ciclo 4c-2): no se distingue del inexistente. */
+export const NOT_FOUND = 'not_found';
+
+/**
+ * Qué familia explica que el panel no se abriera (diagnóstico del borde, 2026-11-04).
+ *
+ * Tres hechos distintos que antes compartían una sola frase: **el borde dijo que no**, **el evento no
+ * está a la vista de la sesión** y **la lectura falló**. El guard escribe la familia en la URL y el
+ * marco del evento la traduce; la decisión vive aquí y en ningún otro lugar, para que el aviso no
+ * invente un hecho que el código del borde no afirma.
+ */
+export type DashboardDenial = 'forbidden' | 'not_found' | 'unavailable';
+
+export function dashboardDenial(code: string | null): DashboardDenial {
+  if (code === FORBIDDEN) {
+    return 'forbidden';
+  }
+
+  if (code === NOT_FOUND) {
+    return 'not_found';
+  }
+
+  return 'unavailable';
+}
 
 /**
  * Identidad de cuenta del ciclo 4c (`oauth-login`): el reclamo exige un sujeto y el proveedor puede
