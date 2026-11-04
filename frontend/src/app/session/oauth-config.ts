@@ -1,3 +1,5 @@
+import { oauthRedirectUri as sharedOAuthRedirectUri } from '@mudanzapp/shared';
+
 /**
  * Configuración compilada de la identidad de cuenta (ciclo 4c-1, `oauth-login`).
  *
@@ -6,22 +8,11 @@
  * producción. `live` exige emisor y cliente; una cadena vacía cuenta como ausente y el flujo falla con
  * un código estable en vez de intentar una redirección incompleta.
  *
- * El `client_secret` no aparece aquí ni debe aparecer: el canje del código es de cliente público y el
- * backend es el único que verifica el `id_token`.
+ * La forma y la comprobación viven en `shared` desde 4d, porque `shop` necesita exactamente el mismo
+ * contrato. Aquí solo se conserva la derivación del URI de vuelta desde el origen del navegador.
  */
-
-export type OAuthClientMode = 'live' | 'fake';
-
-export interface OAuthClientConfig {
-  readonly mode: OAuthClientMode;
-  readonly issuer: string;
-  readonly clientId: string;
-}
-
-/** ¿Hay con qué iniciar el flujo? Es la comprobación que evita una redirección a medias. */
-export function oauthConfigured(config: OAuthClientConfig): boolean {
-  return config.issuer.trim().length > 0 && config.clientId.trim().length > 0;
-}
+export type { OAuthClientConfig, OAuthClientMode } from '@mudanzapp/shared';
+export { oauthConfigured } from '@mudanzapp/shared';
 
 /**
  * URI de vuelta del proveedor: el origen desde el que corre la aplicación más la ruta pública del
@@ -29,5 +20,5 @@ export function oauthConfigured(config: OAuthClientConfig): boolean {
  * dominio desplegado y el valor compilado; el proveedor exige que esté registrada tal cual.
  */
 export function oauthRedirectUri(): string {
-  return `${globalThis.location.origin}/auth/callback`;
+  return sharedOAuthRedirectUri(globalThis.location.origin);
 }

@@ -3,9 +3,10 @@ import {
   codeChallengeS256,
   createCodeVerifier,
   createOAuthState,
-  oauthDiscoverySchema,
+  discoverOAuth,
+  exchangeAuthorizationCode,
   oauthStateMatches,
-  type OAuthDiscovery,
+  type FetchLike,
 } from '@mudanzapp/shared';
 
 import { oauthConfigured, oauthRedirectUri, type OAuthClientConfig } from './oauth-config';
@@ -13,11 +14,13 @@ import {
   OAuthFlowError,
   type OAuthCallbackParams,
   type OAuthFlow,
-  type OAuthFlowErrorCode,
   type OAuthPurpose,
   type OAuthResult,
 } from './oauth-flow';
 import { clearPendingFlow, readPendingFlow, savePendingFlow } from './oauth-session';
+
+/** `fetch` se resuelve en cada llamada para que la prueba pueda sustituirlo sin reimportar módulos. */
+const fetchImpl: FetchLike = (input, init) => fetch(input, init);
 
 /**
  * Adaptador `live`: el proveedor real (ciclo 4c-1 y su corrección 4c-1b).
@@ -30,8 +33,8 @@ import { clearPendingFlow, readPendingFlow, savePendingFlow } from './oauth-sess
  * `client_secret`. El backend devuelve el `id_token` ya verificado y este adaptador lo entrega al
  * reclamo, sin emitir ni guardar sesiones.
  *
- * El `state` se verifica igual que en el doble, y el verificador no se reutiliza: se borra en cuanto se
- * entrega.
+ * Desde 4d el descubrimiento y el canje delegan en `shared`: `shop` ejercita el mismo contrato y no
+ * hay dos copias del borde que puedan separarse.
  */
 export class LiveOAuthFlow implements OAuthFlow {
   constructor(
@@ -48,12 +51,16 @@ export class LiveOAuthFlow implements OAuthFlow {
     const state = createOAuthState();
     savePendingFlow({ verifier, state, purpose });
 
-    const discovery = await discover(this.config.issuer);
+    const discovery = await discoverOAuth(this.config.issuer, fetchImpl);
+    if (!discovery.ok) {
+      throw new OAuthFlowError(discovery.code);
+    }
+
     const codeChallenge = await codeChallengeS256(verifier);
 
     globalThis.location.assign(
       authorizeUrl({
-        authorizationEndpoint: discovery.authorization_endpoint,
+        authorizationEndpoint: discovery.value.authorization_endpoint,
         clientId: this.config.clientId,
         redirectUri: oauthRedirectUri(),
         codeChallenge,
@@ -73,7 +80,7 @@ export class LiveOAuthFlow implements OAuthFlow {
 
     if (pending === null || !oauthStateMatches(pending.state, params.state)) {
       // Sin el `state` de esta visita no se entrega nada al backend: es la defensa contra una respuesta
-      // inyectada.
+      // inyectada. Un registro marcado para otra superficie también cae aquí.
       throw new OAuthFlowError('oauth_state_mismatch');
     }
 
@@ -82,90 +89,20 @@ export class LiveOAuthFlow implements OAuthFlow {
       throw new OAuthFlowError('oauth_invalid_token');
     }
 
-    const idToken = await this.exchange({
-      code,
-      codeVerifier: pending.verifier,
-      redirectUri: oauthRedirectUri(),
-    });
+    const exchange = await exchangeAuthorizationCode(
+      {
+        apiBaseUrl: this.apiBaseUrl,
+        code,
+        codeVerifier: pending.verifier,
+        redirectUri: oauthRedirectUri(),
+      },
+      fetchImpl,
+    );
 
-    return { idToken, purpose: pending.purpose };
-  }
-
-  /**
-   * Canje por el backend. La respuesta es el `id_token` ya verificado contra el JWKS del emisor; un
-   * fallo se traduce por **código**, nunca por el texto del borde.
-   */
-  private async exchange(input: {
-    readonly code: string;
-    readonly codeVerifier: string;
-    readonly redirectUri: string;
-  }): Promise<string> {
-    let response: Response;
-    try {
-      response = await fetch(`${this.apiBaseUrl}/auth/oauth/exchange`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify(input),
-      });
-    } catch {
-      throw new OAuthFlowError('oauth_unavailable');
+    if (!exchange.ok) {
+      throw new OAuthFlowError(exchange.code);
     }
 
-    if (!response.ok) {
-      throw new OAuthFlowError(await failureCode(response));
-    }
-
-    const payload: unknown = await response.json().catch(() => null);
-    const token =
-      typeof payload === 'object' && payload !== null && 'oauthToken' in payload
-        ? (payload as { oauthToken?: unknown }).oauthToken
-        : undefined;
-
-    if (typeof token !== 'string' || token.length === 0) {
-      throw new OAuthFlowError('oauth_invalid_token');
-    }
-
-    return token;
+    return { idToken: exchange.value, purpose: pending.purpose };
   }
-}
-
-/** Código del borde, acotado a los que este flujo sabe explicar; el resto es indisponibilidad. */
-async function failureCode(response: Response): Promise<OAuthFlowErrorCode> {
-  const body: unknown = await response.json().catch(() => null);
-  const candidate =
-    typeof body === 'object' && body !== null && 'error' in body
-      ? (body as { error?: unknown }).error
-      : undefined;
-
-  if (candidate === 'oauth_invalid_token' || candidate === 'oauth_not_configured') {
-    return candidate;
-  }
-
-  return 'oauth_unavailable';
-}
-
-/** Descubre los endpoints públicos del flujo. Un documento inválido falla ruidoso, no se adivina. */
-async function discover(issuer: string): Promise<OAuthDiscovery> {
-  const base = issuer.trim().replace(/\/+$/, '');
-
-  let response: Response;
-  try {
-    response = await fetch(`${base}/.well-known/openid-configuration`, {
-      headers: { accept: 'application/json' },
-    });
-  } catch {
-    throw new OAuthFlowError('oauth_unavailable');
-  }
-
-  if (!response.ok) {
-    throw new OAuthFlowError('oauth_unavailable');
-  }
-
-  const body: unknown = await response.json().catch(() => null);
-  const parsed = oauthDiscoverySchema.safeParse(body);
-  if (!parsed.success) {
-    throw new OAuthFlowError('oauth_unavailable');
-  }
-
-  return parsed.data;
 }

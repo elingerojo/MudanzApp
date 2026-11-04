@@ -1,5 +1,5 @@
 import type { OAuthClientConfig } from './oauth-config';
-import { OAuthFlowError } from './oauth-flow';
+import { OAuthFlowError, type OAuthPurpose } from './oauth-flow';
 import { LiveOAuthFlow } from './oauth-flow.live';
 import { clearPendingFlow, savePendingFlow } from './oauth-session';
 
@@ -145,5 +145,19 @@ describe('LiveOAuthFlow', () => {
     await expect(
       flow.complete({ code: 'codigo', state: 'estado', error: null }),
     ).rejects.toMatchObject({ code: 'oauth_invalid_token' });
+  });
+
+  it('no canjea una vuelta marcada para otra superficie', async () => {
+    // El tipo de esta superficie no incluye `shop`: se siembra a propósito un registro de la tienda
+    // para comprobar que el adaptador lo descarta en vez de entregarlo al backend.
+    const shopPurpose = 'shop' as unknown as OAuthPurpose;
+    savePendingFlow({ verifier: 'v'.repeat(43), state: 'estado', purpose: shopPurpose });
+
+    const flow = new LiveOAuthFlow(CONFIG, API);
+
+    await expect(
+      flow.complete({ code: 'codigo', state: 'estado', error: null }),
+    ).rejects.toMatchObject({ code: 'oauth_state_mismatch' });
+    expect(calls).toHaveLength(0);
   });
 });

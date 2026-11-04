@@ -14,7 +14,13 @@ import { InjectionToken } from '@angular/core';
  *
  * El token que sale de aquí es la **entrada** de `POST /auth/claim`; la sesión la emite el backend y
  * este módulo no la guarda.
+ *
+ * Desde 4d el error y sus códigos viven en `shared`, porque `shop` consume el mismo contrato. Se
+ * re-exportan aquí para que los consumidores de esta superficie no cambien sus importaciones.
  */
+
+export { OAuthFlowError } from '@mudanzapp/shared';
+export type { OAuthFlowErrorCode } from '@mudanzapp/shared';
 
 /** Parámetros con los que el proveedor devuelve el control a `/auth/callback`. */
 export interface OAuthCallbackParams {
@@ -22,27 +28,6 @@ export interface OAuthCallbackParams {
   readonly state: string | null;
   /** El proveedor deniega con `?error=`; es un rechazo explícito, no una visita fallida. */
   readonly error: string | null;
-}
-
-/**
- * Códigos estables del flujo. `oauth_not_configured` y `oauth_invalid_token` coinciden con los del
- * catálogo del backend para que la pantalla traduzca una sola vez.
- */
-export type OAuthFlowErrorCode =
-  | 'oauth_not_configured'
-  | 'oauth_state_mismatch'
-  | 'oauth_unavailable'
-  | 'oauth_invalid_token'
-  | 'oauth_denied';
-
-export class OAuthFlowError extends Error {
-  readonly code: OAuthFlowErrorCode;
-
-  constructor(code: OAuthFlowErrorCode) {
-    super(code);
-    this.name = 'OAuthFlowError';
-    this.code = code;
-  }
 }
 
 /**

@@ -23,6 +23,7 @@ export type { DatabaseState, Health } from './health.js';
 export { brand } from './brand.js';
 export type { Brand } from './brand.js';
 export {
+  DEVICE_LABEL_MAX,
   EVENT_ROLES,
   SESSION_SCOPES,
   claimEventSchema,
@@ -30,6 +31,8 @@ export {
   createSessionSchema,
   oauthExchangeSchema,
   redeemInvitationSchema,
+  shopSessionSchema,
+  updateShopProfileSchema,
 } from './identity.js';
 export {
   ITEM_LIMITS,
@@ -77,6 +80,32 @@ export type {
   RandomSource,
   TokenRequestInput,
 } from './pkce.js';
+export {
+  discoverOAuth,
+  exchangeAuthorizationCode,
+  oauthConfigured,
+  oauthRedirectUri,
+} from './oauth-client.js';
+export type {
+  CodeExchangeInput,
+  FetchInitLike,
+  FetchLike,
+  FetchResponseLike,
+  OAuthClientConfig,
+  OAuthClientFailure,
+  OAuthClientMode,
+  OAuthClientResult,
+} from './oauth-client.js';
+export { OAuthFlowError } from './oauth-flow-error.js';
+export type { OAuthFlowErrorCode } from './oauth-flow-error.js';
+export { createPendingFlowStore } from './oauth-pending.js';
+export type {
+  OAuthPendingPurpose,
+  PendingFlowKeys,
+  PendingFlowStore,
+  PendingOAuthFlow,
+  StorageLike,
+} from './oauth-pending.js';
 export type { PriceParseResult } from './price.js';
 export type {
   CreatedItem,
@@ -116,4 +145,6 @@ export type {
   RedeemInvitationRequest,
   SessionScope,
   SessionSummary,
+  ShopIdentity,
+  UpdateShopProfileRequest,
 } from './identity.js';

@@ -109,6 +109,21 @@ export interface CurrentIdentity {
 }
 
 /**
+ * La identidad de la tienda (ciclo 4d, `shop-account`).
+ *
+ * Es **provisional y mínimo**: la cuenta y la sesión que la prueba. No publica eventos porque la
+ * tienda no tiene un hecho de evento que leer, y publicarlo vacío fingiría uno. `user` nunca es `null`:
+ * una sesión de alcance `shop` es siempre una sesión de cuenta.
+ */
+export interface ShopIdentity {
+  readonly user: IdentityUser;
+  readonly session: {
+    readonly id: string;
+    readonly scope: SessionScope;
+  };
+}
+
+/**
  * El panel del event-administrator (ciclos 4c-2 y 4c-3, decisión §37): **una** lectura para autorizar
  * y para pintar.
  *
@@ -132,8 +147,11 @@ export interface EventDashboard {
   readonly invitations: readonly InvitationSummary[];
 }
 
+/** Límite del contrato de `deviceLabel`; lo comparten el canje, el reclamo y la tienda. */
+export const DEVICE_LABEL_MAX = 80;
+
 const oauthToken = z.string().trim().min(1).max(4_096);
-const deviceLabel = z.string().trim().min(1).max(80);
+const deviceLabel = z.string().trim().min(1).max(DEVICE_LABEL_MAX);
 
 /** `POST /auth/redeem`: enlace acotado → sesión de evento, sin identidad. */
 export const redeemInvitationSchema = z.object({
@@ -174,6 +192,25 @@ export const createSessionSchema = z.object({
   deviceLabel: deviceLabel.optional(),
 });
 
+/**
+ * `POST /auth/shop/sessions` (ciclo 4d): primer acceso o regreso de un visitante de la tienda.
+ *
+ * Comparte la forma con `createSessionSchema` —token de identidad y etiqueta opcional— porque el
+ * cuerpo es el mismo; el hecho que cambia es a qué se canjea: una sesión de alcance `shop` o el alta
+ * del visitante. El alias conserva una sola definición del cuerpo.
+ */
+export const shopSessionSchema = createSessionSchema;
+
+/**
+ * `PATCH /auth/shop/profile` (ciclo 4d): nombre visible opcional, ya recortado y acotado.
+ *
+ * El primer acceso no lo pide: usa el nombre que el proveedor verificó. Este esquema es la única
+ * escritura de perfil de la tienda y no acepta ningún identificador de usuario.
+ */
+export const updateShopProfileSchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+});
+
 /** `POST /admin/events`: un administrador crea el evento de mudanza. */
 export const createEventSchema = z.object({
   originCity: z.string().trim().min(1).max(120),
@@ -189,3 +226,4 @@ export type RedeemInvitationRequest = z.infer<typeof redeemInvitationSchema>;
 export type ClaimEventRequest = z.infer<typeof claimEventSchema>;
 export type CreateSessionRequest = z.infer<typeof createSessionSchema>;
 export type CreateEventRequest = z.infer<typeof createEventSchema>;
+export type UpdateShopProfileRequest = z.infer<typeof updateShopProfileSchema>;
