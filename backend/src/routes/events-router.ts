@@ -10,7 +10,6 @@ import { z } from 'zod';
 import {
   INVITATION_MAX_USES,
   canActOnEvent,
-  canAdministerEvent,
   invitationExpiry,
   isCoDeviceSession,
 } from '../domain/account.js';
@@ -25,13 +24,12 @@ import {
   listEventCoDeviceSessions,
   listEventInvitations,
   listEventsForUser,
-  readEventAdministrator,
   revokeEventCoDeviceSession,
-  type EventAdministratorRecord,
 } from '../store/identity-store.js';
 import { createOpaqueToken, hashToken } from '../tokens.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
+import { requireEventAdministrator } from './event-administration.js';
 import { toEventSummary, toInvitationSummary, toSessionSummary } from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
@@ -69,53 +67,6 @@ export function createEventsRouter(deps: IdentityDeps): Router {
 
     const event = await findEventById(deps.database, identity.eventId);
     return event === null ? [] : [toEventSummary({ ...event, role: null })];
-  };
-
-  /**
-   * La frontera de administración, en el único lugar donde se decide (ciclo 4c-2, decisión §37).
-   *
-   * El orden no se invierte: primero se resuelve si la sesión **alcanza** el evento —una sesión ajena o
-   * inexistente responde `not_found`— y solo después si su sujeto lo **administra** —un miembro o un
-   * co-dispositivo responde `forbidden`—. La diferencia importa: su evento ya es visible para un
-   * co-dispositivo, así que negarlo con `not_found` sería mentirle y borraría la evidencia del rechazo.
-   *
-   * Vive aquí y no en cada ruta porque las dos —la lectura del panel y la des-invitación— ejercen el
-   * mismo derecho: duplicarlo sería dos implementaciones de una sola regla.
-   */
-  const requireAdministrator = async (
-    identity: RequestIdentity,
-    eventId: string,
-  ): Promise<EventAdministratorRecord> => {
-    const administrator = await readEventAdministrator(deps.database, eventId);
-    if (administrator === null) {
-      throw new AppError('not_found');
-    }
-
-    const isMember =
-      identity.user === null
-        ? false
-        : (await findEventForUser(deps.database, eventId, identity.user.id)) !== null;
-
-    if (
-      !canActOnEvent(
-        { eventId: identity.eventId, userId: identity.user?.id ?? null },
-        eventId,
-        isMember,
-      )
-    ) {
-      throw new AppError('not_found');
-    }
-
-    if (
-      !canAdministerEvent(
-        { userId: identity.user?.id ?? null, isAdmin: identity.user?.isAdmin ?? false },
-        administrator.adminUserId,
-      )
-    ) {
-      throw new AppError('forbidden');
-    }
-
-    return administrator;
   };
 
   router.get('/auth/session', requireSession, (request, response, next) => {
@@ -185,7 +136,7 @@ export function createEventsRouter(deps: IdentityDeps): Router {
       const { eventId } = parseOrThrow(eventParamsSchema, request.params);
       const identity = identityOf(request);
 
-      const administrator = await requireAdministrator(identity, eventId);
+      const administrator = await requireEventAdministrator(deps.database, identity, eventId);
       const devices = await listEventCoDeviceSessions(deps.database, eventId);
       const invitations = await listEventInvitations(deps.database, eventId);
 
@@ -228,7 +179,7 @@ export function createEventsRouter(deps: IdentityDeps): Router {
           throw new AppError('forbidden');
         }
 
-        await requireAdministrator(identity, eventId);
+        await requireEventAdministrator(deps.database, identity, eventId);
 
         const target = await findSessionById(deps.database, sessionId);
         if (target === null || target.eventId !== eventId) {
@@ -268,7 +219,7 @@ export function createEventsRouter(deps: IdentityDeps): Router {
         const { eventId, invitationId } = parseOrThrow(invitationParamsSchema, request.params);
         const identity = identityOf(request);
 
-        await requireAdministrator(identity, eventId);
+        await requireEventAdministrator(deps.database, identity, eventId);
 
         const cancelled = await cancelInvitation(deps.database, {
           eventId,

@@ -1,5 +1,11 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import type { CreatedEvent, CreatedInvitation, IssuedSession } from '@mudanzapp/shared';
+import type {
+  CreatedEvent,
+  CreatedInvitation,
+  CreatedItem,
+  IssuedSession,
+  PublishedListing,
+} from '@mudanzapp/shared';
 
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
@@ -26,6 +32,20 @@ const FRONTEND_URL = FRONTEND === undefined ? '' : frontendUrl(FRONTEND);
 const FAKE_DISPLAY_NAME = 'Invitado';
 
 const SESSION_KEY = 'mudanzapp.session';
+
+/** JPEG 1×1 válido: la salida que produce el codificador del dispositivo. */
+const JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+    'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+    'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
+  'base64',
+);
+
+const VARIANTS = [
+  { variant: 'large', w: 1_440, h: 1_080 },
+  { variant: 'medium', w: 768, h: 576 },
+  { variant: 'thumb', w: 320, h: 240 },
+] as const;
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
@@ -66,6 +86,40 @@ async function redeemCoDevice(
   });
   expect(redeemed.status()).toBe(201);
   return (await redeemed.json()) as IssuedSession;
+}
+
+/** Un artículo del evento, documentado por la sesión que lo publica. */
+async function createItem(
+  request: APIRequestContext,
+  eventId: string,
+  token: string,
+  title: string,
+): Promise<CreatedItem['item']> {
+  const response = await request.post(`${BACKEND_URL}/events/${eventId}/items`, {
+    headers: bearer(token),
+    data: { title, note: 'Captura por error', widthCm: 90, heightCm: 80, depthCm: 90 },
+  });
+  expect(response.status()).toBe(201);
+  return ((await response.json()) as CreatedItem).item;
+}
+
+/** Sube una variante con el tipo declarado de la salida del codificador. */
+async function uploadVariant(
+  request: APIRequestContext,
+  eventId: string,
+  itemId: string,
+  token: string,
+  variant: { readonly variant: string; readonly w: number; readonly h: number },
+): Promise<void> {
+  const response = await request.put(
+    `${BACKEND_URL}/events/${eventId}/items/${itemId}/photo` +
+      `?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
+    {
+      headers: { ...bearer(token), 'Content-Type': 'image/jpeg' },
+      data: JPEG,
+    },
+  );
+  expect(response.status()).toBe(200);
 }
 
 /** Deja el dispositivo con la credencial que la aplicación lee al arrancar. */
@@ -181,4 +235,59 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
   } finally {
     await context.close();
   }
+});
+
+test('the event administrator retires a mistaken capture and the public page stops offering it', async ({
+  request,
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'the dashboard walks the private surface');
+
+  const event = await createEvent(request);
+
+  // El rey reclama el evento con su cuenta; desde ahí publica y después borra.
+  const kingDevice = await redeemCoDevice(request, event.id, 'Teléfono del rey');
+  const claimed = await request.post(`${BACKEND_URL}/auth/claim`, {
+    headers: bearer(kingDevice.sessionToken),
+    data: { oauthToken: 'e2e-admin-delete-token', deviceLabel: 'Teléfono del rey' },
+  });
+  expect(claimed.status()).toBe(201);
+  const king = (await claimed.json()) as IssuedSession;
+
+  // 1. Un artículo publicado: la ficha pública existe antes del borrado.
+  const item = await createItem(request, event.id, king.sessionToken, 'Sillón equivocado');
+  for (const variant of VARIANTS) {
+    await uploadVariant(request, event.id, item.id, king.sessionToken, variant);
+  }
+
+  const published = await request.post(
+    `${BACKEND_URL}/events/${event.id}/items/${item.id}/listing`,
+    { headers: bearer(king.sessionToken) },
+  );
+  expect(published.status()).toBe(201);
+  const listing = (await published.json()) as PublishedListing;
+
+  const before = await request.get(`${BACKEND_URL}/public/listings/${listing.slug}`);
+  expect(before.status()).toBe(200);
+
+  // 2. El rey abre el panel, ve la captura y la elimina con dos toques.
+  await seedSession(page, king.sessionToken);
+  await page.goto(`${FRONTEND_URL}/eventos/${event.id}`);
+  await page.getByTestId('event-tab-dashboard').click();
+
+  const row = page.getByTestId(`dashboard-item-row-${item.id}`);
+  await expect(row).toBeVisible();
+  await expect(page.getByTestId('dashboard-counts')).toContainText('Capturados: 1');
+
+  await page.getByTestId('dashboard-item-delete').first().click();
+  await page.getByTestId('dashboard-item-delete-confirm').first().click();
+  await expect(row).toHaveCount(0);
+
+  // 3. La ficha pública responde `404` en la siguiente lectura; el artículo salió de `Capturados`.
+  const after = await request.get(`${BACKEND_URL}/public/listings/${listing.slug}`);
+  expect(after.status()).toBe(404);
+  await expect(after.json()).resolves.toEqual({ error: 'not_found' });
+
+  await page.getByTestId('event-tab-captured').click();
+  await expect(page.getByTestId('items-empty')).toBeVisible();
 });

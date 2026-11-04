@@ -22,6 +22,7 @@ import {
 import { AppError } from '../errors.js';
 import { findEventForUser } from '../store/identity-store.js';
 import {
+  deleteItem,
   findItem,
   findPhotoById,
   findPhotoVariants,
@@ -35,6 +36,7 @@ import {
 import { newObjectKey } from '../storage/object-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
+import { requireEventAdministrator } from './event-administration.js';
 import { toItemPhoto, toItemSummary } from './presenters.js';
 import { declaredContentType, readPhotoBody } from './raw-body.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
@@ -204,6 +206,44 @@ export function createItemsRouter(deps: IdentityDeps): Router {
       }
 
       response.json({ item: toItemSummary(item) });
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * `DELETE /events/:eventId/items/:itemId` — el rey retira una captura equivocada (ciclo 4c-4).
+   *
+   * Borrar no es vender: `sold_at` es la evidencia de la venta y un artículo vendido responde
+   * `item_sold` (409) en vez de desaparecer (decisión §40). El acto exige la frontera del panel
+   * —primero el evento a la vista, después el derecho— que comparten la lectura del dashboard y el
+   * borrado; un miembro sin reclamo y un co-dispositivo reciben `forbidden`.
+   *
+   * La cascada —foto, variantes y `app.listing`— la impone el DDL. La ficha pública deja de existir en
+   * la siguiente lectura: no hay lápida ni `410` (`plan-ciclo-4c-event-admin` §8).
+   */
+  router.delete('/events/:eventId/items/:itemId', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+      const identity = identityOf(request);
+
+      await requireEventAdministrator(deps.database, identity, eventId);
+
+      const item = await findItem(deps.database, eventId, itemId);
+      if (item === null) {
+        throw new AppError('item_not_found');
+      }
+
+      if (item.soldAt !== null) {
+        throw new AppError('item_sold');
+      }
+
+      const deleted = await deleteItem(deps.database, eventId, itemId);
+      if (!deleted) {
+        throw new AppError('item_not_found');
+      }
+
+      response.status(204).end();
     };
 
     void handle().catch(next);

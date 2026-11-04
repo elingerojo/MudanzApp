@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import type { InvitationSummary, SessionSummary } from '@mudanzapp/shared';
+import type { InvitationSummary, ItemSummary, SessionSummary } from '@mudanzapp/shared';
 
+import { ItemPhotoComponent } from '../../items/item-photo.component';
+import { itemStatusClasses, itemStatusLabel } from '../../items/item-status';
 import { SessionStore } from '../../session/session.store';
 import { SHOP_BASE_URL } from '../../shop-base-url.token';
 import { uiButtonClasses } from '../../ui/ui-button/ui-button';
@@ -17,12 +19,16 @@ import { DashboardStore } from './dashboard.store';
  * aquí: salen del mismo recurso de artículos que pinta `Capturados`, así que publicar recarga una sola
  * vez y las dos pestañas ven el mismo número.
  *
- * Lo que esta pantalla no hace también declara el corte: no borra capturas (4c-4), no edita el evento y
- * no reemite un enlace cancelado.
+ * Desde 4c-4 la sección `Capturas` ofrece `Eliminar` con confirmación en dos toques. Un artículo vendido
+ * no se borra: el borde responde `item_sold` y la pantalla lo explica, porque la venta es la evidencia
+ * (§40).
+ *
+ * Lo que esta pantalla no hace también declara el corte: no edita el evento y no reemite un enlace
+ * cancelado.
  */
 @Component({
   selector: 'app-dashboard',
-  imports: [UiCardComponent],
+  imports: [ItemPhotoComponent, UiCardComponent],
   templateUrl: './dashboard.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -46,11 +52,18 @@ export class DashboardComponent {
     return event === null ? null : eventPublicUrl(event.publicSlug, this.shopBaseUrl);
   });
 
+  /** Estado visible del artículo y su color: la misma regla que `Capturados`. */
+  protected readonly statusLabel = itemStatusLabel;
+  protected readonly statusClasses = itemStatusClasses;
+
   /** Sesión cuyo botón ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingRevokeId = signal<string | null>(null);
 
   /** Enlace cuyo botón ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingCancelId = signal<string | null>(null);
+
+  /** Artículo cuyo botón `Eliminar` ya se pulsó una vez y espera la confirmación. */
+  protected readonly confirmingDeleteId = signal<string | null>(null);
 
   protected deviceLabel(device: SessionSummary): string {
     return device.deviceLabel ?? 'Dispositivo sin nombre';
@@ -116,5 +129,26 @@ export class DashboardComponent {
     }
 
     this.confirmingCancelId.set(invitation.id);
+  }
+
+  /**
+   * El borrado tampoco tiene vuelta atrás desde la interfaz (§12), así que se confirma en dos toques.
+   * Al borrar se recarga el recurso compartido de artículos: `Capturados` y el contador ya no pueden
+   * seguir leyendo la fila que el borde retiró.
+   */
+  protected confirmDelete(item: ItemSummary): void {
+    if (this.confirmingDeleteId() === item.id) {
+      this.confirmingDeleteId.set(null);
+      void this.remove(item);
+      return;
+    }
+
+    this.confirmingDeleteId.set(item.id);
+  }
+
+  private async remove(item: ItemSummary): Promise<void> {
+    if (await this.store.remove(this.eventId, item)) {
+      this.items.reload();
+    }
   }
 }

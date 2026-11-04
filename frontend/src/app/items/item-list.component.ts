@@ -6,6 +6,7 @@ import { EventItemsStore } from '../events/event-items.store';
 import { uiButtonClasses } from '../ui/ui-button/ui-button';
 import { UiCardComponent } from '../ui/ui-card/ui-card';
 import { ItemPhotoComponent } from './item-photo.component';
+import { itemStatusClasses, itemStatusLabel } from './item-status';
 
 /**
  * Pestaña `Capturados`: la lista de artículos del evento con su estado (`plan-ciclo-3d` §5).
@@ -29,31 +30,16 @@ export class ItemListComponent {
   protected readonly primaryClasses = uiButtonClasses('primary');
   protected readonly secondaryClasses = uiButtonClasses('secondary');
 
+  /** Estado visible y su color: la regla vive en `item-status` y la comparte el dashboard. */
+  protected readonly statusLabel = itemStatusLabel;
+  protected readonly statusClasses = itemStatusClasses;
+
   /** Artículo cuyo botón de venta ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingSoldId = signal<string | null>(null);
 
   /** Enlace público del artículo, o `null` mientras no esté publicado. */
   protected linkFor(item: ItemSummary): string | null {
     return item.publishedSlug === null ? null : this.store.linkForSlug(item.publishedSlug);
-  }
-
-  /** `vendido` manda sobre `publicado`: la venta es el último hecho del artículo. */
-  protected statusLabel(item: ItemSummary): string {
-    if (item.soldAt !== null) {
-      return 'vendido';
-    }
-
-    return item.publishedSlug === null ? 'en proceso' : 'publicado';
-  }
-
-  protected statusClasses(item: ItemSummary): string {
-    if (item.soldAt !== null) {
-      return 'bg-slate-200 text-slate-800';
-    }
-
-    return item.publishedSlug === null
-      ? 'bg-amber-100 text-amber-900'
-      : 'bg-emerald-100 text-emerald-900';
   }
 
   /**

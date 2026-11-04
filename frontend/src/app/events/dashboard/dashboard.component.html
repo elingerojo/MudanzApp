@@ -171,6 +171,82 @@
           <p class="text-sm text-red-600" data-testid="access-error">{{ failure }}</p>
         }
       </section>
+
+      <!-- Capturas: el rey retira una captura equivocada (4c-4). Un vendido se conserva como evidencia
+           de la venta y la pantalla lo dice en vez de ofrecer un botón que el borde rechazaría. -->
+      <section class="space-y-2" data-testid="dashboard-captures">
+        <h2 class="text-sm font-semibold text-slate-900">Capturas</h2>
+        <p class="text-xs text-slate-600">
+          Eliminar una captura la retira del catálogo. Un artículo vendido no se borra: es la
+          evidencia de la venta.
+        </p>
+
+        @if (items.items().length === 0) {
+          <p class="text-sm text-slate-600" data-testid="dashboard-captures-empty">
+            Todavía no hay capturas en este evento.
+          </p>
+        } @else {
+          <ul class="divide-y divide-slate-200">
+            @for (item of items.items(); track item.id) {
+              <li
+                class="flex flex-wrap items-center gap-3 py-3"
+                [attr.data-testid]="'dashboard-item-row-' + item.id"
+              >
+                @if (item.photo; as photo) {
+                  <app-item-photo [photoId]="photo.id" />
+                } @else {
+                  <span
+                    class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+                  >
+                    sin foto
+                  </span>
+                }
+
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-slate-900">{{ item.title }}</p>
+                  <p class="text-sm font-semibold text-slate-900">{{ items.priceLabel(item) }}</p>
+
+                  @if (item.soldAt !== null) {
+                    <p class="text-xs text-slate-600" data-testid="dashboard-item-sold">
+                      Vendido: se conserva como evidencia.
+                    </p>
+                  }
+                </div>
+
+                <span class="rounded-full px-2 py-0.5 text-xs" [class]="statusClasses(item)">
+                  {{ statusLabel(item) }}
+                </span>
+
+                @if (item.soldAt === null) {
+                  <button
+                    type="button"
+                    [class]="dangerClasses"
+                    [disabled]="store.deletingId() !== null"
+                    (click)="confirmDelete(item)"
+                    [attr.data-testid]="
+                      confirmingDeleteId() === item.id
+                        ? 'dashboard-item-delete-confirm'
+                        : 'dashboard-item-delete'
+                    "
+                  >
+                    {{
+                      confirmingDeleteId() === item.id
+                        ? store.deletingId() === item.id
+                          ? 'Eliminando…'
+                          : 'Confirmar'
+                        : 'Eliminar'
+                    }}
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (store.deleteFailure(); as failure) {
+          <p class="text-sm text-red-600" data-testid="dashboard-item-error">{{ failure }}</p>
+        }
+      </section>
     </div>
   }
 </app-ui-card>

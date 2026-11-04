@@ -4,12 +4,13 @@ import type {
   EventDashboard,
   IdentityUser,
   InvitationSummary,
+  ItemSummary,
   SessionSummary,
 } from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../../api-base-url.token';
-import { FORBIDDEN, apiErrorCode } from '../../session/api-error';
+import { FORBIDDEN, ITEM_SOLD, apiErrorCode } from '../../session/api-error';
 
 /** Resultado de la lectura: el hecho o el código del fallo, nunca una excepción hacia el guard. */
 export type DashboardLoad =
@@ -31,7 +32,24 @@ function cancelMessage(code: string | null): string {
 }
 
 /**
- * El panel del event-administrator (ciclos 4c-2 y 4c-3): **una** lectura por evento (decisión §37).
+/**
+ * Mensaje de un fallo al borrar. `item_sold` no es un error de red: es la regla de §40 dicha con el
+ * código del borde, y el cliente la explica en vez de ofrecer un reintento inútil.
+ */
+function deleteMessage(code: string | null): string {
+  if (code === ITEM_SOLD) {
+    return 'Este artículo está vendido: es la evidencia de la venta y no se puede eliminar.';
+  }
+
+  if (code === FORBIDDEN) {
+    return 'No puedes eliminar capturas de este evento.';
+  }
+
+  return 'No se pudo eliminar el artículo. Inténtalo de nuevo.';
+}
+
+/**
+ * El panel del event-administrator (ciclos 4c-2, 4c-3 y 4c-4): **una** lectura por evento (decisión §37).
  *
  * La comparten el guard y la pantalla, y por eso vive en la raíz: el guard tiene que autorizar **antes**
  * de activar la ruta y la pantalla necesita el mismo hecho para pintar. Dos peticiones de la misma
@@ -102,6 +120,12 @@ export class DashboardStore {
     }
   }
 
+  /** Artículo cuyo borrado está en vuelo; mientras haya uno, ningún botón se repite. */
+  readonly deletingId = signal<string | null>(null);
+
+  /** Último fallo del borrado, con su frase; el acto no tiñe el resto del panel. */
+  readonly deleteFailure = signal<string | null>(null);
+
   /**
    * Des-invita un co-dispositivo y vuelve a leer. La lista que había era del servidor, no de una copia
    * local: tras el acto ya no es la verdad, así que se descarta en vez de parchearse a mano.
@@ -151,6 +175,32 @@ export class DashboardStore {
       this.accessFailure.set(cancelMessage(apiErrorCode(error)));
     } finally {
       this.cancellingId.set(null);
+    }
+  }
+
+  /**
+   * Retira una captura equivocada (ciclo 4c-4). Devuelve si borró para que la pantalla recargue el
+   * recurso de artículos que comparte con `Capturados`: el contador y la lista salen de esa lectura y
+   * parchearlos a mano sería una segunda verdad. El panel en sí no depende de los artículos.
+   */
+  async remove(eventId: string, item: ItemSummary): Promise<boolean> {
+    if (this.deletingId() !== null) {
+      return false;
+    }
+
+    this.deletingId.set(item.id);
+    this.deleteFailure.set(null);
+
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(`${this.apiBaseUrl}/events/${eventId}/items/${item.id}`),
+      );
+      return true;
+    } catch (error: unknown) {
+      this.deleteFailure.set(deleteMessage(apiErrorCode(error)));
+      return false;
+    } finally {
+      this.deletingId.set(null);
     }
   }
 }

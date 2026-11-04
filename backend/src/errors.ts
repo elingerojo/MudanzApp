@@ -139,6 +139,15 @@ export const ERROR_CATALOG = {
     status: 409,
     message: 'The item is not published',
   },
+  /**
+   * Un artículo vendido no se borra (ciclo 4c-4, decisión §40): `sold_at` es la evidencia de la
+   * venta y `delete` no es la forma de cerrarla. La limpieza, si llega, es su propio ciclo.
+   */
+  item_sold: {
+    code: 'item_sold',
+    status: 409,
+    message: 'A sold item is evidence and cannot be deleted',
+  },
   listing_gone: {
     code: 'listing_gone',
     status: 410,

@@ -25,6 +25,8 @@ export function apiErrorCode(error: unknown): string | null {
 export const INVITATION_INVALID = 'invitation_invalid';
 export const PHOTO_INVALID = 'photo_invalid';
 export const ITEM_NOT_FOUND = 'item_not_found';
+/** Un artículo vendido no se borra: la venta es su evidencia (ciclo 4c-4, decisión §40). */
+export const ITEM_SOLD = 'item_sold';
 export const LISTING_PHOTO_REQUIRED = 'listing_photo_required';
 export const LISTING_NOT_PUBLISHED = 'listing_not_published';
 export const LISTING_GONE = 'listing_gone';

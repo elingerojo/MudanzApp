@@ -205,6 +205,29 @@ export async function updateItem(
   return rows.length > 0;
 }
 
+/**
+ * Retira la fila del artículo. La cascada —foto, variantes y `app.listing`— la impone el DDL
+ * (`ON DELETE CASCADE`), no este código: borrar filas hijas a mano sería una segunda fuente del
+ * modelo.
+ *
+ * `false` significa que no había una fila de **ese** evento: un artículo ajeno y uno inexistente
+ * responden igual, como en el resto de la superficie privada (`decisiones` §24).
+ */
+export async function deleteItem(
+  database: Queryable,
+  eventId: string,
+  itemId: string,
+): Promise<boolean> {
+  const { rowCount } = await database.query(
+    `DELETE FROM app.item
+      WHERE event_id = $1
+        AND id = $2`,
+    [eventId, itemId],
+  );
+
+  return rowCount === 1;
+}
+
 export async function listItemsForEvent(
   database: Queryable,
   eventId: string,

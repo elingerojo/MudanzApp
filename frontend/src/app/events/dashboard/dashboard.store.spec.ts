@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import type { InvitationSummary, SessionSummary } from '@mudanzapp/shared';
+import type { InvitationSummary, ItemSummary, SessionSummary } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../../api-base-url.token';
 import { DashboardStore } from './dashboard.store';
@@ -17,6 +17,7 @@ import { DashboardStore } from './dashboard.store';
 const DASHBOARD_URL = '/api/events/event-1/dashboard';
 const REVOKE_URL = '/api/events/event-1/sessions/device-1';
 const CANCEL_URL = '/api/events/event-1/invitations/invitation-1';
+const ITEM_DELETE_URL = '/api/events/event-1/items/item-1';
 
 const ADMINISTRATOR = { id: 'user-king', displayName: 'Ana', isAdmin: false };
 
@@ -43,6 +44,21 @@ const INVITATION: InvitationSummary = {
 
 const CANCELLED: InvitationSummary = { ...INVITATION, revokedAt: '2026-11-03T10:00:00.000Z' };
 
+const ITEM: ItemSummary = {
+  id: 'item-1',
+  eventId: 'event-1',
+  title: 'Mesa de roble',
+  note: null,
+  widthCm: null,
+  heightCm: null,
+  depthCm: null,
+  weightKg: null,
+  priceCents: null,
+  soldAt: null,
+  photo: null,
+  publishedSlug: null,
+  createdAt: '2026-10-31T00:00:00.000Z',
+};
 /** Un turno de macro-tarea: deja correr la cadena de promesas entre dos peticiones encadenadas. */
 function tick(): Promise<void> {
   return new Promise((resolve) => {
@@ -191,5 +207,26 @@ describe('DashboardStore', () => {
 
     expect(store.accessFailure()).toBe('No puedes cancelar un enlace de este evento.');
     expect(store.invitations()).toEqual([INVITATION]);
+  });
+
+  it('deletes a capture and reports success without touching the panel reading', async () => {
+    const removed = store.remove('event-1', ITEM);
+
+    httpTesting.expectOne(ITEM_DELETE_URL).flush(null, { status: 204, statusText: 'No Content' });
+    await expect(removed).resolves.toBe(true);
+    expect(store.deletingId()).toBeNull();
+    expect(store.deleteFailure()).toBeNull();
+  });
+
+  it('translates item_sold into its own phrase and keeps the panel', async () => {
+    const removed = store.remove('event-1', ITEM);
+
+    httpTesting
+      .expectOne(ITEM_DELETE_URL)
+      .flush({ error: 'item_sold' }, { status: 409, statusText: 'Conflict' });
+    await expect(removed).resolves.toBe(false);
+
+    expect(store.deleteFailure()).toContain('vendido');
+    expect(store.dashboard()).toBeNull();
   });
 });

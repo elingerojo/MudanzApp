@@ -52,6 +52,12 @@ export interface TargetSession {
   readonly eventId: string | null;
 }
 
+/** El artículo que `findItem` devuelve y que el borrado puede retirar; ausente es «no existe». */
+export interface ItemFixture {
+  readonly id: string;
+  readonly soldAt: Date | null;
+}
+
 export interface DashboardFixture {
   readonly sessions: readonly SessionFixture[];
   readonly administrator: {
@@ -67,6 +73,7 @@ export interface DashboardFixture {
   readonly devices?: readonly DeviceRow[];
   readonly invitations?: readonly InvitationRow[];
   readonly target?: TargetSession;
+  readonly item?: ItemFixture | null;
 }
 
 function rows<Row>(entries: readonly Row[], rowCount = entries.length) {
@@ -161,6 +168,43 @@ export function dashboardDatabase(fixture: DashboardFixture): Database {
 
       if (text.includes('COALESCE(revoked_at')) {
         return rows([], 1);
+      }
+
+      if (text.includes('FROM app.item i')) {
+        const item = fixture.item;
+        if (item === undefined || item === null) {
+          return none();
+        }
+
+        return item.id === value(1) && value(0) === eventId
+          ? rows([
+              {
+                id: item.id,
+                eventId,
+                title: 'Mesa de roble',
+                note: null,
+                widthCm: null,
+                heightCm: null,
+                depthCm: null,
+                weightKg: null,
+                priceCents: null,
+                soldAt: item.soldAt,
+                createdAt: new Date('2026-10-31T00:00:00.000Z'),
+                photoId: null,
+                photoVariants: null,
+                publishedSlug: null,
+              },
+            ])
+          : none();
+      }
+
+      if (text.includes('DELETE FROM app.item')) {
+        const item = fixture.item;
+        if (item === undefined || item === null || item.id !== value(1) || value(0) !== eventId) {
+          return rows([], 0);
+        }
+
+        return rows([{ id: item.id }], 1);
       }
 
       if (text.includes('FROM app.session') && text.includes('WHERE id = $1')) {

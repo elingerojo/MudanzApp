@@ -17,17 +17,18 @@ import { DashboardComponent } from './dashboard.component';
 import { DashboardStore } from './dashboard.store';
 
 /**
- * El panel del event-administrator (ciclos 4c-2 y 4c-3).
+ * El panel del event-administrator (ciclos 4c-2, 4c-3 y 4c-4).
  *
  * Se prueba lo que la pantalla **publica**, no lo que deduce: quién administra llega del borde, el
- * contador sale del recurso compartido de artículos, y las dos listas —co-dispositivos y enlaces— son
- * las del payload. También se prueba lo que no hace: no ofrece un acto sobre una fila ya cancelada ni
- * sobre una sesión ya des-invitada.
+ * contador sale del recurso compartido de artículos, y las tres listas —co-dispositivos, enlaces y
+ * capturas— son las del payload. También se prueba lo que no hace: no ofrece un acto sobre una fila ya
+ * cancelada ni sobre una sesión ya des-invitada, y no borra un artículo vendido.
  */
 const DASHBOARD_URL = '/api/events/event-1/dashboard';
 const REVOKE_URL = '/api/events/event-1/sessions/device-1';
 const CANCEL_URL = '/api/events/event-1/invitations/invitation-1';
 const ITEMS_URL = '/api/events/event-1/items';
+const ITEM_DELETE_URL = '/api/events/event-1/items/item-1';
 
 const EVENT = {
   id: 'event-1',
@@ -117,14 +118,16 @@ describe('DashboardComponent', () => {
     devices: readonly SessionSummary[],
     administrator: IdentityUser | null,
     invitations: readonly InvitationSummary[] = [],
+    items: readonly ItemSummary[] = [ITEM],
   ): Promise<Awaited<ReturnType<typeof build>>> {
-    return build(devices, administrator, invitations);
+    return build(devices, administrator, invitations, items);
   }
 
   async function build(
     devices: readonly SessionSummary[],
     administrator: IdentityUser | null,
-    invitations: readonly InvitationSummary[],
+    invitations: readonly InvitationSummary[] = [],
+    items: readonly ItemSummary[] = [ITEM],
   ) {
     const store = TestBed.inject(DashboardStore);
     const loading = store.load('event-1');
@@ -135,7 +138,7 @@ describe('DashboardComponent', () => {
     fixture.detectChanges();
 
     for (const request of httpTesting.match((candidate) => candidate.url === ITEMS_URL)) {
-      request.flush({ items: [ITEM] });
+      request.flush({ items });
     }
 
     await tick();
@@ -198,6 +201,65 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'access-invitation-state')?.textContent).toContain('cancelado');
     expect(query(fixture, 'access-invitation-cancel')).toBeNull();
     expect(query(fixture, 'access-invitation-cancel-confirm')).toBeNull();
+  });
+
+  it('shows the captures with their state and offers delete only for an unsold item', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    expect(query(fixture, 'dashboard-captures')).not.toBeNull();
+    expect(query(fixture, 'dashboard-item-row-item-1')?.textContent).toContain('Mesa de roble');
+    expect(query(fixture, 'dashboard-item-delete')).not.toBeNull();
+    expect(query(fixture, 'dashboard-item-sold')).toBeNull();
+  });
+
+  it('keeps a sold capture and says why it cannot be deleted', async () => {
+    const sold: ItemSummary = {
+      ...ITEM,
+      publishedSlug: 'mesa-de-roble-000000',
+      soldAt: '2026-11-02T12:00:00.000Z',
+    };
+    const fixture = await render([], ADMINISTRATOR, [], [sold]);
+
+    expect(query(fixture, 'dashboard-item-sold')?.textContent).toContain('evidencia');
+    expect(query(fixture, 'dashboard-item-delete')).toBeNull();
+  });
+
+  it('asks for confirmation in two touches before deleting and reloads the shared list', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    query(fixture, 'dashboard-item-delete')?.click();
+    fixture.detectChanges();
+    expect(query(fixture, 'dashboard-item-delete-confirm')).not.toBeNull();
+
+    query(fixture, 'dashboard-item-delete-confirm')?.click();
+    httpTesting.expectOne(ITEM_DELETE_URL).flush(null, { status: 204, statusText: 'No Content' });
+
+    await tick();
+    httpTesting.expectOne(ITEMS_URL).flush({ items: [] });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-item-row-item-1')).toBeNull();
+    expect(query(fixture, 'dashboard-captures-empty')).not.toBeNull();
+    expect(query(fixture, 'dashboard-counts')?.textContent).toContain('Capturados: 0');
+  });
+
+  it('translates item_sold into its own phrase instead of a retry', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    query(fixture, 'dashboard-item-delete')?.click();
+    fixture.detectChanges();
+    query(fixture, 'dashboard-item-delete-confirm')?.click();
+    httpTesting
+      .expectOne(ITEM_DELETE_URL)
+      .flush({ error: 'item_sold' }, { status: 409, statusText: 'Conflict' });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-item-error')?.textContent).toContain('vendido');
+    expect(query(fixture, 'dashboard-item-row-item-1')).not.toBeNull();
   });
 
   it('asks for confirmation in two touches and reloads after revoking', async () => {
