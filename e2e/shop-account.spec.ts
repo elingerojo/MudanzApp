@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import type { ShopIdentity } from '@mudanzapp/shared';
+import type { CreatedEvent, ShopIdentity } from '@mudanzapp/shared';
 
-import { BACKEND_URL } from './support/harness.js';
+import { ADMIN_TOKEN, BACKEND_URL } from './support/harness.js';
 
 /**
  * Evidencia del ciclo 4d (`shop-account`).
@@ -19,6 +19,7 @@ import { BACKEND_URL } from './support/harness.js';
 const FAKE_DISPLAY_NAME = 'Invitado';
 const PROFILE_NAME = 'Compradora E2E';
 const SHOP_SESSION_KEY = 'mudanzapp.shop.session';
+const adminHeaders = { Authorization: `Bearer ${ADMIN_TOKEN}` };
 
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
@@ -83,4 +84,32 @@ test('a visitor registers in the shop without touching an event', async ({
   await expect(page.getByTestId('shop-account-signin')).toBeVisible();
   const cleared = await page.evaluate((key) => localStorage.getItem(key), SHOP_SESSION_KEY);
   expect(cleared).toBeNull();
+});
+
+test('a visitor can sign in from the public event link and comes back to it', async ({
+  request,
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'shop', 'the shop account suite runs once against shop');
+
+  const eventResponse = await request.post(`${BACKEND_URL}/admin/events`, {
+    headers: adminHeaders,
+    data: { originCity: 'Quito', destinationCity: 'Cuenca' },
+  });
+  expect(eventResponse.status()).toBe(201);
+  const { event } = (await eventResponse.json()) as CreatedEvent;
+
+  // El enlace público se lee sin sesión y ofrece el acceso opcional en la barra de la shell.
+  await page.goto(`/evento/${event.publicSlug}`);
+  await expect(page.getByTestId('shop-account-bar-signin')).toBeVisible();
+
+  // Entrar desde el enlace vuelve a la misma página, no a `/cuenta`.
+  await page.getByTestId('shop-account-bar-signin').click();
+  await expect(page).toHaveURL(new RegExp(`/evento/${event.publicSlug}$`));
+  await expect(page.getByTestId('shop-account-bar-name')).toHaveText(FAKE_DISPLAY_NAME);
+
+  // La salida es local y el enlace sigue siendo anónimo.
+  await page.getByTestId('shop-account-bar-signout').click();
+  await expect(page.getByTestId('shop-account-bar-signin')).toBeVisible();
+  await expect(page.getByTestId('shop-account-bar-name')).toHaveCount(0);
 });

@@ -1006,6 +1006,9 @@ Reglas del crecimiento:
   privada:** es la misma fila de `app."user"`. Disparador: un producto que quiera perfiles separados.
 - **Consecuencia aceptada — `Cerrar sesión` es local:** igual que la sesión de cuenta de la aplicación.
   La revocación del servidor queda como su propio acto si aparece un dispositivo perdido.
+- **Consecuencia aceptada — el enlace público ofrece acceso opcional y regresa a la misma página:** la
+  barra de la tienda permite entrar desde `/evento/:publicSlug` o desde una ficha y vuelve al mismo
+  camino; no crea interés ni abre el evento. El interés de compra y su mensaje de WhatsApp son 4e.
 - **Implementada por:** el corte del ciclo 4d (`plan-ciclo-4d-shop-account`); sin migración.
 - **Disparador de revisión:** interés de compra que deba admitir visitantes sin cuenta, o una petición
   de sesión única entre superficies.

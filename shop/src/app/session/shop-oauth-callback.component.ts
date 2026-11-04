@@ -8,6 +8,7 @@ import { API_BASE_URL } from '../api-base-url.token';
 import { deviceLabel } from './device-label';
 import { SHOP_OAUTH_FLOW } from './shop-oauth-flow';
 import { shopAccountFailureMessage } from './shop-oauth-message';
+import { clearShopReturnTo, readShopReturnTo, safeShopReturnTo } from './shop-return-to';
 import { ShopSessionStore } from './shop-session.store';
 
 /**
@@ -56,8 +57,14 @@ export class ShopOAuthCallbackComponent {
       );
 
       this.session.establish(issued);
-      await this.router.navigate(['/cuenta'], { replaceUrl: true });
+
+      // Si el acceso empezó en el enlace público del evento o en una ficha, el visitante vuelve ahí;
+      // una ruta externa se rechaza y el destino seguro es la cuenta.
+      const returnTo = safeShopReturnTo(readShopReturnTo());
+      clearShopReturnTo();
+      await this.router.navigateByUrl(returnTo, { replaceUrl: true });
     } catch (failure: unknown) {
+      clearShopReturnTo();
       this.failed.set(true);
       this.error.set(shopAccountFailureMessage(failure));
     }

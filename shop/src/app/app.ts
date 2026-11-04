@@ -1,11 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { brand } from '@mudanzapp/shared';
+
+import { ShopAccountBarComponent } from './session/shop-account-bar.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink],
+  imports: [RouterOutlet, ShopAccountBarComponent],
   templateUrl: './app.html',
 })
 export class App {

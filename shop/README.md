@@ -29,9 +29,11 @@ implante.
 - `/cuenta` — `ShopAccountComponent`: cuenta del visitante desde el ciclo 4d. Sin sesión ofrece
   `Entrar o registrarme` con el mismo flujo OAuth del evento; con sesión muestra el nombre y permite
   fijarlo **después** del primer acceso. `Cerrar sesión` es local. La sesión tiene alcance `shop` y no
-  abre el evento ni la identidad privada.
+  abre el evento ni la identidad privada. La barra de la shell ofrece el mismo acceso desde las páginas
+  públicas y se oculta aquí.
 - `/auth/callback` — `ShopOAuthCallbackComponent`: vuelta pública del proveedor. Canjea el `id_token`
-  en `POST /auth/shop/sessions` y aterriza en `/cuenta`.
+  en `POST /auth/shop/sessions` y vuelve a la página que inició el flujo —`/cuenta` si no hay una
+  guardada—.
 - `/carrito` — pendiente del ciclo 4f: carrito del visitante con sesión de alcance `shop`, con el total
   derivado y la entrega de la compra a WhatsApp.
 - `**` — redirección a `/`: fallback de la SPA.
@@ -59,6 +61,9 @@ noindex` en una ficha vendida, que el Worker propaga del backend.
   opcional y se fija después del primer acceso; no hay membresía de evento ni inicio de sesión único
   entre superficies. El proveedor debe tener registrado `<origen-de-shop>/auth/callback` además del de
   `frontend`. El interés (4e) y el carrito (4f) consumen esa sesión; la ficha y el índice no.
+- La barra de cuenta de la shell aparece en las páginas públicas (`/evento/:publicSlug` y `/:slug`), se
+  oculta en `/cuenta` y en `/auth/callback`, y guarda en `sessionStorage` la ruta de origen para volver
+  a ella después del acceso. Solo acepta rutas internas; cualquier otro destino vuelve a `/cuenta`.
 
 ## Operación
 

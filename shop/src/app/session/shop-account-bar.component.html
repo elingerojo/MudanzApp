@@ -1,0 +1,31 @@
+@if (!hidden()) {
+  <div class="flex flex-wrap items-center justify-end gap-3 text-sm">
+    @if (user(); as account) {
+      <a routerLink="/cuenta" class="font-medium underline" data-testid="shop-account-bar-name">{{
+        account.displayName
+      }}</a>
+      <button
+        type="button"
+        class="underline"
+        data-testid="shop-account-bar-signout"
+        (click)="signOut()"
+      >
+        Salir
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="rounded bg-slate-800 px-2 py-1 text-white disabled:opacity-50"
+        data-testid="shop-account-bar-signin"
+        [disabled]="connecting()"
+        (click)="signIn()"
+      >
+        {{ connecting() ? 'Entrando…' : 'Entrar' }}
+      </button>
+    }
+
+    @if (error()) {
+      <span class="text-red-600" data-testid="shop-account-bar-error">{{ error() }}</span>
+    }
+  </div>
+}

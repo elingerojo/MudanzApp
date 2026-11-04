@@ -2,9 +2,7 @@
   <header class="flex items-center justify-between gap-4">
     <h1 class="text-2xl font-semibold" data-testid="app-title">{{ appName }}</h1>
 
-    <a routerLink="/cuenta" class="text-sm font-medium underline" data-testid="shop-account-link"
-      >Cuenta</a
-    >
+    <app-shop-account-bar />
   </header>
 
   <router-outlet />
