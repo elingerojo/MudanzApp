@@ -1104,5 +1104,14 @@ Reglas del crecimiento:
   `captures/` puede dejar objetos si el `DELETE` falla; el barrido (C1) es su respuesta.
 - **Implementada por:** el corte del ciclo 4g (`plan-ciclo-4g-direct-upload`), **sin migración**; la
   dependencia `@aws-sdk/s3-request-presigner` queda registrada en `stack` §12.
+- **Cierre `live` (2026-11-05):** la primera captura real desde el teléfono falló en los tres `PUT` por
+  la política CORS del bucket —origen con barra final y `AllowedHeaders` ausente—, no por el corte: el
+  ticket se emitió y el borde hizo su parte. Corregida la política y transcurrida su propagación, el
+  reintento del mismo formulario subió las tres variantes y publicó, con el porcentaje visible en el
+  botón durante los segundos que duró la subida y sin artículos huérfanos. La verificación confirma el
+  reparto: el cuerpo de la foto no aparece en los registros del backend y el reintento reutiliza el
+  artículo ya creado. `Man-3.3` §4 quedó con el JSON exacto y las dos trampas.
 - **Disparador de revisión:** una queja por consumo de datos con muchas capturas, o más de 50 objetos
-  bajo `captures/` que ningún `DELETE` explique.
+  bajo `captures/` que ningún `DELETE` explique. También: una segunda ronda de diagnóstico a ciegas por
+  el mensaje genérico de la subida fallida, que hoy no distingue el bloqueo del navegador del rechazo
+  del almacén.
