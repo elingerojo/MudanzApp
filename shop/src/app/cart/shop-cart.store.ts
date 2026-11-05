@@ -113,6 +113,28 @@ export class ShopCartStore {
   readonly whatsappAvailable = computed(() => this.cart()?.whatsappAvailable ?? false);
   readonly openRequest = computed(() => this.cart()?.request ?? null);
 
+  /**
+   * Qué impide pedir ahora mismo; `null` es «se puede pedir». La pantalla explica **este** hecho en vez
+   * de dejar que el borde responda `409` sin decir cuál de los cuatro falta (decisión §44).
+   */
+  readonly requestBlock = computed<'session' | 'empty' | 'whatsapp' | 'unavailable' | null>(() => {
+    if (!this.session.hasSession()) {
+      return 'session';
+    }
+
+    if (this.items().length === 0) {
+      return 'empty';
+    }
+
+    if (!this.whatsappAvailable()) {
+      return 'whatsapp';
+    }
+
+    return this.items().some((item) => item.soldAt !== null || item.priceCents === null)
+      ? 'unavailable'
+      : null;
+  });
+
   readonly dropped = computed<readonly string[]>(() => this.droppedSlugs());
   readonly failure = computed<string | null>(() => this.failures());
   readonly busy = computed(() => this.requesting());
@@ -283,6 +305,9 @@ export class ShopCartStore {
       );
 
       this.written.set(result.cart);
+
+      // El borde descarta lo que no se puede guardar —vendido, sin precio o fuera del evento— y el
+      // aviso lo dice con las tres causas: no hay forma honesta de distinguirlas desde un `slug`.
       this.droppedSlugs.set(result.dropped);
       this.persist(result.cart.items.map((item) => item.slug));
       this.failures.set(null);

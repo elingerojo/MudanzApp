@@ -170,4 +170,27 @@ describe('ListingComponent', () => {
     expect(element.querySelector('[data-testid="listing"]')).toBeNull();
     expect(element.querySelector('[data-testid="listing-error"]')).toBeNull();
   });
+
+  // Corrección de la revisión `live`: no se ofrece guardar lo que el borde va a descartar.
+  it('does not offer to save a priceless article and says why', async () => {
+    const fixture = await render({ ...LISTING, priceCents: null });
+    const element = elementOf(fixture);
+
+    expect(element.querySelector('[data-testid="listing-save"]')).toBeNull();
+    expect(
+      element.querySelector('[data-testid="listing-cart-unavailable"]')?.textContent,
+    ).toContain('Precio a consultar');
+    // El enlace al carrito sigue: el comprador puede ver lo que ya guardó de otros artículos.
+    expect(element.querySelector('[data-testid="listing-cart-link"]')).not.toBeNull();
+  });
+
+  it('does not offer to save a sold article', async () => {
+    const fixture = await render({ ...LISTING, soldAt: '2026-11-02T12:00:00.000Z' });
+    const element = elementOf(fixture);
+
+    expect(element.querySelector('[data-testid="listing-save"]')).toBeNull();
+    expect(
+      element.querySelector('[data-testid="listing-cart-unavailable"]')?.textContent,
+    ).toContain('se vendió');
+  });
 });

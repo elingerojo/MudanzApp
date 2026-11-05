@@ -51,6 +51,10 @@
               <p class="text-xs text-slate-600" data-testid="cart-item-sold">
                 Vendido: quítalo para poder pedir.
               </p>
+            } @else if (item.priceCents === null) {
+              <p class="text-xs text-slate-600" data-testid="cart-item-priceless">
+                Sin precio: el vendedor tiene que fijarlo para poder pedirlo.
+              </p>
             }
           </div>
 
@@ -99,24 +103,28 @@
     <button
       type="button"
       class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      [disabled]="!cart.whatsappAvailable() || cart.busy()"
+      [disabled]="cart.requestBlock() !== null || cart.busy()"
       (click)="request()"
       data-testid="cart-whatsapp-request"
     >
       {{ cart.busy() ? 'Pidiendo…' : 'Pídelos por WhatsApp' }}
     </button>
 
-    @if (!cart.whatsappAvailable()) {
+    @if (cart.requestBlock() === 'whatsapp') {
       <p class="text-xs text-slate-600" data-testid="cart-whatsapp-disabled">
         El vendedor todavía no configuró su WhatsApp: el botón se habilita cuando lo haga.
+      </p>
+    } @else if (cart.requestBlock() === 'unavailable') {
+      <p class="text-xs text-slate-600" data-testid="cart-unavailable">
+        Quita los artículos vendidos o sin precio para poder pedir.
       </p>
     }
   }
 
   @if (cart.dropped().length > 0) {
     <p class="text-xs text-amber-700" data-testid="cart-dropped">
-      {{ cart.dropped().length }} artículo(s) ya no estaban disponibles y se quitaron de la
-      selección.
+      {{ cart.dropped().length }} artículo(s) se quitaron de la selección: ya no están publicados,
+      están vendidos o no tienen precio.
     </p>
   }
 

@@ -182,15 +182,25 @@
     pedir, sí, y se hace en el carrito.
   -->
   <section class="space-y-2 border-t border-slate-200 pt-3" data-testid="listing-cart">
-    <button
-      type="button"
-      class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      [disabled]="savingCart()"
-      (click)="toggleCart()"
-      data-testid="listing-save"
-    >
-      {{ inCart() ? 'Quitar de seleccionados' : 'Guardar en seleccionados' }}
-    </button>
+    @if (cartBlocked(); as blocked) {
+      <p class="text-sm text-slate-600" data-testid="listing-cart-unavailable">
+        {{
+          blocked === 'sold'
+            ? 'Este artículo ya se vendió: no se puede pedir.'
+            : 'Precio a consultar: el vendedor tiene que fijar el precio para poder pedirlo.'
+        }}
+      </p>
+    } @else {
+      <button
+        type="button"
+        class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        [disabled]="savingCart()"
+        (click)="toggleCart()"
+        data-testid="listing-save"
+      >
+        {{ inCart() ? 'Quitar de seleccionados' : 'Guardar en seleccionados' }}
+      </button>
+    }
 
     @if (cartHref(); as href) {
       <a

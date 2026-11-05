@@ -1055,6 +1055,11 @@ Reglas del crecimiento:
   borrado posterior deja la solicitud con `listing_id` nulo y la evidencia intacta.
 - **Consecuencia aceptada — el comprador puede cancelar su solicitud:** escribe `cancelled_at` y el panel
   la muestra como cancelada; una cancelada no se descarta porque ya no hay nada que atender.
+- **Consecuencia aceptada — un artículo vendido o sin precio no se guarda ni se pide:** la ficha no
+  ofrece guardarlo y dice por qué; el carrito marca el que perdió el precio y deshabilita
+  `Pídelos por WhatsApp` con su motivo, en vez de dejar que el borde responda `price_missing` o
+  `listing_sold` sin decir cuál. Es la corrección de la revisión `live` del 2026-11-05, que encontró un
+  guardado descartado en silencio.
 - **Sin total:** el mensaje es la referencia y el importe agregado no tiene consumidor todavía. Queda
   como hecho pendiente con disparador en `resumen-funcional` §6.
 - **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración

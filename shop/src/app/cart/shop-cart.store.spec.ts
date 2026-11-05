@@ -141,6 +141,29 @@ describe('ShopCartStore', () => {
     expect(store.whatsappAvailable()).toBe(true);
   });
 
+  it('says an article without price blocks the request instead of failing in the border', async () => {
+    store.open(PUBLIC_SLUG);
+    await signIn();
+
+    httpTesting.expectOne(CART_URL).flush({
+      cart: {
+        ...CART,
+        items: [
+          {
+            slug: 'silla',
+            title: 'Silla',
+            priceCents: null,
+            soldAt: null,
+            addedAt: '2026-11-04T18:00:00.000Z',
+          },
+        ],
+      },
+    });
+    await tick();
+
+    expect(store.requestBlock()).toBe('unavailable');
+  });
+
   it('requests the cart and keeps the reference and the link of the open request', async () => {
     store.open(PUBLIC_SLUG);
     await signIn();

@@ -104,6 +104,26 @@ export class ListingComponent {
     return publicSlug === undefined ? null : ['/carrito', publicSlug];
   });
 
+  /**
+   * Por qué el artículo no se puede guardar: vendido o sin precio (decisiones §35 y §40).
+   *
+   * El borde lo rechaza igual —`listing_sold` y `price_missing`—, pero la ficha lo dice **antes** en
+   * vez de ofrecer un botón cuyo `PUT` descartaría el artículo en silencio. Es la corrección de la
+   * revisión `live` del 2026-11-05: guardar un artículo sin precio se leía como «ya no disponible».
+   */
+  protected readonly cartBlocked = computed<'sold' | 'price' | null>(() => {
+    const listing = this.value();
+    if (listing === null) {
+      return null;
+    }
+
+    if (listing.soldAt !== null) {
+      return 'sold';
+    }
+
+    return listing.priceCents === null ? 'price' : null;
+  });
+
   /** El guardado está en vuelo: el botón no se repite. */
   protected readonly savingCart = signal(false);
 
@@ -160,7 +180,7 @@ export class ListingComponent {
    */
   protected async toggleCart(): Promise<void> {
     const publicSlug = this.value()?.event.publicSlug;
-    if (publicSlug === undefined || this.savingCart()) {
+    if (publicSlug === undefined || this.savingCart() || this.cartBlocked() !== null) {
       return;
     }
 
