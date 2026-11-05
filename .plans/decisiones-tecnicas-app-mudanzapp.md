@@ -1064,5 +1064,11 @@ Reglas del crecimiento:
   como hecho pendiente con disparador en `resumen-funcional` §6.
 - **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración
   `010`; **4f queda absorbido**.
+- **Revisión `live` del dueño, 2026-11-05:** el número se fija desde el dashboard del evento; el visitante
+  guarda un artículo desde la ficha sin cuenta, entra desde `/carrito/<publicSlug>`, pide y recibe el
+  enlace de WhatsApp con su referencia; el panel muestra la solicitud con el nombre de la cuenta y
+  `Descartar` la deja en `atendida`. **Hallazgo de la misma revisión, ya corregido:** un artículo sin
+  precio se guardaba y el `PUT` lo descartaba en silencio; la ficha ya no ofrece la acción y el carrito
+  explica el motivo (commit `4384056`).
 - **Disparador de revisión:** el comprador que pida el total, un carrito que deba compartirse entre
   dispositivos, o un vendedor que necesite exclusividad por artículo.

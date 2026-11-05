@@ -44,8 +44,9 @@ resuelve con `app.invitation` y su cancelación escribe `app.invitation.revoked_
 2026-11-04**; su DDL vive en
 [`012_invitation_label.sql`](../backend/sql/012_invitation_label.sql:1), que agrega
 `app.invitation.label`, la tabla singleton `app.invitation_label_sequence` y el relleno cronológico de
-las invitaciones anteriores (decisión §42). El **4e** (`cart-request`) se implementa en este ciclo con
-su DDL en [`010_cart.sql`](../backend/sql/010_cart.sql:1): `app.event.contact_phone`, `app.cart`,
+las invitaciones anteriores (decisión §42). El **4e** (`cart-request`) está implementado, aplicado en
+local y en la base remota que lee el servicio, y revisado `live` por el dueño el 2026-11-05; su DDL vive
+en [`010_cart.sql`](../backend/sql/010_cart.sql:1) y agrega `app.event.contact_phone`, `app.cart`,
 `app.cart_item`, `app.cart_request` y `app.cart_request_item` (decisión §44, que supera a §38 y revisa a
 §39). El interés por artículo **no se crea** y el `4f` queda absorbido por este corte; el archivo `011`
 sigue **libre**. Todo corte se crea aditivo, idempotente y sin `DROP`.
