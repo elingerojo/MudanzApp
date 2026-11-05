@@ -1,0 +1,222 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="A5"
+    title="Brechas y decisiones abiertas"
+    route="app/a5-brechas"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué guarda esta página</h3>
+    <p>
+      Lo que <strong>no</strong> existe: capacidades aparcadas o tentativas, correcciones de
+      documento pendientes y huecos del propio registro. Una ausencia no abre página propia ni se
+      convierte en promesa: se registra aquí con el disparador que la vuelve a mirar.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Capacidades sin construir</h3>
+    <p>
+      <strong>Tentativa</strong> y <strong>propuesta</strong> no autorizan construir nada (<a
+        class="underline"
+        routerLink="/ingenieria/e2-alcance"
+        >E2</a
+      >).
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Capacidad</th>
+            <th class="py-1 pr-3 font-medium">Estado</th>
+            <th class="py-1 pr-3 font-medium">Disparador</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">account-upgrade</td>
+            <td class="py-1 pr-3">Tentativa, sin ciclo abierto</td>
+            <td class="py-1 pr-3">Un ciclo que defina la regla de escalado y su evidencia</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">packing · quote-brief · receive-check</td>
+            <td class="py-1 pr-3">Tentativa, sin ciclo abierto</td>
+            <td class="py-1 pr-3">Un ciclo que abra empaque o cotización</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3 font-mono">decide-destination</td>
+            <td class="py-1 pr-3">Propuesta, sin ciclo</td>
+            <td class="py-1 pr-3">Un ciclo que aborde los destinos</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.plans/resumen-funcional-app-mudanzapp.md</code> §4.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Aparcado, con su disparador</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Qué</th>
+            <th class="py-1 pr-3 font-medium">Estado</th>
+            <th class="py-1 pr-3 font-medium">Dónde vive el disparador</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Tarjeta de vista previa por artículo</td>
+            <td class="py-1 pr-3">Fuera de alcance</td>
+            <td class="py-1 pr-3"><code class="font-mono">decisiones</code> §28</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3"><em>Passkey</em> como segundo factor</td>
+            <td class="py-1 pr-3">Fuera de alcance</td>
+            <td class="py-1 pr-3"><code class="font-mono">decisiones</code> §29</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">
+              Integración primaria (<code class="font-mono">APP_MODE</code>)
+            </td>
+            <td class="py-1 pr-3">
+              Sin capacidad: no se construye adaptador ni se exige credencial. Su semántica sigue
+              pendiente del dueño
+            </td>
+            <td class="py-1 pr-3">Antes de construir cualquier adaptador</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Indicador de carga</td>
+            <td class="py-1 pr-3">
+              Componente terminado y <strong>no</strong> integrado: no hay capacidad en el producto,
+              así que no tiene página
+            </td>
+            <td class="py-1 pr-3">Un ciclo que lo integre de verdad</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.plans/resumen-funcional-app-mudanzapp.md</code> §5 y §6;
+      <code class="font-mono">decisiones</code> §28 y §29.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Correcciones de documento pendientes</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Documento</th>
+            <th class="py-1 pr-3 font-medium">Qué falta</th>
+            <th class="py-1 pr-3 font-medium">Disparador</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">.roo/rules/04-verificacion.md</td>
+            <td class="py-1 pr-3">No exige el delta del wiki en el cierre de una funcionalidad</td>
+            <td class="py-1 pr-3">El plan de post-backfill</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">.roo/rules/00-stack.md</td>
+            <td class="py-1 pr-3">
+              «Una ruta por ciclo» sin distinguir ciclo de producto de ciclo de verificación del
+              tile
+            </td>
+            <td class="py-1 pr-3">El plan de post-backfill</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">.plans/decisiones-tecnicas §20</td>
+            <td class="py-1 pr-3">El propósito del dossier sin el registro presente</td>
+            <td class="py-1 pr-3">El plan de post-backfill</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">README.md §8</td>
+            <td class="py-1 pr-3">
+              Describe el borrador de IA en una ruta y con un transporte que el código ya no tiene
+            </td>
+            <td class="py-1 pr-3">Próxima corrección del README operativo</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">backend/.env.example</td>
+            <td class="py-1 pr-3">
+              Repite el bloque de la cuenta al final: hoy hay dos declaraciones del mismo nombre
+            </td>
+            <td class="py-1 pr-3">Próxima alta de variable o limpieza del contrato de nombres</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3 font-mono">wiki</td>
+            <td class="py-1 pr-3">
+              El registro declara el régimen público de las otras superficies, pero no el suyo
+            </td>
+            <td class="py-1 pr-3">La decisión de publicar el wiki en un dominio propio</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">plans/pre-backfill-plan-wiki.md</code> §14;
+      <code class="font-mono">README.md</code> §8 comparado con
+      <code class="font-mono">backend/src/routes/ai-router.ts</code>; lectura de
+      <code class="font-mono">backend/.env.example</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Hueco del propio registro</h3>
+    <p>
+      El <strong>mantenimiento</strong> del registro todavía no está escrito: no hay regla que exija
+      incluir el delta del wiki en el commit de una funcionalidad, ni procedimiento para marcar un
+      tile como <code class="font-mono text-xs">stale</code> y corregirlo o borrarlo.
+    </p>
+    <p>
+      Disparador: el primer cierre de funcionalidad posterior a este backfill. Hasta entonces, este
+      registro es una foto verificada, no un sistema que se mantiene solo.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Resuelto por este backfill</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        La página heredada de la sección 3 se absorbió en A2 y A4 y su ruta se retiró junto con su
+        componente.
+      </li>
+      <li>
+        El mapa de rutas del wiki dejó de ser un roadmap de seis secciones y pasó a ser el mapa fijo
+        de diez tiles (<a class="underline" routerLink="/ingenieria/m0-registro">M0</a>).
+      </li>
+      <li>
+        La discrepancia sobre el transporte del borrador se resolvió leyendo el adaptador: viajan
+        los bytes de la variante mediana, y el almacén no participa. La fila del README que dice lo
+        contrario queda registrada arriba.
+      </li>
+    </ul>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Lo que queda fuera del registro</h3>
+    <p>
+      Los commits de higiene de herramienta y los hallazgos de auditoría que el dueño declaró
+      <strong>no vigentes</strong> no entran al mapa: no son hechos del producto. Su texto sigue en
+      el pre-plan como histórico y no se usa como fuente.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">plans/pre-backfill-plan-wiki.md</code> §13.6.
+    </p>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/ingenieria/m0-registro">Contrato del registro (M0)</a>
+  </footer>
+</article>
