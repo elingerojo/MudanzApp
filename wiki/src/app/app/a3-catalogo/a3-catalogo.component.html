@@ -1,0 +1,216 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="A3"
+    title="Catálogo público"
+    route="app/a3-catalogo"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">La superficie del comprador</h3>
+    <p>
+      <code class="font-mono text-xs">shop</code> es la superficie pública e indexable. El comprador
+      llega por un enlace, no busca el producto dentro de la aplicación: el enlace del evento es la
+      puerta y la ficha es el destino.
+    </p>
+    <p>
+      No hay datos personales del visitante en ninguna parte: la operación que los pediría ocurre en
+      WhatsApp, fuera de la aplicación.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El índice del evento</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        El evento nace con un <code class="font-mono text-xs">publicSlug</code>: existe
+        <strong>antes</strong> de que haya artículos y no se reescribe una vez publicado.
+      </li>
+      <li>
+        El índice tiene estado vacío y cada ficha ofrece el camino de vuelta. La tarjeta pinta el
+        precio y el índice excluye lo vendido.
+      </li>
+      <li>
+        Se sirve como <strong>snapshot HTML</strong> con una clave de versión desde la primera
+        publicación: el componente solo reemplaza la lista si la versión difiere.
+      </li>
+      <li>
+        La versión es un hash de exactamente los campos que la tarjeta pinta. Si incluyera otro
+        campo, cada edición reescribiría la página pública; si omitiera uno, la tarjeta quedaría
+        vieja en silencio.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/event.ts</code>,
+      <code class="font-mono">backend/src/render/event-index-page.ts</code>;
+      <code class="font-mono">decisiones</code> §36.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El Worker de `shop` y su copia</h3>
+    <p>
+      El Worker intercepta <code class="font-mono text-xs">/evento/:publicSlug</code> y compone la
+      página con el snapshot dentro de la shell de la SPA; el resto del mapa sigue el fallback de
+      SPA. Sin esa intercepción no habría forma de servir el índice sin cambiar la URL, y la URL del
+      <code class="font-mono text-xs">publicSlug</code> tiene que ser estable.
+    </p>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        La copia vive fuera de la raíz de la aplicación, porque el arranque reemplaza su contenido,
+        y se pide al backend <strong>sin credenciales</strong> y sin reenviar cabeceras del
+        visitante: nada personal entra en la copia.
+      </li>
+      <li>
+        La ventana es
+        <code class="font-mono text-xs">public, max-age=60, stale-while-revalidate=600</code>: lo
+        que cambia es la disponibilidad, y cero pondría el backend en el camino de cada visita.
+      </li>
+      <li>
+        El snapshot nunca es dependencia dura: si el backend falla se sirve la última copia y, si no
+        hay, la shell. <code class="font-mono text-xs">X-Snapshot</code> hace observable el estado
+        de la copia.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shop/src/worker.ts</code>,
+      <code class="font-mono">shop/src/worker.spec.ts</code>;
+      <code class="font-mono">decisiones</code>
+      §36.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Régimen público de cada ruta</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Ruta</th>
+            <th class="py-1 pr-3 font-medium">Qué es</th>
+            <th class="py-1 pr-3 font-medium">Régimen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">/evento/:publicSlug</td>
+            <td class="py-1 pr-3">Índice público del evento</td>
+            <td class="py-1 pr-3">Indexable; snapshot cacheados 60 s</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">/:slug</td>
+            <td class="py-1 pr-3">Ficha pública del artículo</td>
+            <td class="py-1 pr-3">
+              Indexable mientras está publicado; vendida responde
+              <code class="font-mono">200</code> con <code class="font-mono">noindex</code> durante
+              {{ soldCourtesyDays }} días y después <code class="font-mono">410</code>
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">/cuenta</td>
+            <td class="py-1 pr-3">Cuenta del visitante</td>
+            <td class="py-1 pr-3">
+              No indexable; exige sesión de alcance <code class="font-mono">shop</code>
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">/carrito/:publicSlug</td>
+            <td class="py-1 pr-3">Carrito de seleccionados del evento</td>
+            <td class="py-1 pr-3">
+              No indexable; se declara antes de <code class="font-mono">:slug</code>
+            </td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3 font-mono">/auth/callback</td>
+            <td class="py-1 pr-3">Vuelta del proveedor de identidad</td>
+            <td class="py-1 pr-3">No indexable; pública porque llega un navegador redirigido</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      La ficha vendida conserva su URL a propósito: quien compartió el enlace por WhatsApp no se
+      encuentra un error, sino que el artículo ya no está disponible.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/listing.ts</code> (<code class="font-mono"
+        >SOLD_COURTESY_DAYS</code
+      >), <code class="font-mono">shop/src/app/app.routes.ts</code>;
+      <code class="font-mono">decisiones</code> §40.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">La cuenta del visitante</h3>
+    <p>
+      El visitante entra con el mismo flujo de identidad del evento y recibe una sesión de alcance
+      <code class="font-mono text-xs">shop</code>, sin membresía ni evento. El nombre es opcional y
+      se fija <strong>después</strong> del primer acceso, desde
+      <code class="font-mono text-xs">/cuenta</code>; la base sigue sin teléfono, correo ni
+      dirección.
+    </p>
+    <p>
+      Una sesión de tienda no abre las rutas del evento y una de la aplicación no abre la tienda.
+      Tras el acceso, el visitante vuelve a la misma página en la que estaba.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shop/src/app/account/</code>,
+      <code class="font-mono">shared/src/identity.ts</code>;
+      <code class="font-mono">decisiones</code> §43.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El carrito y el pedido</h3>
+    <p>
+      El carrito es del servidor; <code class="font-mono text-xs">localStorage</code> es solo su
+      espejo y el <code class="font-mono text-xs">PUT</code> reemplaza la lista entera, con un tope
+      de {{ cartItems }} artículos.
+    </p>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        <strong>Guardar no exige cuenta; pedir sí.</strong> El pedido crea una solicitud que congela
+        título y precio del momento, y el vendedor la ve y la descarta desde su panel.
+      </li>
+      <li>
+        Un artículo <strong>sin precio</strong> no entra al carrito —su código en el borde es
+        <code class="font-mono text-xs">price_missing</code>— y la ficha lo dice antes. Un artículo
+        vendido tampoco se guarda ni se pide.
+      </li>
+      <li>
+        Sin número de WhatsApp del vendedor, el botón de pedido no se habilita: el teléfono es del
+        vendedor y se guarda como dígitos, porque el enlace de mensajería no acepta otro formato.
+      </li>
+      <li>
+        El mensaje lleva <strong>solo</strong> la referencia de la solicitud, derivada de su
+        identificador y no guardada. La conversación sigue fuera de la aplicación.
+      </li>
+      <li>
+        No hay bloqueo, ni vencimiento, ni exclusividad: ningún estado del artículo cambia por estar
+        en un carrito.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/cart.ts</code>,
+      <code class="font-mono">shop/src/app/cart/</code>;
+      <code class="font-mono">decisiones</code> §44.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>El acto de publicar, la edición del artículo y el recorrido de captura son de A2.</li>
+      <li>El panel del vendedor y el retiro de capturas son de A1.</li>
+      <li>Las tablas, los payloads y los códigos estables son de A4.</li>
+    </ul>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/app/a2-captura">Cuenta y captura (A2)</a>
+  </footer>
+</article>
