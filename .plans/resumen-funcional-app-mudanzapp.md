@@ -97,15 +97,16 @@ quiere. Se descompone en seis cortes, cada uno con su hipótesis y su evidencia.
 | 4b `item-edit` | Cualquier co-dispositivo corrige la ficha y fija el precio, y el catálogo lo refleja; el vendedor declara `Vendido` | `frontend` y `shop` |
 | 4c `event-admin` | Solo el event-administrator autenticado administra el evento, y una sesión de co-dispositivo no entra al dashboard | `frontend` |
 | 4d `shop-account` | Un visitante se registra y entra en la tienda sin tocar el evento | `shop` |
-| 4e `purchase-interest` | Un visitante señala un artículo y el vendedor lo ve en su dashboard y lo descarta | `shop` y `frontend` |
-| 4f `cart` | El comprador reúne artículos, conoce el total y entrega la compra a WhatsApp | `shop` |
+| 4e `cart-request` | El comprador guarda lo que quiere y lo pide por WhatsApp; el vendedor lo ve en su dashboard y lo descarta | `shop` y `frontend` |
+| 4f `cart` | **Absorbido por 4e** (decisión §44): el total derivado y el carrito compartido quedan como hechos pendientes | — |
 
 Reglas que ordenan la secuencia:
 
 - **El precio y el `Vendido` no esperan al dashboard**: la página de edición de `Capturados` los
   pone en manos de quien ya captura, así que el corte de identidad llega después.
-- **El hecho del servidor antes de la comodidad del cliente**: el interés por artículo existe antes
-  del carrito, y el carrito solo multiplica artículos sobre un contrato que ya funciona.
+- **El hecho del servidor antes de la comodidad del cliente**: el carrito de seleccionados y su
+  solicitud existen antes que cualquier comodidad del cliente, y el total —cuando llegue— solo
+  multiplica artículos sobre un contrato que ya funciona.
 - **Vender no es borrar**: `sold` cierra una venta y conserva la evidencia; `delete` retira una
   captura equivocada y solo lo ejerce el event-administrator.
 - **`account-upgrade` (4/11/21) pasa después del ciclo 4**; es el costo declarado de esta ampliación.
@@ -127,8 +128,7 @@ Reglas que ordenan la secuencia:
 | `item-edit` | En alcance del ciclo 4b (cerrado) | Página de edición desde `Capturados` para cualquier sesión del evento; corrige título, nota, medidas y `price_cents`, y el `slug` publicado no cambia. Un precio nulo muestra «Precio a consultar» y deshabilita «Lo quiero» (decisión §35); revisado `live` por el dueño el 2026-11-02 |
 | `event-admin` | En alcance de los ciclos 4c-2, 4c-3 y 4c-4 (cerrados en el gate local) | El primer invitado del evento que se autentica lo reclama y `is_admin` también entra; una sesión de co-dispositivo responde `forbidden` (decisión §37). El panel publica quién administra, el enlace público, el contador de capturas, los co-dispositivos y los enlaces emitidos, y ejerce tres actos con confirmación en dos toques: des-invitar un co-dispositivo (4c-2), cancelar un enlace —sin expulsar a quien ya entró por él (4c-3)— y retirar una captura equivocada, que responde `409 item_sold` si está vendida (4c-4, §40). La sesión del rey no aparece en su lista y el acto la rechaza. Desde el corte 4c-fix el panel nombra cada enlace con su palabra del anillo (§42) y pinta su emisión con hora. Las revisiones `live` de 4c-3, 4c-4 y del corte 4c-fix las cerró el dueño el 2026-11-04: los enlaces se nombran, se cancelan por su nombre y el token responde `410` |
 | `shop-account` | En alcance del ciclo 4d (cerrado con revisión `live` del dueño el 2026-11-04) | El visitante entra por primera vez con el mismo flujo OAuth del evento y recibe una sesión de alcance `shop`, sin membresía ni evento. El nombre es opcional y se fija **después** del primer acceso desde `/cuenta`; el perfil usa la misma cuenta `(issuer, subject)` del producto y la base sigue sin teléfono, correo ni dirección (decisión §43). Una sesión de tienda no abre `/auth/session` ni las rutas del evento, y una de la aplicación no abre la tienda. El enlace público del evento y la ficha ofrecen `Entrar` opcional en la barra de la shell y, tras el acceso, vuelven a la misma página; el interés y su WhatsApp pertenecen a 4e. La revisión `live` confirmó el enlace público anónimo, el acceso opcional desde la barra, el regreso a la misma página, el nombre opcional y la salida local. Sin migración: `app.session.scope` ya admite `shop` |
-| `purchase-interest` | Tentativa, ciclo 4e | Sin bloqueo ni vencimiento: la pulsación registra el interés con instantánea de título y precio; el vendedor lo descarta y el comprador puede cancelarlo (decisión §38) |
-| `cart` | Tentativa, ciclo 4f | Carrito con tabla propia y `PUT /public/cart`; el total es derivado y la compra se cierra en WhatsApp (decisión §39) |
+| `cart-request` | En alcance del ciclo 4e | Carrito de **seleccionados** por comprador y evento, con `PUT` que reemplaza entero; guardar no exige cuenta y pedir sí. `Pídelos por WhatsApp` compone el enlace con el número que el vendedor fija en el **dashboard**; sin número el botón no se habilita. La solicitud congela título y precio del momento y el vendedor la ve y la descarta desde su panel. Sin bloqueo, sin vencimiento y sin exclusividad; ningún estado del artículo cambia (decisión §44, que supera a §38 y revisa a §39) |
 | `settle-sale` | En alcance del ciclo 4b (cerrado) | El vendedor marca `Vendido` en cualquier estado publicado, con `sold_at` y sin monto registrado; el índice deja de ofrecerlo y la ficha conserva `200` con `noindex` durante treinta días y después responde `410` (decisión §40); revisado `live` por el dueño el 2026-11-02 |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |
 | `packing`, `quote-brief`, `receive-check` | Tentativa, ciclo 6 | Empaque, lista para cotizar y verificación en destino |

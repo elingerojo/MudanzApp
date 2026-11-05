@@ -859,6 +859,9 @@ Reglas del crecimiento:
 
 ## 38. El interés de compra sustituye al apartado de 15 minutos (2026-11-01, supera a §25)
 
+> **Superada por §44 (2026-11-04).** La fila de interés por artículo no se creó: el carrito de
+> seleccionados con su solicitud guarda el hecho. Lo que sigue se conserva como registro del criterio.
+
 - **Decisión:** el visitante **no** aparta. Pulsa «Lo quiero» y eso registra un
   `app.purchase_interest` por artículo y por visitante, con instantánea de título y precio, sin
   bloqueo, sin vencimiento y sin exclusividad. Varios visitantes pueden señalar el mismo artículo. El
@@ -882,6 +885,10 @@ Reglas del crecimiento:
   reclamen el mismo artículo ya vendido.
 
 ## 39. El carrito vive en una tabla y `localStorage` es solo un espejo (2026-11-01)
+
+> **Revisada por §44 (2026-11-04).** El carrito sigue en tabla y el `PUT` sigue reemplazándolo entero;
+> lo que cambia es el alcance: no hay total en este corte, la solicitud es una fila aparte con su
+> instantánea y la ruta lleva el `publicSlug` del evento porque el carrito es por evento.
 
 - **Decisión:** `app.cart` por visitante y evento, y `app.cart_item` por artículo. La verdad es la
   tabla: `GET /public/cart` la lee y `PUT /public/cart` la reemplaza entera, de forma idempotente. El
@@ -1016,3 +1023,41 @@ Reglas del crecimiento:
   público de Google; el backend y el Worker se desplegaron desde `main` con los commits de 4d.
 - **Disparador de revisión:** interés de compra que deba admitir visitantes sin cuenta, o una petición
   de sesión única entre superficies.
+
+## 44. El carrito de seleccionados y su solicitud por WhatsApp (2026-11-04, supera a §38 y revisa a §39)
+
+- **Decisión:** el comprador guarda artículos en un carrito de **seleccionados** por comprador y evento
+  —una lista de favoritos, no un apartado— y, con su sesión de tienda, pulsa `Pídelos por WhatsApp`.
+  Ese acto crea **una solicitud** con su referencia y devuelve el enlace `wa.me` compuesto con el
+  WhatsApp que el vendedor fijó en el **dashboard** del evento. El mensaje lleva **solo** la referencia:
+  el resto de la conversación ocurre fuera de la aplicación y el vendedor administra el estado de los
+  artículos a mano. El panel lista las solicitudes con el nombre de la cuenta y descarta las atendidas.
+- **Dos condiciones para el botón:** el número del vendedor configurado y el comprador autenticado. La
+  segunda es estructural —el carrito es del servidor y sin sesión `shop` no hay carrito—, así que la
+  pantalla solo explica la primera. Sin número, el borde responde `whatsapp_not_configured`.
+- **Motivo:** el hecho que el vendedor necesita es «quién quiere qué, esta vez», y el carrito lo guarda
+  con el nombre del comprador que 4d ya identifica. La fila de interés por artículo de §38 obligaba a
+  pulsar varias veces para pedir varios artículos y no tenía un lugar donde el comprador revisara su
+  selección.
+- **Alternativa descartada — mantener la fila de interés por artículo (§38):** multiplica pulsaciones y
+  no da al comprador una vista de lo que ya eligió.
+- **Alternativa descartada — el número del vendedor en la Cuenta del marco:** la Cuenta es de cualquier
+  sesión del dispositivo, y el número es del evento y de su administrador (§37). Vive donde el
+  administrador ya está.
+- **Alternativa descartada — `wa.me` con un número inventado o tomado del evento por otra vía:** no hay
+  ningún número en el modelo anterior a este corte y adivinarlo rompería el enlace en silencio.
+- **Consecuencia aceptada — guardar no exige cuenta:** la lista vive en el navegador y se **une** al
+  carrito del servidor al entrar; en otro dispositivo, lo guardado sin cuenta no viaja.
+- **Consecuencia aceptada — la solicitud no cambia nada del artículo:** ni bloquea, ni vence, ni reserva.
+  Varios compradores pueden pedir el mismo artículo y el vendedor decide fuera (la exclusividad sigue
+  siendo el disparador de §38).
+- **Consecuencia aceptada — la instantánea es del momento de pedir:** título y precio se congelan; un
+  borrado posterior deja la solicitud con `listing_id` nulo y la evidencia intacta.
+- **Consecuencia aceptada — el comprador puede cancelar su solicitud:** escribe `cancelled_at` y el panel
+  la muestra como cancelada; una cancelada no se descarta porque ya no hay nada que atender.
+- **Sin total:** el mensaje es la referencia y el importe agregado no tiene consumidor todavía. Queda
+  como hecho pendiente con disparador en `resumen-funcional` §6.
+- **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración
+  `010`; **4f queda absorbido**.
+- **Disparador de revisión:** el comprador que pida el total, un carrito que deba compartirse entre
+  dispositivos, o un vendedor que necesite exclusividad por artículo.
