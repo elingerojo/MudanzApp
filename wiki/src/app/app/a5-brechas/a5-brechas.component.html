@@ -122,22 +122,17 @@
         </thead>
         <tbody>
           <tr class="border-b border-slate-100 align-top">
-            <td class="py-1 pr-3 font-mono">.roo/rules/04-verificacion.md</td>
-            <td class="py-1 pr-3">No exige el delta del wiki en el cierre de una funcionalidad</td>
-            <td class="py-1 pr-3">El plan de post-backfill</td>
-          </tr>
-          <tr class="border-b border-slate-100 align-top">
             <td class="py-1 pr-3 font-mono">.roo/rules/00-stack.md</td>
             <td class="py-1 pr-3">
               «Una ruta por ciclo» sin distinguir ciclo de producto de ciclo de verificación del
               tile
             </td>
-            <td class="py-1 pr-3">El plan de post-backfill</td>
+            <td class="py-1 pr-3">El próximo ciclo que cambie la topología o el mapa de tiles</td>
           </tr>
           <tr class="border-b border-slate-100 align-top">
             <td class="py-1 pr-3 font-mono">.plans/decisiones-tecnicas §20</td>
             <td class="py-1 pr-3">El propósito del dossier sin el registro presente</td>
-            <td class="py-1 pr-3">El plan de post-backfill</td>
+            <td class="py-1 pr-3">La próxima edición de <code class="font-mono">§20</code></td>
           </tr>
           <tr class="border-b border-slate-100 align-top">
             <td class="py-1 pr-3 font-mono">README.md §8</td>
@@ -172,15 +167,24 @@
   </section>
 
   <section class="flex flex-col gap-2">
-    <h3 class="text-base font-semibold text-slate-900">Hueco del propio registro</h3>
+    <h3 class="text-base font-semibold text-slate-900">Mantenimiento del registro</h3>
     <p>
-      El <strong>mantenimiento</strong> del registro todavía no está escrito: no hay regla que exija
-      incluir el delta del wiki en el commit de una funcionalidad, ni procedimiento para marcar un
-      tile como <code class="font-mono text-xs">stale</code> y corregirlo o borrarlo.
+      El delta del wiki viaja en el <strong>mismo commit</strong> de la funcionalidad, exigido por
+      <code class="font-mono text-xs">.roo/rules/04-verificacion.md</code>. El procedimiento —tabla
+      área → tile, cabecera de frescura y forma de citar— vive en
+      <code class="font-mono text-xs">plans/post-backfill-plan-wiki.md</code>: el ciclo que toca un
+      hecho abre solo el tile dueño, no el registro entero.
     </p>
     <p>
-      Disparador: el primer cierre de funcionalidad posterior a este backfill. Hasta entonces, este
-      registro es una foto verificada, no un sistema que se mantiene solo.
+      Sin delta, el commit declara
+      <code class="font-mono text-xs">wiki: sin delta — motivo</code>. La ausencia explícita es
+      válida; la silenciosa no. Un claim que no se puede verificar se marca
+      <code class="font-mono text-xs">stale</code> y se registra aquí con su disparador, en vez de
+      rellenarse por inferencia.
+    </p>
+    <p>
+      Lo que falta no es la regla: es la prueba con el primer cierre de funcionalidad posterior a
+      este backfill. Hasta entonces este registro está escrito y exigido, no ejercitado.
     </p>
   </section>
 

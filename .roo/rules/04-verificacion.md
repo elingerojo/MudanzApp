@@ -41,6 +41,17 @@ Reglas de corrida:
   vertical sí.
 - Sin evidencia ejecutable, el ciclo no se cierra.
 
+Cierre de una funcionalidad (delta del wiki):
+- Si el corte cambia un hecho del registro presente (`wiki`), el delta del tile dueño va en el
+  **mismo commit** de la funcionalidad: solo el claim afectado y su cabecera de frescura.
+- Sin delta, el cuerpo del commit declara `wiki: sin delta — <motivo>`. La ausencia explícita es
+  válida; la silenciosa no.
+- El tile dueño se identifica con la tabla área → tile de
+  [`post-backfill-plan-wiki`](../../plans/post-backfill-plan-wiki.md:1) §4; no se abre el registro
+  entero para decidirlo.
+- Un claim obsoleto se corrige o se borra; su historia no se anota. Lo no construido va a A5 con su
+  disparador.
+
 Modo fake:
 - Integración y e2e corren con `APP_MODE=fake`, `OAUTH_MODE=fake`, `R2_MODE=fake` y `AI_MODE=fake`.
 - `live` significa credenciales válidas; `fake` es el doble determinista de pruebas mientras se
