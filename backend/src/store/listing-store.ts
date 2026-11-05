@@ -58,6 +58,9 @@ export type ListingWithItemRecord = {
 /**
  * El evento del índice público: su identificador público y las dos ciudades de la cabecera.
  * `publicSlug` es `null` solo en un evento anterior al ciclo 4a, antes de su derivación perezosa.
+ *
+ * `contactPhone` (ciclo 4e) es el WhatsApp **del vendedor** y no se publica en ningún contrato: solo
+ * decide `whatsappAvailable` en el carrito y compone el enlace `wa.me` de una solicitud.
  */
 export type PublicEventRecord = {
   readonly id: string;
@@ -65,6 +68,7 @@ export type PublicEventRecord = {
   readonly originCity: string;
   readonly destinationCity: string;
   readonly currency: string;
+  readonly contactPhone: string | null;
 };
 
 /**
@@ -217,7 +221,8 @@ export async function findPublicEventBySlug(
             public_slug AS "publicSlug",
             origin_city AS "originCity",
             destination_city AS "destinationCity",
-            currency
+            currency,
+            contact_phone AS "contactPhone"
        FROM app.event
       WHERE public_slug = $1`,
     [publicSlug],

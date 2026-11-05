@@ -9,6 +9,7 @@ import type { OAuthVerifier } from './identity/oauth.js';
 import { createAdminRouter } from './routes/admin-router.js';
 import { createAiRouter } from './routes/ai-router.js';
 import { createAuthRouter } from './routes/auth-router.js';
+import { createPublicCartRouter } from './routes/cart-router.js';
 import type { IdentityDeps } from './routes/dependencies.js';
 import { createEventsRouter } from './routes/events-router.js';
 import { createItemsRouter } from './routes/items-router.js';
@@ -65,6 +66,11 @@ export function createApp({
   // 5. Ficha pública del ciclo 3c (`publish`): sin credencial y montada antes de los routers con
   //    middleware de sesión, para que el enlace compartido no dependa de ningún estado de sesión.
   app.use(createPublicListingsRouter(identity));
+
+  // 5.b Carrito de seleccionados y su solicitud por WhatsApp (ciclo 4e). Las rutas son públicas en la
+  //     URL y exigen sesión de alcance `shop` por ruta, así que no comparten el middleware de la
+  //     aplicación ni el de las fichas.
+  app.use(createPublicCartRouter(identity));
 
   // 6. Identidad del ciclo 1: canje, sesión por dispositivo y administración.
   app.use(createAuthRouter(identity));

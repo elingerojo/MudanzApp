@@ -379,6 +379,52 @@ export async function readEventAdministrator(
   return rows[0] ?? null;
 }
 
+/** El WhatsApp del evento tal como se guarda: solo dígitos, o `null` cuando no se configuró. */
+export type EventContactRecord = {
+  readonly contactPhone: string | null;
+};
+
+/**
+ * El WhatsApp **del vendedor** para el evento (ciclo 4e). `null` es «el evento no existe»;
+ * `contactPhone` nulo es «sin configurar», que es lo que deshabilita el botón del carrito.
+ *
+ * La columna no es un dato del visitante y no relaja la regla sobre nombre, correo o dirección: el
+ * comprador solo la recibe compuesta en el enlace de WhatsApp de su solicitud (decisión §44).
+ */
+export async function readEventContact(
+  database: Queryable,
+  eventId: string,
+): Promise<EventContactRecord | null> {
+  const { rows } = await database.query<EventContactRecord>(
+    `SELECT contact_phone AS "contactPhone"
+       FROM app.event
+      WHERE id = $1`,
+    [eventId],
+  );
+
+  return rows[0] ?? null;
+}
+
+/**
+ * Escribe el WhatsApp del evento y devuelve lo guardado. `null` lo quita: el acto es idempotente y no
+ * toca nada más del evento. El valor llega ya normalizado por `parseContactPhone`, que es la única
+ * regla de forma (`shared`).
+ */
+export async function updateEventContact(
+  database: Queryable,
+  input: { readonly eventId: string; readonly contactPhone: string | null },
+): Promise<EventContactRecord | null> {
+  const { rows } = await database.query<EventContactRecord>(
+    `UPDATE app.event
+        SET contact_phone = $2
+      WHERE id = $1
+      RETURNING contact_phone AS "contactPhone"`,
+    [input.eventId, input.contactPhone],
+  );
+
+  return rows[0] ?? null;
+}
+
 export async function listEventsForUser(
   database: Queryable,
   userId: string,

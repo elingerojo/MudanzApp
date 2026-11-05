@@ -153,6 +153,33 @@ export const ERROR_CATALOG = {
     status: 410,
     message: 'The listing is no longer available',
   },
+  /**
+   * Un artículo sin precio no se puede pedir (ciclo 4b §35; su primer escritor es la solicitud del
+   * carrito, ciclo 4e): el comprador no puede aceptar un importe que no conoce.
+   */
+  price_missing: {
+    code: 'price_missing',
+    status: 409,
+    message: 'The item has no price',
+  },
+  /** El carrito no tiene artículos: no hay nada que pedir. */
+  cart_empty: {
+    code: 'cart_empty',
+    status: 409,
+    message: 'The cart has no items',
+  },
+  /** El evento no configuró su WhatsApp, así que nadie recibiría el mensaje (decisión §44). */
+  whatsapp_not_configured: {
+    code: 'whatsapp_not_configured',
+    status: 409,
+    message: 'The event has no WhatsApp contact',
+  },
+  /** Un artículo del carrito se vendió: la solicitud no se emite con algo que ya no está. */
+  listing_sold: {
+    code: 'listing_sold',
+    status: 409,
+    message: 'A listing in the cart is sold',
+  },
   database_not_configured: {
     code: 'database_not_configured',
     status: 503,

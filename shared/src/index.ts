@@ -10,6 +10,30 @@ export type { AiDraft, AiDraftResult } from './ai.js';
 export { EVENT_CARD_LIMITS, EVENT_CARD_SIZES, cardModel, publishedLabel } from './card.js';
 export type { EventCardEntry, EventCardImage, EventCardModel, EventCardThumb } from './card.js';
 export {
+  CART_LIMITS,
+  WHATSAPP_NUMBER_PATTERN,
+  cartPutSchema,
+  cartRequestMessage,
+  cartRequestReference,
+  eventContactSchema,
+  normalizeWhatsappNumber,
+  parseContactPhone,
+  whatsappRequestUrl,
+} from './cart.js';
+export type {
+  CartItem,
+  CartPutRequest,
+  CartRequestItem,
+  CartRequestSummary,
+  CartWriteResult,
+  ContactPhoneParse,
+  EventContact,
+  EventContactRequest,
+  IssuedCartRequest,
+  OpenCartRequest,
+  PublicCart,
+} from './cart.js';
+export {
   EVENT_SLUG_RETRY_SUFFIX_LENGTH,
   EVENT_SLUG_SUFFIX_LENGTH,
   deriveEventPublicSlug,

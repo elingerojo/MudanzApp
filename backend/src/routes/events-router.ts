@@ -1,8 +1,12 @@
-import type {
-  CreatedInvitation,
-  CurrentIdentity,
-  EventDashboard,
-  EventSummary,
+import {
+  eventContactSchema,
+  parseContactPhone,
+  type CartRequestSummary,
+  type CreatedInvitation,
+  type CurrentIdentity,
+  type EventContact,
+  type EventDashboard,
+  type EventSummary,
 } from '@mudanzapp/shared';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -14,6 +18,7 @@ import {
   isCoDeviceSession,
 } from '../domain/account.js';
 import { AppError } from '../errors.js';
+import { dismissCartRequest, listCartRequestsForEvent } from '../store/cart-store.js';
 import {
   cancelInvitation,
   findEventById,
@@ -24,18 +29,26 @@ import {
   listEventCoDeviceSessions,
   listEventInvitations,
   listEventsForUser,
+  readEventContact,
   revokeEventCoDeviceSession,
+  updateEventContact,
 } from '../store/identity-store.js';
 import { createOpaqueToken, hashToken } from '../tokens.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
 import { requireEventAdministrator } from './event-administration.js';
-import { toEventSummary, toInvitationSummary, toSessionSummary } from './presenters.js';
+import {
+  toCartRequestSummary,
+  toEventSummary,
+  toInvitationSummary,
+  toSessionSummary,
+} from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
 const sessionParamsSchema = z.object({ eventId: z.uuid(), sessionId: z.uuid() });
 const invitationParamsSchema = z.object({ eventId: z.uuid(), invitationId: z.uuid() });
+const cartRequestParamsSchema = z.object({ eventId: z.uuid(), requestId: z.uuid() });
 
 /**
  * Eventos de la sesión: lectura y emisión de invitaciones.
@@ -157,6 +170,122 @@ export function createEventsRouter(deps: IdentityDeps): Router {
 
     void handle().catch(next);
   });
+
+  /**
+   * El WhatsApp del evento (ciclo 4e). Lo lee y lo escribe **solo** su administrador: la columna es
+   * del vendedor, no del visitante, y el comprador nunca la conoce —recibe el enlace ya compuesto—.
+   *
+   * `contactPhone` nulo es «sin configurar», que es lo que deshabilita `Pídelos por WhatsApp` en la
+   * tienda. Lo guardado es siempre dígitos: `parseContactPhone` decide la forma y un número inválido
+   * responde `validation_failed` en vez de guardarse.
+   */
+  router.get('/events/:eventId/contact', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId } = parseOrThrow(eventParamsSchema, request.params);
+      const identity = identityOf(request);
+
+      await requireEventAdministrator(deps.database, identity, eventId);
+
+      const contact = await readEventContact(deps.database, eventId);
+      if (contact === null) {
+        throw new AppError('not_found');
+      }
+
+      const payload: EventContact = { contactPhone: contact.contactPhone };
+      response.json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /** Escribe el WhatsApp del evento; `null` lo quita. El acto no toca nada más del evento. */
+  router.patch('/events/:eventId/contact', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId } = parseOrThrow(eventParamsSchema, request.params);
+      const identity = identityOf(request);
+      const input = parseOrThrow(eventContactSchema, request.body);
+
+      await requireEventAdministrator(deps.database, identity, eventId);
+
+      const parsed = parseContactPhone(input.contactPhone);
+      if (!parsed.ok) {
+        throw new AppError('validation_failed');
+      }
+
+      const updated = await updateEventContact(deps.database, {
+        eventId,
+        contactPhone: parsed.value,
+      });
+      if (updated === null) {
+        throw new AppError('not_found');
+      }
+
+      const payload: EventContact = { contactPhone: updated.contactPhone };
+      response.json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Las solicitudes de carrito del evento (ciclo 4e): quién pidió qué, con la instantánea del momento
+   * de pedir. Incluye atendidas y canceladas —su estado es la evidencia del acto, igual que los enlaces
+   * de 4c-3— y no publica el `cart_id` ni el sujeto de la sesión del comprador.
+   */
+  router.get('/events/:eventId/cart-requests', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId } = parseOrThrow(eventParamsSchema, request.params);
+
+      await requireEventAdministrator(deps.database, identityOf(request), eventId);
+
+      const requests = await listCartRequestsForEvent(deps.database, eventId);
+      const payload: { readonly requests: readonly CartRequestSummary[] } = {
+        requests: requests.map(toCartRequestSummary),
+      };
+
+      response.set('Cache-Control', 'private, no-store').json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Descarta una solicitud (ciclo 4e): el vendedor ya atendió la conversación. Conserva el primer
+   * instante y su autor, así que reintentar no reescribe la evidencia. Una solicitud de otro evento, o
+   * una que el comprador canceló, no están para atender y responden `not_found`.
+   */
+  router.delete(
+    '/events/:eventId/cart-requests/:requestId',
+    requireSession,
+    (request, response, next) => {
+      const handle = async (): Promise<void> => {
+        const { eventId, requestId } = parseOrThrow(cartRequestParamsSchema, request.params);
+        const identity = identityOf(request);
+
+        await requireEventAdministrator(deps.database, identity, eventId);
+
+        const administrator = identity.user;
+        if (administrator === null) {
+          // `requireEventAdministrator` ya lo garantizó: una sesión de evento no administra.
+          throw new AppError('forbidden');
+        }
+
+        const dismissed = await dismissCartRequest(deps.database, {
+          eventId,
+          requestId,
+          dismissedBy: administrator.id,
+          now: deps.now(),
+        });
+        if (!dismissed) {
+          throw new AppError('not_found');
+        }
+
+        response.status(204).end();
+      };
+
+      void handle().catch(next);
+    },
+  );
 
   /**
    * Des-invita un co-dispositivo del evento (ciclo 4c-2): el rey que lee el panel le retira el acceso.

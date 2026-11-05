@@ -1,4 +1,11 @@
 import {
+  cartRequestMessage,
+  cartRequestReference,
+  deriveEventPublicSlug,
+  indexVersion,
+  listingVersion,
+  whatsappRequestUrl,
+  type CartRequestSummary,
   type EventCardEntry,
   type EventRole,
   type EventSummary,
@@ -7,16 +14,16 @@ import {
   type ItemPhoto,
   type ItemPhotoVariant,
   type ItemSummary,
+  type OpenCartRequest,
   type PhotoSize,
+  type PublicCart,
   type PublicEventIndex,
   type PublicListing,
   type PublicPhotoSize,
   type SessionSummary,
-  deriveEventPublicSlug,
-  indexVersion,
-  listingVersion,
 } from '@mudanzapp/shared';
 
+import type { CartRequestRecord, CartRow, OpenCartRequestRecord } from '../store/cart-store.js';
 import type {
   EventInvitationRecord,
   EventRecord,
@@ -269,5 +276,75 @@ export function toPublicEventIndex(
       currency: event.currency,
     },
     listings,
+  };
+}
+
+/**
+ * El carrito del comprador (ciclo 4e). Publica sus artículos, la moneda con la que se leen sus precios,
+ * si el evento tiene WhatsApp configurado y su solicitud abierta.
+ *
+ * `whatsappAvailable` es un hecho del evento, no del visitante: el número en sí **no** cruza este
+ * contrato, solo el enlace compuesto cuando la solicitud existe. `reference` se deriva del `id` y no se
+ * guarda: es la forma legible de la misma fila.
+ */
+export function toPublicCart(
+  event: PublicEventRecord,
+  cart: CartRow | null,
+  request: OpenCartRequestRecord | null,
+): PublicCart {
+  return {
+    event: {
+      publicSlug:
+        event.publicSlug ??
+        deriveEventPublicSlug(event.originCity, event.destinationCity, event.id),
+      currency: event.currency,
+    },
+    items: (cart?.items ?? []).map((item) => ({
+      slug: item.slug,
+      title: item.title,
+      priceCents: item.priceCents,
+      soldAt: item.soldAt?.toISOString() ?? null,
+      addedAt: item.addedAt.toISOString(),
+    })),
+    whatsappAvailable: event.contactPhone !== null,
+    request: request === null ? null : toOpenCartRequest(request, event.contactPhone),
+  };
+}
+
+/**
+ * La solicitud abierta con su referencia y el enlace que el comprador ya puede reabrir tras recargar
+ * (ciclo 4e). El teléfono **no** se publica como campo: solo se compone dentro del enlace.
+ */
+export function toOpenCartRequest(
+  request: OpenCartRequestRecord,
+  contactPhone: string | null,
+): OpenCartRequest {
+  const reference = cartRequestReference(request.id);
+
+  return {
+    id: request.id,
+    reference,
+    requestedAt: request.requestedAt.toISOString(),
+    whatsappUrl:
+      contactPhone === null
+        ? null
+        : whatsappRequestUrl(contactPhone, cartRequestMessage(reference)),
+  };
+}
+
+/**
+ * Una solicitud del dashboard (ciclo 4e). Publica la instantánea del momento de pedir —no el carrito
+ * de hoy— y el nombre de la cuenta; ni el `cart_id` ni el sujeto de la sesión cruzan el contrato.
+ */
+export function toCartRequestSummary(record: CartRequestRecord): CartRequestSummary {
+  return {
+    id: record.id,
+    reference: cartRequestReference(record.id),
+    buyerName: record.buyerName,
+    itemCount: record.items.length,
+    items: record.items.map((item) => ({ title: item.title, priceCents: item.priceCents })),
+    requestedAt: record.requestedAt.toISOString(),
+    dismissedAt: record.dismissedAt?.toISOString() ?? null,
+    cancelledAt: record.cancelledAt?.toISOString() ?? null,
   };
 }
