@@ -1,0 +1,321 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="E1"
+    title="Entorno y dependencias"
+    route="ingenieria/e1-entorno"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Un monorepo, cinco workspaces</h3>
+    <p>
+      npm workspaces con un solo lockfile en la raíz: <code class="font-mono text-xs">shared</code>,
+      <code class="font-mono text-xs">backend</code>,
+      <code class="font-mono text-xs">frontend</code>, <code class="font-mono text-xs">shop</code> y
+      <code class="font-mono text-xs">wiki</code>. Cada frontend compila
+      <code class="font-mono text-xs">shared</code> antes de compilarse, así que el contrato
+      compartido nunca viaja como copia.
+    </p>
+    <p>
+      TypeScript estricto en todo el monorepo. En los tres frontends la plantilla vive en su archivo
+      <code class="font-mono text-xs">.html</code> separado: nunca inline.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">package.json</code> de la raíz;
+      <code class="font-mono">tsconfig.base.json</code>; commit
+      <code class="font-mono">7475b3d</code> (2026-10-23).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Prohibiciones</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Prohibido</th>
+            <th class="py-1 pr-3 font-medium">En su lugar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">ORM o query builder sobre Postgres</td>
+            <td class="py-1 pr-3">SQL crudo parametrizado con <code class="font-mono">pg</code></td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3"><code class="font-mono">dotenv</code></td>
+            <td class="py-1 pr-3">
+              <code class="font-mono">process.env</code> leído una sola vez en configuración tipada;
+              en local, el soporte nativo de Node (<code class="font-mono"
+                >--env-file-if-exists</code
+              >)
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Imprimir valores de <code class="font-mono">.env*</code></td>
+            <td class="py-1 pr-3">
+              Pasar el <strong>nombre</strong> de la variable y el comando que la resuelve; el valor
+              nunca cruza el prompt ni la salida
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Funcionalidad o garantía fuera del alcance aprobado</td>
+            <td class="py-1 pr-3">Proponer el cambio con su costo antes de construirlo (E2)</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Dependencia de runtime sin aprobación</td>
+            <td class="py-1 pr-3">
+              Aprobación explícita, commit <code class="font-mono">deps</code> propio y fila en el
+              registro de dependencias
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.roo/rules/00-stack.md</code>,
+      <code class="font-mono">05-deps</code> y <code class="font-mono">07-secretos</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Cómo se lee el entorno</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>El servidor lee el entorno <strong>una sola vez</strong>, en configuración tipada.</li>
+      <li>El navegador no lee entorno: recibe configuración compilada en el build.</li>
+      <li>
+        Una variable vacía cuenta como <strong>ausente</strong>; no hay valor por defecto oculto.
+      </li>
+      <li>
+        <code class="font-mono text-xs">PORT</code> se lee de
+        <code class="font-mono text-xs">process.env</code>. El default
+        <code class="font-mono text-xs">3000</code>
+        del código es solo de local y de pruebas: en Railway el servicio declara
+        <code class="font-mono text-xs">PORT=3000</code> de forma explícita y el dominio público
+        apunta a ese puerto. El target port sigue al listener y nunca lo sustituye.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.roo/rules/00-stack.md</code>; commit
+      <code class="font-mono">7b70d4b</code> (2026-10-24); cabecera de
+      <code class="font-mono">backend/.env.example</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Integraciones declaradas</h3>
+    <p>
+      Toda integración externa se declara con un modo <code class="font-mono text-xs">live</code> o
+      <code class="font-mono text-xs">fake</code>. <code class="font-mono text-xs">live</code> exige
+      credenciales válidas; <code class="font-mono text-xs">fake</code> es el doble determinista de
+      pruebas. El default es <code class="font-mono text-xs">live</code> y solo aplica a
+      integraciones implementadas.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Modo</th>
+            <th class="py-1 pr-3 font-medium">Qué gobierna</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">APP_MODE</td>
+            <td class="py-1 pr-3">
+              La integración primaria que reemplaza Wix, y solo sus credenciales
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">OAUTH_MODE</td>
+            <td class="py-1 pr-3">La identidad de cuenta, y solo sus credenciales</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">R2_MODE</td>
+            <td class="py-1 pr-3">
+              El almacenamiento de objetos, que es opcional: sin capacidad no hay adaptador
+            </td>
+          </tr>
+          <tr>
+            <td class="py-1 pr-3 font-mono">AI_MODE</td>
+            <td class="py-1 pr-3">
+              El borrador de ficha; el ID del modelo y el emisor de identidad se parametrizan
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Dos reglas que se cumplen siempre: el modo de una integración se lee
+      <strong>solo</strong> cuando su capacidad existe (sin capacidad no se construye adaptador ni
+      se exige credencial), y solo <code class="font-mono text-xs">live</code> y
+      <code class="font-mono text-xs">fake</code>
+      son valores válidos; cualquier otro falla con un código estable en la primera petición.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.roo/rules/00-stack.md</code>; contratos y adaptadores en
+      A4.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Contrato de nombres</h3>
+    <p>
+      <code class="font-mono text-xs">backend/.env.example</code> es la referencia
+      <strong>pública</strong> y versionada: solo nombres, nunca valores. La condición se verifica y
+      no se supone — <code class="font-mono text-xs">git check-ignore -v</code> no devuelve nada y
+      <code class="font-mono text-xs">git ls-files</code> lista el archivo. Comprobado en este ciclo
+      el 2026-11-05.
+    </p>
+    <p>Los nombres que declara hoy, por capacidad:</p>
+    <dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-xs">
+      <dt class="font-mono text-slate-500">servidor</dt>
+      <dd class="font-mono">PORT · NODE_ENV · DATABASE_URL · APP_BASE_URL</dd>
+      <dt class="font-mono text-slate-500">cuenta</dt>
+      <dd class="font-mono">OAUTH_MODE · OAUTH_ISSUER · OAUTH_CLIENT_ID · OAUTH_CLIENT_SECRET</dd>
+      <dt class="font-mono text-slate-500">administración</dt>
+      <dd class="font-mono">ADMIN_TOKEN · BACKEND_PUBLIC_URL</dd>
+      <dt class="font-mono text-slate-500">almacenamiento</dt>
+      <dd class="font-mono">
+        R2_MODE · R2_BUCKET · R2_ENDPOINT · R2_ACCESS_KEY_ID · R2_SECRET_ACCESS_KEY ·
+        R2_PUBLIC_BASE_URL
+      </dd>
+      <dt class="font-mono text-slate-500">IA</dt>
+      <dd class="font-mono">AI_MODE · AI_MODEL · AI_API_KEY</dd>
+    </dl>
+    <p>
+      Una variable entra al archivo con su capacidad, nunca antes; una capacidad que no existe no
+      tiene nombre declarado.
+    </p>
+    <p class="text-xs text-slate-500">
+      Desviación observada: el archivo repite el bloque de cuenta al final, así que hoy hay dos
+      declaraciones del mismo nombre. Queda registrada como brecha para A5; este tile no edita el
+      archivo. Evidencia: <code class="font-mono">07-secretos</code>; commit
+      <code class="font-mono">bbe1630</code> (2026-10-25).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Dependencias aprobadas</h3>
+    <p>
+      El registro vive en la sección 12 del stack: una dependencia nueva se registra en el mismo
+      commit <code class="font-mono text-xs">deps</code>, con fecha, motivo, alternativa descartada
+      y aprobación. Una fila <code class="font-mono text-xs">(ninguna)</code> deja escrito un corte
+      que <strong>no</strong> añadió dependencias, para que la ausencia sea una decisión y no un
+      olvido.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Dependencia</th>
+            <th class="py-1 pr-3 font-medium">Tipo</th>
+            <th class="py-1 pr-3 font-medium">Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">angular</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">SPA standalone, Signals, zoneless</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">express</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">API HTTP mínima</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">pg</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">SQL crudo parametrizado</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">zod</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">Validación en la frontera</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">jose</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">Verificación del token OIDC en el adaptador live</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">@aws-sdk/client-s3</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">Cliente S3 de R2 para el adaptador live</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">@aws-sdk/s3-request-presigner</td>
+            <td class="py-1 pr-3">runtime</td>
+            <td class="py-1 pr-3">URL de subida directa de la foto</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">tailwindcss</td>
+            <td class="py-1 pr-3">dev</td>
+            <td class="py-1 pr-3">Estilos utilitarios</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">vitest</td>
+            <td class="py-1 pr-3">dev</td>
+            <td class="py-1 pr-3">Pruebas unitarias</td>
+          </tr>
+          <tr>
+            <td class="py-1 pr-3 font-mono">@playwright/test</td>
+            <td class="py-1 pr-3">dev</td>
+            <td class="py-1 pr-3">End-to-end</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/package.json</code>; stack §12; commits
+      <code class="font-mono">93fb2b3</code>, <code class="font-mono">e8b252d</code> y
+      <code class="font-mono">f7a801e</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Datos y migraciones</h3>
+    <p>
+      Las migraciones van solo hacia adelante y son idempotentes:
+      <code class="font-mono text-xs">IF NOT EXISTS</code> cuando el DDL lo permite, sin
+      <code class="font-mono text-xs">DROP</code> y sin tabla de seguimiento. El runner ejecuta
+      todos los <code class="font-mono text-xs">backend/sql/*.sql</code>
+      en cada invocación, así que la ruta automática nunca destruye.
+    </p>
+    <p>
+      Quitar tablas o columnas vive en <code class="font-mono text-xs">backend/sql/contract/</code>,
+      que el runner no enumera. <code class="font-mono text-xs">mudanzapp</code> local y remota es
+      lo único protegido; las bases <code class="font-mono text-xs">_test</code> y
+      <code class="font-mono text-xs">_branch</code> son sandboxes desechables. Los comandos y la
+      matriz están en E3; las tablas y su DDL, en A4.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.roo/rules/06-datos.md</code>; commit
+      <code class="font-mono">b486329</code> (2026-10-26).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Herramientas de plataforma</h3>
+    <p>
+      Los servidores MCP están declarados por nombre y con su disparador de uso. El de Railway es
+      <strong>solo lectura</strong> y solo se consulta cuando la tarea lo pide explícitamente:
+      permite leer proyectos, servicios, despliegues, logs, métricas y nombres de variables, y
+      prohíbe toda mutación, incluidos redesplegar y aceptar un despliegue preparado. El archivo que
+      lleva credenciales no se versiona; el de ejemplo sí.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.roo/rules/03-mcp.md</code>; commit
+      <code class="font-mono">4d9fe1f</code> (2026-10-24).
+    </p>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/ingenieria/m0-registro">Contrato del registro (M0)</a>
+  </footer>
+</article>
