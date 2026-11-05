@@ -1,0 +1,213 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="A1"
+    title="Administración"
+    route="app/a1-administracion"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Dos niveles y nada más</h3>
+    <p>
+      Hay un <strong>administrador de plataforma</strong>, que es una credencial y no un rol de
+      usuario, y un <strong>administrador por evento</strong>, que es la persona que reclama el
+      evento. No existen permisos intermedios: fuera de esos dos, una sesión es de miembro o de
+      co-dispositivo.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Administración de plataforma</h3>
+    <p>
+      Se autentica con <code class="font-mono text-xs">ADMIN_TOKEN</code> en la cabecera de
+      autorización; la comparación es en tiempo constante y la credencial nunca se imprime. Sin la
+      variable configurada el borde responde
+      <code class="font-mono text-xs">admin_not_configured</code>
+      en vez de degradar, y una credencial distinta responde
+      <code class="font-mono text-xs">admin_unauthorized</code>.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Ruta</th>
+            <th class="py-1 pr-3 font-medium">Acto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">POST /admin/events</td>
+            <td class="py-1 pr-3">Crea el evento y devuelve su resumen</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">POST /admin/events/:eventId/invitations</td>
+            <td class="py-1 pr-3">Emite una invitación del evento</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">GET /admin/events/:eventId/sessions</td>
+            <td class="py-1 pr-3">Lista las sesiones del evento</td>
+          </tr>
+          <tr>
+            <td class="py-1 pr-3 font-mono">DELETE /admin/sessions/:sessionId</td>
+            <td class="py-1 pr-3">Revoca una sesión</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/admin-router.ts</code>;
+      <code class="font-mono">README.md</code> §8.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Administración de evento</h3>
+    <p>
+      Un evento lo administra quien lo reclama al autenticarse; la cuenta marcada como
+      administradora de plataforma entra igual. Una sesión de co-dispositivo no administra. La
+      pantalla vive en
+      <code class="font-mono text-xs">/eventos/:eventId/dashboard</code>.
+    </p>
+    <p>
+      El derecho <strong>no</strong> se deduce de la sesión: la guarda de la ruta pregunta al borde,
+      que es el único que sabe quién administra, y solo traduce la respuesta. Un rechazo devuelve a
+      <code class="font-mono text-xs">Capturados</code> con la familia del fallo en la URL, así que
+      el rechazo se enseña en vez de esconder la pestaña.
+    </p>
+    <p>
+      <code class="font-mono text-xs">GET /events/:eventId/dashboard</code> autoriza y pinta en una
+      sola lectura: quién administra —nulo mientras nadie reclama—, los co-dispositivos y los
+      enlaces emitidos. Los contadores de capturas <em>no</em> viajan ahí: la sección ya los tiene y
+      duplicarlos sería una segunda fuente del mismo hecho.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/events-router.ts</code>;
+      <code class="font-mono">frontend/src/app/events/dashboard/dashboard.guard.ts</code>;
+      <code class="font-mono">decisiones</code> §37.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">La frontera de autorización</h3>
+    <p>
+      El orden no se invierte: primero se resuelve si la sesión <strong>alcanza</strong> el evento
+      —una sesión ajena o inexistente responde <code class="font-mono text-xs">not_found</code>— y
+      solo después si su sujeto lo <strong>administra</strong>, que responde
+      <code class="font-mono text-xs">forbidden</code>. La diferencia importa: su evento ya es
+      visible para un co-dispositivo, así que negarlo con
+      <code class="font-mono text-xs">not_found</code>
+      sería mentirle y borraría la evidencia del rechazo.
+    </p>
+    <p>
+      La misma frontera la comparten la lectura del panel, los actos del panel y el retiro de una
+      captura, porque viven en un solo lugar y no en cada ruta.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/event-administration.ts</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Los actos del panel</h3>
+    <p>
+      Son tres, cada uno con confirmación en dos toques. Los tres son idempotentes: repetir responde
+      <code class="font-mono text-xs">204</code> y no reescribe el instante del acto, porque ese
+      instante es la evidencia.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Acto</th>
+            <th class="py-1 pr-3 font-medium">Ruta</th>
+            <th class="py-1 pr-3 font-medium">Límite</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Des-invitar un co-dispositivo</td>
+            <td class="py-1 pr-3 font-mono">DELETE /events/:eventId/sessions/:sessionId</td>
+            <td class="py-1 pr-3">
+              La propia sesión responde <code class="font-mono">forbidden</code>; una sesión de
+              cuenta no se retira por esta puerta, su retiro es un acto de membresía.
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Cancelar un enlace</td>
+            <td class="py-1 pr-3 font-mono">DELETE /events/:eventId/invitations/:invitationId</td>
+            <td class="py-1 pr-3">
+              Impide más canjes y <strong>no</strong> expulsa a quien ya entró por él. Un enlace de
+              otro evento responde <code class="font-mono">not_found</code>.
+            </td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Retirar una captura equivocada</td>
+            <td class="py-1 pr-3 font-mono">DELETE /events/:eventId/items/:itemId</td>
+            <td class="py-1 pr-3">
+              Un artículo vendido responde <code class="font-mono">409 item_sold</code>: borrar no
+              es vender, y el instante de la venta es la evidencia.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      El panel nombra cada enlace con su palabra del anillo y lo pinta con la hora en que se emitió;
+      la emisión del enlace pertenece al recorrido de A2.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/events-router.ts</code>,
+      <code class="font-mono">backend/src/routes/items-router.ts</code>; commits
+      <code class="font-mono">57bceac</code>, <code class="font-mono">4a85247</code>,
+      <code class="font-mono">55b9c23</code> y <code class="font-mono">bbb9259</code>;
+      <code class="font-mono">decisiones</code> §40 y §42.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Datos del vendedor en el panel</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        <strong>WhatsApp del evento</strong>: <code class="font-mono text-xs">GET</code> y
+        <code class="font-mono text-xs">PATCH /events/:eventId/contact</code>, solo su
+        administrador. Un valor nulo es «sin configurar» y es lo que deshabilita el botón de pedido
+        en la tienda; un número inválido responde
+        <code class="font-mono text-xs">validation_failed</code> y no se guarda. Lo guardado son
+        siempre dígitos.
+      </li>
+      <li>
+        <strong>Solicitudes de carrito</strong>: lectura y descarte, sin publicar el identificador
+        del carrito ni el sujeto de la sesión del comprador. El descarte conserva el primer instante
+        y su autor, así que reintentar no reescribe la evidencia. Una solicitud de otro evento, o
+        una que el comprador canceló, responde <code class="font-mono text-xs">not_found</code>.
+      </li>
+      <li>
+        La lectura de solicitudes se sirve con
+        <code class="font-mono text-xs">private, no-store</code>: es un dato del vendedor, no una
+        página pública.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/events-router.ts</code>; commits
+      <code class="font-mono">ade66eb</code> y <code class="font-mono">cce76ee</code>;
+      <code class="font-mono">decisiones</code> §44.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>La emisión del enlace y el recorrido del co-dispositivo son de A2.</li>
+      <li>El carrito del comprador y la ficha pública son de A3.</li>
+      <li>Las tablas, columnas y códigos estables son de A4.</li>
+    </ul>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/app/a0-superficies">Actores y superficies (A0)</a>
+  </footer>
+</article>
