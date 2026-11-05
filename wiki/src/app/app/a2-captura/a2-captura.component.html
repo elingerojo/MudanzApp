@@ -1,0 +1,175 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="A2"
+    title="Cuenta y captura"
+    route="app/a2-captura"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El recorrido</h3>
+    <p>
+      Alguien invita con un enlace, el otro dispositivo lo canjea, se captura un artículo con su
+      foto, se revisa la ficha y se publica una URL para compartir. La cuenta es opcional en todo el
+      camino: solo es la forma de volver a entrar.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Invitación y reclamo</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        El token es opaco y lo emite el servidor; la base guarda solo su hash. Son
+        <strong>72 horas</strong> y <strong>cinco canjes</strong>, y el enlace es revocable.
+      </li>
+      <li>
+        Cualquier sesión del evento puede emitir invitaciones para otro co-dispositivo del mismo
+        evento; cada enlace lleva una palabra de un anillo de veinte que decide el servidor y que el
+        panel usa para nombrarlo.
+      </li>
+      <li>
+        <code class="font-mono text-xs">POST /auth/redeem</code> responde
+        <code class="font-mono text-xs">201</code> con la sesión y
+        <code class="font-mono text-xs">410 invitation_invalid</code> si el enlace ya no sirve. La
+        pantalla del canje es pública y recibe el token por la URL.
+      </li>
+      <li>
+        Reclamar con una cuenta es <strong>aditivo</strong>: vincula el sujeto y añade una sesión de
+        cuenta, sin cerrar el enlace ni revocar otras sesiones. No es obligatorio para documentar;
+        es el camino de regreso.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/events-router.ts</code>,
+      <code class="font-mono">frontend/src/app/session/</code>;
+      <code class="font-mono">decisiones</code>
+      §30 y §42.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">La foto no cruza el backend</h3>
+    <p>
+      El navegador pide un <strong>ticket</strong> con una URL prefirmada por variante, escribe
+      <code class="font-mono text-xs">thumb</code>, <code class="font-mono text-xs">medium</code> y
+      <code class="font-mono text-xs">large</code> en el almacén y después adjunta la captura. El
+      borde verifica cada objeto con <code class="font-mono text-xs">HEAD</code>, lo copia a su
+      clave definitiva y escribe las filas; el objeto de staging se borra. El peso real lo pone el
+      <code class="font-mono text-xs">HEAD</code>, no el cliente.
+    </p>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        El ticket y sus URL viven {{ ticketMinutes }} minutos: quien se tarda vuelve a pedir uno.
+      </li>
+      <li>
+        Una captura es <strong>una</strong> fotografía con sus tres variantes; el tope del artículo
+        es de {{ photosPerItem }} fotos.
+      </li>
+      <li>
+        Nada se escribe en el almacén antes de que el humano decida: el ticket solo firma una
+        intención.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/capture.ts</code>,
+      <code class="font-mono">backend/src/routes/captures-router.ts</code>;
+      <code class="font-mono">decisiones</code> §45.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El borrador de la IA</h3>
+    <p>
+      Se le pide una sola cosa: la <strong>variante mediana</strong> de la foto, que el teléfono ya
+      preparó. Viaja como bytes binarios al borde y el adaptador la convierte a base64 solo para el
+      proveedor: no hay URL pública de por medio, el almacén no participa y la original nunca sale
+      del teléfono.
+    </p>
+    <p>
+      Devuelve solo dos campos: un <strong>título</strong> de hasta {{ titleLimit }} caracteres y
+      una <strong>nota</strong> de hasta {{ noteLimit }} caracteres. No decide
+      <strong>medidas, peso, precio ni destino</strong>: son datos del humano, y un número inventado
+      entraría directo a una cotización.
+    </p>
+    <p>
+      El borrador <strong>no es estado</strong>: no hay tabla, ni historial, ni versión. La ruta
+      solo lee y responde <code class="font-mono text-xs">200</code> —no crea recurso—; quien
+      persiste es la persona al guardar. Se valida contra un esquema estricto, y una clave de más o
+      un texto que no es JSON fallan con un código estable en vez de «repararse».
+    </p>
+    <p>
+      Una sola tentativa por clic, sin reintentos automáticos. Si el proveedor falla, el mensaje
+      llega por código y la ficha se escribe a mano y se guarda igual: una prueba sin proveedor
+      nunca rompe la captura.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/routes/ai-router.ts</code>,
+      <code class="font-mono">backend/src/ai/gemini-draft.ts</code>,
+      <code class="font-mono">shared/src/ai.ts</code>;
+      <code class="font-mono">decisiones</code> §34.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Revisar, publicar y corregir</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        La revisión ocurre en la misma pantalla de la captura y sin temporizador. El borrador
+        rellena lo vacío y <strong>nunca</strong> sobrescribe lo que la persona ya escribió.
+      </li>
+      <li>
+        <strong>Publicar</strong> es un acto explícito: exige foto y es idempotente, porque
+        republicar devuelve el mismo <code class="font-mono text-xs">slug</code>.
+      </li>
+      <li>
+        <strong>Solo guardar</strong> deja el artículo en proceso dentro del evento y no crea URL
+        pública.
+      </li>
+      <li>
+        El artículo publicado se corrige desde
+        <code class="font-mono text-xs">/eventos/:eventId/articulos/:itemId</code>: título, nota,
+        medidas y precio. El <code class="font-mono text-xs">slug</code> ya publicado no cambia.
+      </li>
+      <li>
+        La lista de lo capturado vive en
+        <code class="font-mono text-xs">/eventos/:eventId/capturados</code>; la pestaña de captura
+        es la ruta por defecto del evento.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">frontend/src/app/events/</code>,
+      <code class="font-mono">backend/src/routes/items-router.ts</code>;
+      <code class="font-mono">decisiones</code> §35.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Deriva documental observada</h3>
+    <p>
+      El contrato del borrador cambió de forma y una fila del
+      <code class="font-mono text-xs">README</code> sigue describiendo la anterior: el borrador no
+      es <code class="font-mono text-xs">/events/:eventId/items/:itemId/draft</code> ni manda una
+      URL pública al proveedor, sino
+      <code class="font-mono text-xs">POST /events/:eventId/ai/drafts</code>
+      con los bytes de la mediana. Este tile publica la forma vigente, verificada contra el código,
+      y la discrepancia queda registrada como brecha para A5.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>El índice público, la ficha, el carrito y la indexación son de A3.</li>
+      <li>Las tablas, los contratos compartidos y los códigos estables son de A4.</li>
+      <li>Los actos del panel sobre enlaces y capturas son de A1.</li>
+    </ul>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/app/a1-administracion">Administración (A1)</a>
+  </footer>
+</article>
