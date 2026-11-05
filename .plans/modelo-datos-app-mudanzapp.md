@@ -44,10 +44,11 @@ resuelve con `app.invitation` y su cancelación escribe `app.invitation.revoked_
 2026-11-04**; su DDL vive en
 [`012_invitation_label.sql`](../backend/sql/012_invitation_label.sql:1), que agrega
 `app.invitation.label`, la tabla singleton `app.invitation_label_sequence` y el relleno cronológico de
-las invitaciones anteriores (decisión §42). Los cortes restantes siguen declarados antes de que exista
-su DDL: el 4e agrega `app.purchase_interest` y el 4f agrega `app.cart` y `app.cart_item`. Los archivos
-`010` y `011` siguen **reservados** para esos dos cortes; el `012` lo tomó este, y todos se crean con su
-corte, aditivos, idempotentes y sin `DROP`.
+las invitaciones anteriores (decisión §42). El **4e** (`cart-request`) se implementa en este ciclo con
+su DDL en [`010_cart.sql`](../backend/sql/010_cart.sql:1): `app.event.contact_phone`, `app.cart`,
+`app.cart_item`, `app.cart_request` y `app.cart_request_item` (decisión §44, que supera a §38 y revisa a
+§39). El interés por artículo **no se crea** y el `4f` queda absorbido por este corte; el archivo `011`
+sigue **libre**. Todo corte se crea aditivo, idempotente y sin `DROP`.
 
 | Tabla | Propósito | Columnas clave |
 | --- | --- | --- |
@@ -56,15 +57,16 @@ corte, aditivos, idempotentes y sin `DROP`.
 | `app.session` | Prueba temporal por dispositivo; de cuenta o de evento | `id`, `user_id`, `event_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
 | `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at`, `label` |
 | `app.invitation_label_sequence` | Puntero del anillo de nombres de invitación; una sola fila posible | `id`, `last_label`, `advanced_at` |
-| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `public_slug`, `admin_user_id`, `origin_city`, `destination_city`, `currency`, `state` |
+| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `public_slug`, `admin_user_id`, `contact_phone`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
 | `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `price_cents`, `created_at` |
 | `app.item_photo` | Foto de un artículo, una por posición; sus columnas describen el tamaño `large` | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
 | `app.item_photo_variant` | Objeto de cada tamaño estándar de la foto | `photo_id`, `variant`, `object_key`, `content_type`, `width_px`, `height_px`, `created_at` |
 | `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `sold_at`, `created_at` |
-| `app.purchase_interest` | Quién quiere qué artículo, hasta que el vendedor lo descarta | `id`, `listing_id`, `user_id`, `title_snapshot`, `price_cents_snapshot`, `created_at`, `dismissed_at`, `dismissed_by`, `cancelled_at` |
-| `app.cart` | Carrito de un visitante dentro de un evento | `id`, `user_id`, `event_id`, `created_at`, `updated_at` |
-| `app.cart_item` | Artículo dentro de un carrito | `cart_id`, `listing_id`, `added_at` |
+| `app.cart` | Carrito de seleccionados de un comprador dentro de un evento | `id`, `user_id`, `event_id`, `created_at`, `updated_at` |
+| `app.cart_item` | Artículo guardado en un carrito | `cart_id`, `listing_id`, `added_at` |
+| `app.cart_request` | Solicitud del carrito por WhatsApp, hasta que el vendedor la descarta | `id`, `cart_id`, `requested_at`, `dismissed_at`, `dismissed_by`, `cancelled_at` |
+| `app.cart_request_item` | Instantánea de lo que la solicitud pidió | `request_id`, `position`, `listing_id`, `title_snapshot`, `price_cents_snapshot` |
 
 Restricciones que van con el DDL:
 
@@ -134,17 +136,23 @@ Restricciones que el ciclo 4 agrega, cuando su corte escriba el DDL:
   propia; un precio nulo no impide publicar y deshabilita la pulsación de interés (decisión §35);
 - `app.listing.sold_at` marca `Vendido` en cualquier estado, sin monto y sin exigir precio. Borrar un
   artículo **no** es venderlo (decisión §40);
-- `app.purchase_interest` guarda **una fila por artículo y visitante** mientras está abierta, con
-  instantánea de título y precio, y su referencia al `listing` **puede quedar nula** si el vendedor
-  borra el artículo: la solicitud sobrevive al borrado. No bloquea, no vence y no cambia el estado del
-  artículo (decisión §38);
-- `app.cart` tiene una fila por (visitante, evento) y `app.cart_item` una por (carrito, artículo). La
-  tabla es la verdad y **el total no se guarda**: se deriva en `shared` (decisión §39).
+- `app.event.contact_phone` es el WhatsApp **del vendedor**: opcional, de solo dígitos
+  (`^[0-9]{8,15}$`) y con `CHECK` porque `wa.me` no acepta `+`, espacios ni guiones. Sin él el botón del
+  carrito no se habilita (`whatsapp_not_configured`). No es un dato del visitante y no relaja la regla
+  sobre nombre, correo o dirección (decisión §44);
+- `app.cart` tiene una fila por (comprador, evento) y `app.cart_item` una por (carrito, artículo): la
+  tabla es la verdad y `localStorage` solo la pinta. Un artículo **sin precio** no entra al carrito
+  (`price_missing`) y el **total no se guarda** (decisión §39, revisada);
+- `app.cart_request` es una fila por solicitud, con **una sola abierta** por carrito —el índice único
+  parcial es lo que hace idempotente el reintento— y `dismissed_by` obligatorio cuando hay
+  `dismissed_at`. `app.cart_request_item` congela título y precio al pedir y su `listing_id` **puede
+  quedar nulo** si el vendedor borra el artículo: la solicitud sobrevive al borrado. No bloquea, no
+  vence y no cambia el estado del artículo (decisiones §38 y §44).
 
 Candidatas sin compromiso, cada una con su ciclo: `app.sale` —solo si el monto de una venta llega a
 tener consumidor—, `app.packing_step`, `app.packing_material` y `app.receive_check`.
-`app.reservation` **no existe ni se creará**: el apartado de 15 minutos fue sustituido por
-`app.purchase_interest` (decisión §38, que supera a §25).
+`app.reservation` **no existe ni se creará**: el apartado de 15 minutos fue sustituido por el carrito de
+seleccionados y su solicitud (decisiones §38 y §44, que superan a §25).
 
 ## 2. Motor
 
@@ -249,5 +257,5 @@ tener consumidor—, `app.packing_step`, `app.packing_material` y `app.receive_c
 | `admin_user_id` y la regla de reclamo (ciclo 4c) | Architect / Backend | Un evento con dos administradores |
 | `price_cents` y su moneda heredada del evento (ciclo 4b) | Architect / Backend | Precio en moneda distinta o con fracciones |
 | `sold_at` y la frontera entre vender y borrar (ciclo 4b) | Architect / Backend | Primera venta que haya que revertir |
-| `purchase_interest` y su instantánea (ciclo 4e) | Architect / Backend | El vendedor pida exclusividad |
-| `cart` y `cart_item` (ciclo 4f) | Architect / Backend | Carrito compartido entre dispositivos, o costo de lectura de carrito |
+| `cart`, `cart_item` y la solicitud con su instantánea (ciclo 4e) | Architect / Backend | Carrito compartido entre dispositivos, costo de lectura de carrito o una exclusividad por artículo |
+| `event.contact_phone` y su forma de solo dígitos (ciclo 4e) | Architect / Backend | Un número que `wa.me` no resuelva, o un segundo canal de contacto |
