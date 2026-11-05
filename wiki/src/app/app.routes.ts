@@ -12,8 +12,8 @@ import { TILE_LOADERS, TILES, isTileBuilt } from './tiles';
  * cargador es todo lo que hace falta para publicarlo, así que el índice y el router no pueden
  * discrepar.
  *
- * `/foto-a-ficha` es contenido heredado de la sección 3 del dossier: se conserva mientras A2 y A4 no
- * publiquen sus claims y después se retira.
+ * `/foto-a-ficha` ya no existe: sus claims viven en A2 y A4 y su componente se retiró cuando ambos
+ * los publicaron.
  */
 function builtTileRoutes(): Routes {
   return TILES.flatMap((tile) => {
@@ -28,10 +28,5 @@ export const routes: Routes = [
   { path: '', component: IndiceComponent },
   { path: 'estado', component: StatusComponent },
   ...builtTileRoutes(),
-  {
-    path: 'foto-a-ficha',
-    loadComponent: () =>
-      import('./foto-a-ficha/foto-a-ficha.component').then((module) => module.FotoAFichaComponent),
-  },
   { path: '**', redirectTo: '' },
 ];

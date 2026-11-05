@@ -6,13 +6,12 @@ crece una ruta por ciclo.
 
 ## Rutas
 
-| Ruta                      | Página                   | Qué es                                                                |
-| ------------------------- | ------------------------ | --------------------------------------------------------------------- |
-| `/`                       | `IndiceComponent`        | Índice del registro: los diez tiles del mapa                          |
-| `/estado`                 | `StatusComponent`        | Humo del arranque: proceso y base desde `/health`                     |
-| `/ingenieria/m0-registro` | `M0RegistroComponent`    | Contrato del registro: mapa fijo, frescura y forma de citar           |
-| `/app/a0-superficies`     | `A0SuperficiesComponent` | Actores, superficies, puertos y Workers                               |
-| `/foto-a-ficha`           | `FotoAFichaComponent`    | Heredada: sección 3 del dossier; se retira cuando A2 y A4 la absorban |
+| Ruta                      | Página                   | Qué es                                                      |
+| ------------------------- | ------------------------ | ----------------------------------------------------------- |
+| `/`                       | `IndiceComponent`        | Índice del registro: los diez tiles del mapa                |
+| `/estado`                 | `StatusComponent`        | Humo del arranque: proceso y base desde `/health`           |
+| `/ingenieria/m0-registro` | `M0RegistroComponent`    | Contrato del registro: mapa fijo, frescura y forma de citar |
+| `/app/a0-superficies`     | `A0SuperficiesComponent` | Actores, superficies, puertos y Workers                     |
 
 - El mapa de tiles —código, título, ruta y disponibilidad— vive en
   [`src/app/tiles.ts`](src/app/tiles.ts:1) y de ahí se derivan el índice y las rutas. Un tile

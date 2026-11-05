@@ -49,9 +49,9 @@ describe('mapa de tiles', () => {
     expect(routes.some((route) => route.path === 'estado')).toBe(true);
   });
 
-  it('conserva la página heredada hasta que A2 y A4 la absorban', () => {
+  it('ya no publica la página heredada que A2 y A4 absorbieron', () => {
     const heredada = routes.find((route) => route.path === 'foto-a-ficha');
 
-    expect(heredada).toBeDefined();
+    expect(heredada).toBeUndefined();
   });
 });
