@@ -6,16 +6,24 @@ crece una ruta por ciclo.
 
 ## Rutas
 
-| Ruta                      | Página                   | Qué es                                                      |
-| ------------------------- | ------------------------ | ----------------------------------------------------------- |
-| `/`                       | `IndiceComponent`        | Índice del registro: los diez tiles del mapa                |
-| `/estado`                 | `StatusComponent`        | Humo del arranque: proceso y base desde `/health`           |
-| `/ingenieria/m0-registro` | `M0RegistroComponent`    | Contrato del registro: mapa fijo, frescura y forma de citar |
-| `/app/a0-superficies`     | `A0SuperficiesComponent` | Actores, superficies, puertos y Workers                     |
+| Ruta                      | Página                      | Qué es                                                      |
+| ------------------------- | --------------------------- | ----------------------------------------------------------- |
+| `/`                       | `IndiceComponent`           | Índice del registro: los diez tiles del mapa                |
+| `/estado`                 | `StatusComponent`           | Humo del arranque: proceso y base desde `/health`           |
+| `/ingenieria/m0-registro` | `M0RegistroComponent`       | Contrato del registro: mapa fijo, frescura y forma de citar |
+| `/ingenieria/e1-entorno`  | `E1EntornoComponent`        | Entorno, prohibiciones y dependencias aprobadas             |
+| `/ingenieria/e2-alcance`  | `E2AlcanceComponent`        | Alcance, fuera de alcance y hechos pendientes del dueño     |
+| `/ingenieria/e3-entrega`  | `E3EntregaComponent`        | Gate, comandos, matriz de bases y despliegue                |
+| `/app/a0-superficies`     | `A0SuperficiesComponent`    | Actores, superficies, puertos y Workers                     |
+| `/app/a1-administracion`  | `A1AdministracionComponent` | Plataforma y evento, con sus guardas y sus actos            |
+| `/app/a2-captura`         | `A2CapturaComponent`        | Cuenta, foto, borrador de IA, revisión y publicación        |
+| `/app/a3-catalogo`        | `A3CatalogoComponent`       | Índice del evento, ficha, cuenta del visitante y carrito    |
+| `/app/a4-contratos`       | `A4ContratosComponent`      | Contratos compartidos, esquema, códigos e integraciones     |
+| `/app/a5-brechas`         | `A5BrechasComponent`        | Brechas, aparcado y correcciones pendientes                 |
 
 - El mapa de tiles —código, título, ruta y disponibilidad— vive en
-  [`src/app/tiles.ts`](src/app/tiles.ts:1) y de ahí se derivan el índice y las rutas. Un tile
-  pendiente aparece en el índice sin enlace y no tiene ruta publicada.
+  [`src/app/tiles.ts`](src/app/tiles.ts:1) y de ahí se derivan el índice y las rutas. Un tile sin
+  cargador aparece en el índice sin enlace y no tiene ruta publicada; hoy los diez están construidos.
 - **Dev**: `npm run dev -w wiki -- --port 4201` desde la raíz. El puerto `4200` lo usa
   `frontend`; el segundo frontend queda en `4201`. El proxy `/api` apunta al backend local en
   `:3000`.
