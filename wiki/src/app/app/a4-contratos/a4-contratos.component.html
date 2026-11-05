@@ -1,0 +1,279 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="A4"
+    title="Contratos y datos"
+    route="app/a4-contratos"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Una sola copia del contrato</h3>
+    <p>
+      <code class="font-mono text-xs">shared</code> reúne tipos, valores de runtime y esquemas de
+      validación. El navegador y el backend importan el mismo archivo compilado, así que la forma de
+      un payload tiene una sola fuente: el cliente no puede quedarse con una copia vieja sin que
+      falle el build.
+    </p>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>Identidad y sesión: alcances, roles, resumen de sesión, invitación emitida.</li>
+      <li>Artículo y foto: límites del artículo, variantes, tamaños y tipos admitidos.</li>
+      <li>Captura: ticket, claves de staging y límites del corte.</li>
+      <li>
+        Listado y precio: patrón del <code class="font-mono text-xs">slug</code>, límites y días de
+        cortesía de una ficha vendida.
+      </li>
+      <li>Evento, tarjeta, índice público y carrito.</li>
+      <li>
+        IA: <code class="font-mono text-xs">aiDraftSchema</code>, con los límites derivados del
+        artículo.
+      </li>
+      <li>Marca, tema y salud del servicio.</li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/</code>;
+      <code class="font-mono">README.md</code> §9.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El modelo de datos</h3>
+    <p>
+      Todo el esquema vive en el esquema <code class="font-mono text-xs">app</code> de Postgres, con
+      SQL crudo y parametrizado. La fuente autoritativa del modelo es
+      <code class="font-mono text-xs">.plans/modelo-datos-app-mudanzapp.md</code>: el DDL debe
+      coincidir con él.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Área</th>
+            <th class="py-1 pr-3 font-medium">Tablas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Identidad</td>
+            <td class="py-1 pr-3 font-mono">
+              user · auth_factor · event · invitation · session · event_member
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Artículo</td>
+            <td class="py-1 pr-3 font-mono">item · item_photo · item_photo_variant · listing</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Carrito</td>
+            <td class="py-1 pr-3 font-mono">cart · cart_item · cart_request · cart_request_item</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Nombres de enlace</td>
+            <td class="py-1 pr-3 font-mono">invitation_label_sequence</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Son quince tablas. Los archivos de migración van del
+      <code class="font-mono text-xs">001</code> al <code class="font-mono text-xs">010</code> más
+      el <code class="font-mono text-xs">012</code>: el
+      <code class="font-mono text-xs">011</code> no existe, así que el número no es un contador de
+      ciclos.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/sql/*.sql</code>;
+      <code class="font-mono">.plans/modelo-datos-app-mudanzapp.md</code> §9.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Lo que no existe en el esquema</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        <strong>Nada del borrador de IA</strong>: no hay tabla, ni historial, ni versión. El
+        borrador es una respuesta, no un estado.
+      </li>
+      <li>
+        <strong>Tabla de seguimiento de migraciones</strong>: el runner ejecuta todos los archivos
+        en cada invocación y cada uno es idempotente.
+      </li>
+      <li>
+        <strong>Reserva de artículo</strong>: quedó fuera del modelo; el carrito no bloquea nada.
+      </li>
+      <li>
+        <strong>Interés por artículo</strong>: se descartó; lo que existe es la solicitud del
+        carrito, con su instantánea de título y precio.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/sql/</code>,
+      <code class="font-mono">backend/src/ai/</code>; <code class="font-mono">decisiones</code> §38
+      y §44.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Códigos estables</h3>
+    <p>
+      El catálogo de errores del borde es un solo objeto: cada entrada tiene código, estado HTTP y
+      un mensaje que <strong>no</strong> cruza la frontera. Lo que viaja es
+      <code class="font-mono text-xs">{{ '{' }} error: code {{ '}' }}</code
+      >, y el cliente ramifica por el código, nunca por el texto.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Familia</th>
+            <th class="py-1 pr-3 font-medium">Códigos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Generales</td>
+            <td class="py-1 pr-3 font-mono">
+              internal_error · validation_failed · unauthorized · forbidden · not_found
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Sesión y administración</td>
+            <td class="py-1 pr-3 font-mono">
+              session_revoked · admin_unauthorized · admin_not_configured · account_not_linked ·
+              session_not_claimable
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Invitación</td>
+            <td class="py-1 pr-3 font-mono">invitation_invalid (410)</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Identidad</td>
+            <td class="py-1 pr-3 font-mono">
+              oauth_invalid_token · oauth_not_configured · oauth_mode_invalid · oauth_unavailable
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Foto y almacén</td>
+            <td class="py-1 pr-3 font-mono">
+              photo_invalid · capture_not_found · capture_incomplete · r2_mode_invalid ·
+              r2_not_configured · r2_live_unavailable · r2_unavailable
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Publicación</td>
+            <td class="py-1 pr-3 font-mono">
+              listing_photo_required · listing_not_published · listing_gone · item_sold ·
+              item_not_found
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">IA</td>
+            <td class="py-1 pr-3 font-mono">
+              ai_mode_invalid · ai_not_configured · ai_unavailable · ai_output_invalid
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Carrito</td>
+            <td class="py-1 pr-3 font-mono">
+              price_missing · cart_empty · whatsapp_not_configured · listing_sold
+            </td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Base</td>
+            <td class="py-1 pr-3 font-mono">database_not_configured</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/errors.ts</code>;
+      <code class="font-mono">decisiones</code>
+      §14.1.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Cómo falla el borde</h3>
+    <p>
+      Cualquier error se traduce a un código estable, y ni el mensaje ni el payload original cruzan
+      la frontera. Un cuerpo que no valida es
+      <code class="font-mono text-xs">validation_failed</code> y lo no controlado es
+      <code class="font-mono text-xs">internal_error</code>.
+    </p>
+    <p>
+      Un fallo del servidor deja evidencia en la consola con el código estable, el nombre del error,
+      su código de causa —el <code class="font-mono text-xs">SQLSTATE</code> de Postgres o el
+      <code class="font-mono text-xs">errno</code> de Node— y la ruta <strong>declarada</strong> del
+      endpoint, no la concreta. No se registra el mensaje, ni el cuerpo, ni los valores de los
+      parámetros. Un <code class="font-mono text-xs">400</code>, un
+      <code class="font-mono text-xs">401</code> o un <code class="font-mono text-xs">403</code> no
+      se registran: son refusos esperados.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/error-handler.ts</code>; commit
+      <code class="font-mono">bce76d1</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Integraciones y costuras</h3>
+    <p>
+      Tres integraciones declaradas, cada una con un modo
+      <code class="font-mono text-xs">live</code> y un doble
+      <code class="font-mono text-xs">fake</code> determinista: identidad (<code
+        class="font-mono text-xs"
+        >OAUTH_MODE</code
+      >), almacenamiento (<code class="font-mono text-xs">R2_MODE</code>) e IA (<code
+        class="font-mono text-xs"
+        >AI_MODE</code
+      >). El modo se lee solo porque la capacidad existe y la configuración se lee una sola vez, en
+      un módulo tipado; el navegador nunca lee entorno, recibe configuración compilada.
+    </p>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        <strong>Identidad</strong>: el adaptador
+        <code class="font-mono text-xs">live</code> verifica firma, emisor, audiencia y vigencia
+        contra el JWKS del emisor; el <code class="font-mono text-xs">fake</code> emite un sujeto
+        fijo.
+      </li>
+      <li>
+        <strong>Almacenamiento</strong>: el <code class="font-mono text-xs">live</code> exige las
+        cinco piezas del almacén; el <code class="font-mono text-xs">fake</code> compone su propia
+        base y no lee ninguna, así que configurarlo no cambia una corrida local.
+      </li>
+      <li>
+        <strong>IA</strong>: el <code class="font-mono text-xs">live</code> usa el identificador de
+        modelo parametrizado y una sola tentativa; el <code class="font-mono text-xs">fake</code>
+        devuelve un borrador fijo sin red, y el gate nunca llama al proveedor.
+      </li>
+    </ul>
+    <p>
+      Una integración nueva sigue el mismo patrón y se declara en la fuente del stack. Un valor de
+      modo distinto de <code class="font-mono text-xs">live</code> o
+      <code class="font-mono text-xs">fake</code>
+      falla con un código estable en la primera petición, y una variable vacía cuenta como ausente.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">backend/src/identity/</code>,
+      <code class="font-mono">backend/src/storage/</code>,
+      <code class="font-mono">backend/src/ai/</code>,
+      <code class="font-mono">backend/src/config.ts</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>El recorrido que produce esos datos es de A2; el catálogo que los publica, de A3.</li>
+      <li>Los comandos de migración y el gate son de E3; las prohibiciones, de E1.</li>
+    </ul>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/app/a3-catalogo">Catálogo público (A3)</a>
+  </footer>
+</article>
