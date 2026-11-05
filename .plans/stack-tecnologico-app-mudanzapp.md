@@ -155,6 +155,7 @@ scaffold (nota E3 en `.roo/rules/05-deps.md`).
 | zod | ^4.6.5 | runtime | 2026-10-19 | Validación en la frontera | Validación manual | `.guidelines/02` y decisión 13 |
 | jose | ^6.2.14 | runtime | 2026-10-30 | Verificación OIDC (firma, emisor, audiencia, vigencia) del adaptador `live` de OAUTH | Verificación manual con `node:crypto` | Aprobación explícita del usuario al abrir `account-link`; decisión §21 y ciclo 1 |
 | @aws-sdk/client-s3 | ^3.1161.0 | runtime | 2026-10-31 | Cliente oficial de la API compatible con S3 para el adaptador `live` de R2 (`PutObject`/`GetObject`) del ciclo 3c | Firma SigV4 a mano con `node:crypto` | Aprobación explícita del dueño al abrir `publish` (§3 de `plan-ciclo-3c`); commit `deps` propio |
+| @aws-sdk/s3-request-presigner | ^3.1161.0 | runtime | 2026-11-05 | Firma las URL de subida directa del ciclo 4g: `PutObject` prefirmado por variante, para que la foto vaya del navegador al almacén sin cruzar el backend (`direct-upload`) | Firma SigV4 a mano con `node:crypto` (unas 120 líneas de *canonical request* y *credential scope* que el gate no puede probar contra R2 real) | Aprobación explícita del dueño al abrir 4g; decisión §45 y `plan-ciclo-4g-direct-upload` §12; commit `deps` propio |
 | Tailwind CSS | v4 | dev | 2026-10-19 | Estilos utilitarios | CSS propio | Stack §3 |
 | Vitest | ^4.0.8 | dev | 2026-10-19 | Pruebas unitarias | Jest | Stack §8 y decisión 9 |
 | Playwright | ^1.63.0 | dev | 2026-10-19 | E2E | Cypress | Stack §8 y decisión 11 |
