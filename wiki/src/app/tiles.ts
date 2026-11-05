@@ -109,6 +109,8 @@ export const TILE_LOADERS: Partial<Record<TileCode, () => Promise<Type<unknown>>
     import('./ingenieria/e1-entorno/e1-entorno.component').then((m) => m.E1EntornoComponent),
   E2: () =>
     import('./ingenieria/e2-alcance/e2-alcance.component').then((m) => m.E2AlcanceComponent),
+  E3: () =>
+    import('./ingenieria/e3-entrega/e3-entrega.component').then((m) => m.E3EntregaComponent),
 };
 
 /** Un tile construido es el que ya tiene cargador: existe como página, no solo como intención. */

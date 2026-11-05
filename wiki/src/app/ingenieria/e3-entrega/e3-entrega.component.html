@@ -1,0 +1,334 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="E3"
+    title="Entrega y verificación"
+    route="ingenieria/e3-entrega"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El gate es proporcional al corte</h3>
+    <p>
+      Ningún ciclo se cierra sin evidencia ejecutable, y la verificación que se corre depende de lo
+      que el corte toca. Un spike no corre el gate completo; un corte vertical sí.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Corte</th>
+            <th class="py-1 pr-3 font-medium">Comandos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Siempre</td>
+            <td class="py-1 pr-3 font-mono">typecheck · lint · format:check</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Backend</td>
+            <td class="py-1 pr-3 font-mono">test:api</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Backend con base o con dev branch</td>
+            <td class="py-1 pr-3 font-mono">test:api:db · test:api:db:branch</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Frontend</td>
+            <td class="py-1 pr-3 font-mono">test:web:⟨FE⟩</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Frontend o <code class="font-mono">shared</code> tocado</td>
+            <td class="py-1 pr-3 font-mono">build:web:⟨FE⟩</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Build del backend</td>
+            <td class="py-1 pr-3 font-mono">build</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Arnés e2e tocado</td>
+            <td class="py-1 pr-3 font-mono">typecheck:e2e</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Ruta crítica</td>
+            <td class="py-1 pr-3 font-mono">test:e2e · test:e2e:branch</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Reglas de corrida: un comando por invocación, una sola corrida de verificación a la vez y
+      nunca
+      <code class="font-mono text-xs">npm test</code> encadenado.
+      <code class="font-mono text-xs">npm test</code> es unitario; el arnés levanta backend y
+      frontends.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.roo/rules/04-verificacion.md</code>;
+      <code class="font-mono">README.md</code> §6.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Contrato de scripts</h3>
+    <p>
+      Todo se ejecuta desde la raíz y hay un solo lockfile. Cada build de frontend compila
+      <code class="font-mono text-xs">shared</code> antes, porque el frontend resuelve sus tipos
+      desde <code class="font-mono text-xs">shared/dist</code>; el despliegue invoca los scripts de
+      la raíz y nunca la variante por workspace.
+    </p>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        <code class="font-mono text-xs">build</code> + <code class="font-mono text-xs">start</code>:
+        producción ejecuta <code class="font-mono text-xs">node backend/dist/index.js</code>, nunca
+        <code class="font-mono text-xs">tsx</code> ni
+        <code class="font-mono text-xs">--env-file</code>.
+      </li>
+      <li>
+        El build de un frontend ejecuta <code class="font-mono text-xs">brand:index</code>
+        <strong>después</strong> de <code class="font-mono text-xs">ng build</code>: la marca entra
+        al artefacto, no al fuente.
+      </li>
+      <li>
+        <code class="font-mono text-xs">invite</code> es el único script de administración: reenvía
+        sus banderas al workspace del backend, por eso se invoca con
+        <code class="font-mono text-xs">--</code> antes de los argumentos.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">package.json</code> de la raíz; commits
+      <code class="font-mono">769ba25</code> y <code class="font-mono">b13d03f</code> (2026-10-25 y
+      2026-10-31).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Bases: cuatro locales, dos remotas</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Objetivo</th>
+            <th class="py-1 pr-3 font-medium">Base</th>
+            <th class="py-1 pr-3 font-medium">Comando</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">main</td>
+            <td class="py-1 pr-3 font-mono">mudanzapp</td>
+            <td class="py-1 pr-3 font-mono">db:migrate · db:ping</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">test</td>
+            <td class="py-1 pr-3 font-mono">mudanzapp_test</td>
+            <td class="py-1 pr-3 font-mono">db:migrate:test · db:ping:test</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">branch</td>
+            <td class="py-1 pr-3 font-mono">mudanzapp_branch</td>
+            <td class="py-1 pr-3 font-mono">db:migrate:branch · db:ping:branch</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">branch-test</td>
+            <td class="py-1 pr-3 font-mono">mudanzapp_branch_test</td>
+            <td class="py-1 pr-3 font-mono">db:migrate:branch:test · db:ping:branch:test</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">remoto main</td>
+            <td class="py-1 pr-3">Neon, cadena directa</td>
+            <td class="py-1 pr-3 font-mono">db:migrate:remote · db:ping:remote</td>
+          </tr>
+          <tr>
+            <td class="py-1 pr-3 font-mono">remoto branch</td>
+            <td class="py-1 pr-3">Neon, cadena directa</td>
+            <td class="py-1 pr-3 font-mono">db:migrate:remote:branch · db:ping:remote:branch</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      La URL de pruebas y las de la dev branch <strong>se derivan</strong> de la de desarrollo con
+      los sufijos <code class="font-mono text-xs">_test</code>,
+      <code class="font-mono text-xs">_branch</code> y
+      <code class="font-mono text-xs">_branch_test</code>: no se escriben a mano, no se transportan
+      y nunca se imprimen. La derivación es el único camino autorizado.
+    </p>
+    <p>
+      Las migraciones se aplican <strong>a mano</strong>, nunca en el arranque. El runner ejecuta
+      todos los <code class="font-mono text-xs">backend/sql/*.sql</code> en cada invocación y cada
+      archivo va en su propia transacción; un archivo con control de transacción propio se rechaza
+      con <code class="font-mono text-xs">migration-transaction-control</code>. Las bases
+      <code class="font-mono text-xs">_test</code> son <strong>local-only</strong>: un objetivo de
+      prueba remoto se rechaza con error estable.
+    </p>
+    <p>
+      El arnés e2e <strong>no</strong> migra: exige
+      <code class="font-mono text-xs">db:migrate:test</code> (o
+      <code class="font-mono text-xs">db:migrate:branch:test</code>) corrido antes, y falla
+      ruidosamente si el esquema falta.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">README.md</code> §3 y §7;
+      <code class="font-mono">.roo/rules/06-datos.md</code>; commits
+      <code class="font-mono">f572f40</code> (2026-10-25) y <code class="font-mono">b486329</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Arnés e2e</h3>
+    <p>
+      Playwright, fuera de los workspaces y con sus salidas junto al arnés. Un
+      <code class="font-mono text-xs">project</code> por frontend con su
+      <code class="font-mono text-xs">ng serve</code> en puerto explícito, un solo worker y una
+      única base de pruebas compartida por las suites. El envoltorio deriva e inyecta la URL de
+      pruebas dentro del proceso; un <code class="font-mono text-xs">npx playwright test</code> a
+      mano se rechaza con <code class="font-mono text-xs">e2e-wrapper-required</code> en vez de
+      apuntar a la base de desarrollo.
+    </p>
+    <p>
+      Las integraciones corren en modo <code class="font-mono text-xs">fake</code>: ninguna prueba
+      depende del proveedor de identidad, del almacén ni del motor de IA.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">e2e/playwright.config.ts</code>,
+      <code class="font-mono">e2e/support/harness.ts</code>; commit
+      <code class="font-mono">2bb04f7</code> (2026-10-23).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Humo del backend</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Ruta</th>
+            <th class="py-1 pr-3 font-medium">Respuesta</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3 font-mono">GET /health</td>
+            <td class="py-1 pr-3">
+              <strong>Siempre</strong> <code class="font-mono">200</code> con el estado del proceso
+              y de la base: liveness no es readiness
+            </td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3 font-mono">GET /health/db</td>
+            <td class="py-1 pr-3">
+              <code class="font-mono">200</code> con la base en <code class="font-mono">ok</code>, o
+              <code class="font-mono">503</code> con <code class="font-mono">not-configured</code> o
+              <code class="font-mono">error</code>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      El servidor no lanza al importar: lo que falta de configuración se registra y el humo sigue
+      respondiendo. El orden de middleware es CORS, cuerpo JSON, humo, identidad y manejador de
+      errores; el apagado cierra primero el servidor y después la base. Las tablas y los códigos de
+      error son de A4.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">README.md</code> §8; commit
+      <code class="font-mono">41a4d25</code> (2026-10-23).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Despliegue</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Pieza</th>
+            <th class="py-1 pr-3 font-medium">Contrato</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Backend</td>
+            <td class="py-1 pr-3">
+              Railway, contrato en el <strong>dashboard</strong>: build
+              <code class="font-mono">npm run build</code>, start
+              <code class="font-mono">npm run start</code>, healthcheck
+              <code class="font-mono">/health</code> y watch paths. No hay
+              <code class="font-mono">railway.json</code> ni
+              <code class="font-mono">railway.toml</code>.
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Puerto</td>
+            <td class="py-1 pr-3">
+              <code class="font-mono">PORT=3000</code> como variable del servicio; el target port y
+              el healthcheck la siguen y nunca la contradicen.
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Frontends</td>
+            <td class="py-1 pr-3">
+              Tres Workers de assets —<code class="font-mono">mudanzapp</code>,
+              <code class="font-mono">mudanzapp-shop</code> y
+              <code class="font-mono">mudanzapp-wiki</code>—; el nombre del Worker es idéntico al
+              <code class="font-mono">name</code> de su
+              <code class="font-mono">wrangler.jsonc</code>.
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Workers Builds</td>
+            <td class="py-1 pr-3">
+              Cada Worker conectado al repo en <code class="font-mono">main</code>, root directory
+              <code class="font-mono">/</code>, build
+              <code class="font-mono">npm run build:web:⟨FE⟩</code>, deploy
+              <code class="font-mono">npx wrangler deploy -c ⟨FE⟩/wrangler.jsonc</code> y
+              <strong>sin</strong> build watch paths.
+            </td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Configuración</td>
+            <td class="py-1 pr-3">
+              <code class="font-mono">environment.production.ts</code> se compila: si cambia el host
+              del backend hay que reconstruir ese Worker.
+              <code class="font-mono">APP_BASE_URL</code> lleva todos los orígenes de los Workers.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Sin watch paths cada push construye los tres Workers; con patrones, un commit fuera de ellos
+      no genera build ni <em>check run</em> y producción se queda en el artefacto anterior sin
+      avisar. No hay workflows en el repo: el estado del despliegue se lee en los
+      <em>check runs</em> del commit. El
+      <code class="font-mono text-xs">wrangler deploy</code> manual es el respaldo de emergencia.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">README.md</code> §12; commits
+      <code class="font-mono">ed59071</code>, <code class="font-mono">907854b</code> y
+      <code class="font-mono">704f7f5</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>Las rutas, tablas y códigos estables del borde son de A4.</li>
+      <li>
+        Los pasos de consola que dependen de la máquina están en el manual local, que no se
+        versiona.
+      </li>
+      <li>Las prohibiciones y las dependencias aprobadas son de E1.</li>
+    </ul>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/ingenieria/e1-entorno">Entorno (E1)</a>
+  </footer>
+</article>
