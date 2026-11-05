@@ -498,6 +498,10 @@ Reglas del crecimiento:
   URL pública, sin la clave, sin el bucket y sin barra final; el adaptador solo añade `/<object_key>`.
   Verla como línea de base en el registro de entorno
   ([`workspace-env.md`](../.scripts/workspace-env.md:92)).
+- **Revisión (2026-11-05, ciclo 4g):** cambia el **camino de escritura**, no el de lectura. El
+  navegador escribe las tres variantes con una URL prefirmada y el backend sólo verifica (`HEAD`),
+  copia a la clave definitiva y borra el staging; el cuerpo de la foto deja de atravesar el API.
+  `publicUrl` sigue emitiéndose desde el backend y el navegador sigue descargando del almacén. Ver §45.
 - **Disparador de revisión:** cambio de proveedor de almacenamiento o de retención; dominio propio o
   primer tráfico real para sustituir `r2.dev`.
 
@@ -1072,3 +1076,33 @@ Reglas del crecimiento:
   explica el motivo (commit `4384056`).
 - **Disparador de revisión:** el comprador que pida el total, un carrito que deba compartirse entre
   dispositivos, o un vendedor que necesite exclusividad por artículo.
+
+## 45. La foto va del navegador al almacén y el botón dice cuánto falta (2026-11-05)
+
+- **Decisión:** las tres variantes salen del teléfono **directo al almacén** con una URL prefirmada que
+  emite un **ticket** (`POST /events/:eventId/captures`). El backend no recibe el cuerpo de la foto:
+  verifica cada objeto con `HEAD`, lo copia a su clave definitiva y escribe las filas cuando el humano
+  **adjunta** la captura al artículo (`POST …/items/:itemId/photos`). El borrador de IA **no se toca**:
+  la mediana sigue yendo a Railway, que la convierte a base64 y no la guarda (§34 intacta).
+- **Motivo:** publicar costaba dos piernas por variante y transmitía la mediana dos veces, y la espera
+  del tap no decía nada. Con el ticket, `large` y `thumb` cruzan **una** pierna y el botón pulsado
+  muestra el porcentaje real ponderado por bytes, se queda en 99 % hasta que el servidor confirma y
+  cierra con un destello de 250 ms antes de volver a su estado inicial deshabilitado.
+- **Nada se escribe antes de la decisión:** el ticket sólo firma. Si el humano descarta la foto,
+  `DELETE …/captures/:captureId` borra el staging; el barrido por edad es la red.
+- **Alternativa descartada — persistir la mediana al pedir el borrador (B3):** ahorraba una transmisión
+  de ~100 KB y escribía en el almacén antes de que el humano decidiera, además de invertir §34 y
+  `plan-ciclo-3d` §4.
+- **Alternativa descartada — que el backend lea la mediana del almacén (B2):** borrador más lento y R2
+  dentro del camino de la IA.
+- **Alternativa descartada — subida anticipada y cola en segundo plano:** las dos mueven el momento del
+  compromiso; la primera gasta datos de fotos descartadas y la segunda exige un estado «en proceso» y
+  persistencia en disco. Su disparador vive en `analisis-transporte-foto-r2` §8.
+- **Alternativa descartada — un worker para subir:** no acelera la red y muere con la pestaña; el
+  `fetch` ya es asíncrono.
+- **Costo aceptado:** con borrador de IA la mediana sale del teléfono dos veces (≈100 KB), y el prefijo
+  `captures/` puede dejar objetos si el `DELETE` falla; el barrido (C1) es su respuesta.
+- **Implementada por:** el corte del ciclo 4g (`plan-ciclo-4g-direct-upload`), **sin migración**; la
+  dependencia `@aws-sdk/s3-request-presigner` queda registrada en `stack` §12.
+- **Disparador de revisión:** una queja por consumo de datos con muchas capturas, o más de 50 objetos
+  bajo `captures/` que ningún `DELETE` explique.

@@ -25,18 +25,25 @@ El dossier es el producto de `wiki`: explica cómo está hecha la aplicación y 
 colaboradores externos del proyecto open source. Cada ciclo añade **una** sección, escrita en el
 mismo ciclo que produce el hecho que explica.
 
+> **Revisión del corte 4g (`direct-upload`):** la sección 3 describe la tubería de la foto y cambió:
+> el navegador escribe las tres variantes con una URL prefirmada y el backend sólo verifica, copia y
+> borra el staging (decisión §45). La mediana del borrador sigue yendo a Railway. La sección se
+> corrige sin añadir una nueva.
+
 | Ciclo | Sección del dossier                                                           | Estado    |
 | ----- | ----------------------------------------------------------------------------- | --------- |
 | 1     | Identidad: dos factores y por qué el enlace de invitación muere al primer uso | Propuesta |
 | 2     | Roles y superficies: por qué tres frontends y no uno                          | Propuesta |
 | 3     | Foto a ficha: contrato de la IA, revisión y publicación en una pantalla       | Escrita   |
-| 4     | Catálogo público: indexación, bloqueo de 15 minutos y venta fuera de banda    | Propuesta |
+| 4     | Catálogo público: indexación, interés de compra y venta fuera de banda        | Propuesta |
 | 5     | La regla 4/11/21 como función pura y su justificación económica               | Propuesta |
 | 6     | Empaque y cotización: de la estimación burda al dato verificable              | Propuesta |
 
 - Una sección se escribe cuando su hecho ya existe en el código; mientras tanto su estado es
   `Propuesta` y no se documenta por anticipado.
 - La superficie pública `shop` ya existe como bootstrap (ciclo 3b: workspace, puerto `4202` y Worker
-  `mudanzapp-shop`), todavía sin catálogo; la sección 4 habla de su comportamiento cuando `publish` y
-  `reserve` la llenen de contenido (decisión §20 de
+  `mudanzapp-shop`) y desde 4a sirve el índice del evento. La sección 4 habla del catálogo cuando
+  `publish`, el interés de compra (4e) y el carrito (4f) la llenen de contenido: el apartado de 15
+  minutos quedó sustituido por `app.purchase_interest` (decisión §38, que supera a §25), así que la
+  sección sigue en `Propuesta` hasta que exista 4e. Referencias: decisiones §20 y §28 de
   [`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md)).

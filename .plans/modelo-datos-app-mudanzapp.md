@@ -115,7 +115,11 @@ Restricciones que van con el DDL:
   primera vez; los ya publicados siguen respondiendo `200`;
 - la **retención** aprobada es «la foto vive mientras exista el `listing`»: `app.item_photo` cae en
   cascada con el artículo, pero el objeto del bucket **no**. El barrido de huérfanos es manual y hoy
-  no tiene script (`plan-ciclo-3c` §10).
+  no tiene script (`plan-ciclo-3c` §10);
+- desde el corte 4g el almacén tiene un **staging**: `<eventId>/captures/<captureId>/<variant>` es lo
+  que el navegador escribió y todavía no se adjuntó. La adjunción lo copia a la clave definitiva y lo
+  borra; el barrido por edad de ese prefijo es la red (C1 del backlog). El modelo no cambia: la
+  captura no tiene tabla.
 
 El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app` de
 [`backend/sql/001_init.sql`](../backend/sql/001_init.sql). Las seis tablas del corte de identidad
