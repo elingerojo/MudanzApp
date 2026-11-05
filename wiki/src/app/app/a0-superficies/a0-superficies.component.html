@@ -1,0 +1,243 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="A0"
+    title="Actores y superficies"
+    route="app/a0-superficies"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Tres superficies, tres audiencias</h3>
+    <p>
+      La aplicación no es una sola SPA con modos: son tres frontends independientes, cada uno con su
+      mapa de rutas, su puerto de desarrollo y su Worker. Las audiencias no comparten forma de
+      acceso, y por eso tampoco comparten régimen de indexación.
+    </p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Superficie</th>
+            <th class="py-1 pr-3 font-medium">Audiencia</th>
+            <th class="py-1 pr-3 font-medium">Acceso</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-2 pr-3 font-mono">frontend</td>
+            <td class="py-2 pr-3">
+              Quien administra la plataforma y los dispositivos de un evento.
+            </td>
+            <td class="py-2 pr-3">Privada: la sección del evento exige sesión.</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-2 pr-3 font-mono">shop</td>
+            <td class="py-2 pr-3">Visitante y comprador que llega por enlace.</td>
+            <td class="py-2 pr-3">Pública: índice del evento, ficha y cuenta del visitante.</td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-2 pr-3 font-mono">wiki</td>
+            <td class="py-2 pr-3">Colaborador externo que lee este registro.</td>
+            <td class="py-2 pr-3">Pública y estática.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">decisiones</code> §20 y §21; commit
+      <code class="font-mono">4b5deba</code> (2026-10-30) y
+      <code class="font-mono">5d2f7ad</code> (2026-10-31).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Quién es quién</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        <strong>Cuenta</strong>: identidad de la persona. El indicador
+        <code class="font-mono text-xs">isAdmin</code> la habilita para la administración de
+        plataforma; lo que eso permite se detalla en A1.
+      </li>
+      <li>
+        <strong>Sesión de cuenta</strong> frente a <strong>sesión de evento</strong>: la de cuenta
+        tiene sujeto y un alcance, <code class="font-mono text-xs">app</code> o
+        <code class="font-mono text-xs">shop</code>; la de evento no tiene sujeto. Documentar no
+        exige identidad.
+      </li>
+      <li>
+        <strong>Rol de evento</strong>: <code class="font-mono text-xs">owner</code> o
+        <code class="font-mono text-xs">member</code>. En una sesión de evento el rol es
+        <code class="font-mono text-xs">null</code>: es la ausencia de membresía, no un rol vacío, y
+        es lo que el cliente usa para ofrecer el reclamo.
+      </li>
+      <li>
+        <strong>Co-dispositivo</strong>: varios dispositivos de la misma cuenta trabajan en paralelo
+        dentro del evento. El reclamo con cuenta es <strong>aditivo</strong>: añade una forma de
+        volver a entrar y no cierra invitaciones ni revoca sesiones.
+      </li>
+      <li>
+        <strong>Visitante</strong>: llega a <code class="font-mono text-xs">shop</code> sin cuenta y
+        puede abrir una sesión de alcance <code class="font-mono text-xs">shop</code> para su cuenta
+        de visitante.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/identity.ts</code>; commits
+      <code class="font-mono">a119106</code> y <code class="font-mono">d21c8f8</code> (2026-10-30).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Por dónde entra cada uno</h3>
+    <dl class="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-xs">
+      <dt class="font-mono text-slate-500">frontend</dt>
+      <dd>
+        <code class="font-mono">/</code> inicio público ·
+        <code class="font-mono">/invitacion</code> canje del enlace ·
+        <code class="font-mono">/auth/callback</code> vuelta del proveedor de identidad ·
+        <code class="font-mono">/eventos/:eventId</code> sección del evento, con guarda de sesión, y
+        sus hijas <code class="font-mono">capturados</code>,
+        <code class="font-mono">articulos/:itemId</code> y <code class="font-mono">dashboard</code>,
+        esta última con guarda de administración de evento.
+      </dd>
+
+      <dt class="font-mono text-slate-500">shop</dt>
+      <dd>
+        <code class="font-mono">/evento/:publicSlug</code> índice público ·
+        <code class="font-mono">/:slug</code> ficha · <code class="font-mono">/cuenta</code> cuenta
+        del visitante · <code class="font-mono">/carrito/:publicSlug</code> carrito ·
+        <code class="font-mono">/auth/callback</code> vuelta del proveedor.
+        <span class="text-slate-500">
+          <code class="font-mono">cuenta</code> y <code class="font-mono">carrito</code> se declaran
+          antes de <code class="font-mono">:slug</code>: son rutas de un segmento y el comodín las
+          capturaría como ficha.
+        </span>
+      </dd>
+
+      <dt class="font-mono text-slate-500">wiki</dt>
+      <dd>
+        Este registro. El humo del arranque vive en <code class="font-mono">/estado</code>; el
+        contrato de las rutas está en
+        <a class="underline" routerLink="/ingenieria/m0-registro">M0</a>.
+      </dd>
+    </dl>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">frontend/src/app/app.routes.ts</code>,
+      <code class="font-mono">shop/src/app/app.routes.ts</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Puertos de desarrollo</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Proceso</th>
+            <th class="py-1 pr-3 font-medium">Puerto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3">backend (<code class="font-mono">dev:api</code>)</td>
+            <td class="py-1 pr-3 font-mono">3000</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3"><code class="font-mono">frontend</code></td>
+            <td class="py-1 pr-3 font-mono">4200</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3"><code class="font-mono">wiki</code></td>
+            <td class="py-1 pr-3 font-mono">4201</td>
+          </tr>
+          <tr>
+            <td class="py-1 pr-3"><code class="font-mono">shop</code></td>
+            <td class="py-1 pr-3 font-mono">4202</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      El puerto de cada frontend es siempre explícito porque
+      <code class="font-mono text-xs">ng serve</code> honra la variable
+      <code class="font-mono text-xs">PORT</code> y heredaría el del backend. Cada frontend proxya
+      <code class="font-mono text-xs">/api</code> al backend local.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">e2e/support/harness.ts</code>; commits
+      <code class="font-mono">6433d8d</code> (2026-10-23) y <code class="font-mono">2bb04f7</code>
+      (2026-10-23).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Workers</h3>
+    <p>
+      Cada superficie se publica en su propio Worker de Cloudflare. El de
+      <code class="font-mono text-xs">wiki</code> (<code class="font-mono text-xs"
+        >mudanzapp-wiki</code
+      >) sirve solo assets, con el fallback de SPA. El de
+      <code class="font-mono text-xs">shop</code> (<code class="font-mono text-xs"
+        >mudanzapp-shop</code
+      >) añade un script que intercepta <code class="font-mono text-xs">/evento/*</code> para
+      componer el índice con su snapshot; el resto de las rutas sigue el camino de assets.
+    </p>
+    <p>
+      El origen del backend que usa ese script se escribe en la configuración del Worker y una
+      prueba del backend falla si deja de coincidir con el entorno compilado: el origen sigue
+      teniendo una sola verdad verificada.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">wiki/wrangler.jsonc</code>,
+      <code class="font-mono">shop/wrangler.jsonc</code>; commit
+      <code class="font-mono">6ee825d</code>.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Arnés de pruebas y humo</h3>
+    <p>
+      El arnés e2e declara un <code class="font-mono text-xs">project</code> de Playwright por
+      frontend, corre con un solo worker y comparte una única base de pruebas. Las integraciones se
+      declaran en modo <code class="font-mono text-xs">fake</code>, así que ninguna prueba depende
+      de un proveedor real.
+    </p>
+    <p>
+      El humo lee <code class="font-mono text-xs">/health</code> y muestra el estado del proceso y
+      de la base. En <code class="font-mono text-xs">wiki</code> vive en
+      <a class="underline" routerLink="/estado">/estado</a>; en
+      <code class="font-mono text-xs">shop</code> sigue en
+      <code class="font-mono text-xs">/</code> porque el índice del evento ocupa
+      <code class="font-mono text-xs">/evento/:publicSlug</code>.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">e2e/playwright.config.ts</code>,
+      <code class="font-mono">e2e/support/harness.ts</code>; commit
+      <code class="font-mono">2bb04f7</code> (2026-10-23).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>El recorrido de cada actor — invitar, canjear, capturar, publicar — vive en A2.</li>
+      <li>
+        El catálogo, el carrito y el régimen de indexación de la superficie pública viven en A3.
+      </li>
+      <li>Los contratos compartidos, el modelo de datos y los códigos estables viven en A4.</li>
+      <li>Las guardas de la administración y sus límites viven en A1.</li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Esas rutas todavía no se enlazan: los tiles están declarados en el índice como pendientes.
+    </p>
+  </section>
+
+  <footer class="border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+  </footer>
+</article>

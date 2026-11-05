@@ -1,0 +1,57 @@
+<article class="flex flex-col gap-8 text-sm leading-relaxed text-slate-700">
+  <section class="flex flex-col gap-3">
+    <h2 class="text-xl font-semibold tracking-tight text-slate-900">
+      Registro del estado presente
+    </h2>
+    <p>
+      Este dossier no cuenta la historia del proyecto: describe cómo está hoy. Cada bloque es un
+      <strong>tile</strong> con un dueño, una cabecera de frescura y las decisiones de las que
+      depende. Si un hecho aparece en dos tiles, uno lo posee y el otro enlaza.
+    </p>
+    <p>
+      El humo del arranque vive en <a class="underline" routerLink="/estado">/estado</a> y lee
+      <code class="font-mono text-xs">/health</code> del backend.
+    </p>
+    <p class="text-xs text-slate-500">
+      La página <code class="font-mono">/foto-a-ficha</code> es contenido heredado de la sección 3
+      del dossier: sus claims se absorben en los tiles A2 (recorrido) y A4 (contrato de la IA) y su
+      ruta se retira cuando ambos los publican. Por eso no se enlaza aquí.
+    </p>
+  </section>
+
+  @for (block of blocks; track block.label) {
+    <section class="flex flex-col gap-3">
+      <header>
+        <h2 class="text-lg font-semibold text-slate-900">{{ block.label }}</h2>
+        <p class="text-xs text-slate-500">{{ block.note }}</p>
+      </header>
+
+      <ul class="flex flex-col gap-3">
+        @for (tile of block.tiles; track tile.code) {
+          <li
+            class="rounded-lg border border-slate-200 p-3"
+            [attr.data-testid]="'tile-' + tile.code"
+          >
+            <div class="flex items-baseline gap-2">
+              <span class="font-mono text-xs text-slate-500">{{ tile.code }}</span>
+              @if (isBuilt(tile)) {
+                <a class="text-sm font-medium text-slate-900 underline" [routerLink]="tile.route">
+                  {{ tile.title }}
+                </a>
+              } @else {
+                <span class="text-sm font-medium text-slate-400">{{ tile.title }}</span>
+                <span
+                  class="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-500"
+                >
+                  pendiente
+                </span>
+              }
+            </div>
+            <p class="mt-1 text-xs text-slate-600">{{ tile.summary }}</p>
+            <p class="mt-1 font-mono text-xs text-slate-400">/{{ tile.route }}</p>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</article>

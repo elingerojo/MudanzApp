@@ -1,0 +1,125 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="M0"
+    title="Registro del estado presente"
+    route="ingenieria/m0-registro"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué es este registro</h3>
+    <p>
+      Describe cómo está el sistema <strong>hoy</strong>. No es un diario de ciclos ni una promesa:
+      si una capacidad no existe, no tiene página.
+    </p>
+    <p>
+      Se escribe desde el texto de los commits —asunto y cuerpo— y se verifica contra el código solo
+      en lo que cada claim necesita. Leer todo el código produce demasiado contexto, deja puntos
+      ciegos y mezcla hechos vigentes con correcciones posteriores.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">plans/pre-backfill-plan-wiki.md</code> §1 y §4.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El mapa es fijo</h3>
+    <p>
+      Diez tiles en dos bloques: <span class="font-mono text-xs">M0</span> y
+      <span class="font-mono text-xs">E1</span>–<span class="font-mono text-xs">E3</span> para
+      ingeniería; <span class="font-mono text-xs">A0</span>–<span class="font-mono text-xs"
+        >A5</span
+      >
+      para la aplicación. No se crea una sección por funcionalidad: un tile fijo se actualiza cuando
+      su hecho cambia.
+    </p>
+    <p>
+      La lista vive en <code class="font-mono text-xs">wiki/src/app/tiles.ts</code> y de ahí se
+      derivan el índice y las rutas, así que no hay dos mapas que puedan discrepar.
+    </p>
+    <p class="text-xs text-slate-500">
+      Supera el roadmap de seis secciones de <code class="font-mono">wiki/README.md</code>: sus
+      secciones 1, 2 y 4 se absorben en A2, A0 y A3; las 5 y 6 van a A5 como brechas.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Un hecho, un dueño</h3>
+    <p>
+      Cada hecho —un nombre, un código de error, una ruta, una regla de indexación— tiene una sola
+      ubicación autoritativa. Cuando dos tiles podrían contenerlo, uno lo posee y el otro enlaza. Si
+      dos lugares discrepan, uno está mal y debe desaparecer.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.guidelines/02</code> §1 y §5.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Rutas</h3>
+    <ul class="flex flex-col gap-1 text-xs">
+      <li><code class="font-mono">/</code> — este índice.</li>
+      <li>
+        <code class="font-mono">/estado</code> — humo del arranque; antes ocupaba
+        <code class="font-mono">/</code>.
+      </li>
+      <li>
+        <code class="font-mono">/ingenieria/⟨código⟩-⟨slug⟩</code> — tiles del bloque de ingeniería.
+      </li>
+      <li><code class="font-mono">/app/⟨código⟩-⟨slug⟩</code> — tiles del bloque de aplicación.</li>
+    </ul>
+    <p>
+      El código del tile se conserva en la ruta para que el mapa del pre-plan siga siendo trazable;
+      el slug la hace legible para quien llega desde fuera.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Cabecera y frescura</h3>
+    <p>
+      Todo tile abre con la misma cabecera: código y título, ruta pública, estado, última
+      verificación, áreas del código y decisiones de las que depende.
+    </p>
+    <p>
+      <span class="font-mono text-xs">current</span> significa que los claims se contrastaron con el
+      código vigente. <span class="font-mono text-xs">stale</span> significa que se comprobó y ya no
+      coincide: se corrige o se borra, no se deja como advertencia permanente.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Cómo se cita un hecho</h3>
+    <p>
+      Con commit y fecha, con una ruta de archivo, o con la confirmación del dueño. Se citan rutas,
+      nombres de variable y códigos estables; nunca valores de entorno ni credenciales, y nunca
+      bloques de código: el código cambia y el registro debe seguir siendo la descripción, no una
+      copia.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Lo retirado y lo que falta</h3>
+    <p>
+      Una capacidad retirada se borra del mapa; no se documenta la historia de su retirada. Una
+      capacidad no construida o aparcada no abre página: se registra en
+      <code class="font-mono text-xs">/app/a5-brechas</code> con el disparador que la revisa.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Procedencia</h3>
+    <p>
+      El contenido nace del texto de commits clasificado en
+      <code class="font-mono text-xs">plans/pre-backfill-plan-wiki.md</code>. El procedimiento de
+      mantenimiento por funcionalidad todavía no está escrito: es una brecha registrada en A5, con
+      disparador en el primer cierre de funcionalidad posterior a este backfill.
+    </p>
+  </section>
+
+  <footer class="border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+  </footer>
+</article>

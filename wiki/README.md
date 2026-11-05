@@ -6,11 +6,17 @@ crece una ruta por ciclo.
 
 ## Rutas
 
-| Ruta            | Página                | Qué es                                                     |
-| --------------- | --------------------- | ---------------------------------------------------------- |
-| `/`             | `StatusComponent`     | Humo del arranque: proceso y base desde `/health`          |
-| `/foto-a-ficha` | `FotoAFichaComponent` | Dossier §3: contrato de la IA, revisión y publicación (3d) |
+| Ruta                      | Página                   | Qué es                                                                |
+| ------------------------- | ------------------------ | --------------------------------------------------------------------- |
+| `/`                       | `IndiceComponent`        | Índice del registro: los diez tiles del mapa                          |
+| `/estado`                 | `StatusComponent`        | Humo del arranque: proceso y base desde `/health`                     |
+| `/ingenieria/m0-registro` | `M0RegistroComponent`    | Contrato del registro: mapa fijo, frescura y forma de citar           |
+| `/app/a0-superficies`     | `A0SuperficiesComponent` | Actores, superficies, puertos y Workers                               |
+| `/foto-a-ficha`           | `FotoAFichaComponent`    | Heredada: sección 3 del dossier; se retira cuando A2 y A4 la absorban |
 
+- El mapa de tiles —código, título, ruta y disponibilidad— vive en
+  [`src/app/tiles.ts`](src/app/tiles.ts:1) y de ahí se derivan el índice y las rutas. Un tile
+  pendiente aparece en el índice sin enlace y no tiene ruta publicada.
 - **Dev**: `npm run dev -w wiki -- --port 4201` desde la raíz. El puerto `4200` lo usa
   `frontend`; el segundo frontend queda en `4201`. El proxy `/api` apunta al backend local en
   `:3000`.
@@ -21,29 +27,21 @@ crece una ruta por ciclo.
 
 ## Dossier
 
-El dossier es el producto de `wiki`: explica cómo está hecha la aplicación y por qué, como base para
-colaboradores externos del proyecto open source. Cada ciclo añade **una** sección, escrita en el
-mismo ciclo que produce el hecho que explica.
+El dossier es el producto de `wiki`: describe el estado **presente** de la aplicación y por qué está
+así, como base para colaboradores externos del proyecto open source. El registro no cuenta la
+historia de los ciclos y no crece con una sección por funcionalidad: es un mapa fijo de tiles que se
+actualiza cuando su hecho cambia.
 
-> **Revisión del corte 4g (`direct-upload`):** la sección 3 describe la tubería de la foto y cambió:
-> el navegador escribe las tres variantes con una URL prefirmada y el backend sólo verifica, copia y
-> borra el staging (decisión §45). La mediana del borrador sigue yendo a Railway. La sección se
-> corrige sin añadir una nueva.
+| Bloque     | Tiles     | Cubre                                                                                                 |
+| ---------- | --------- | ----------------------------------------------------------------------------------------------------- |
+| Ingeniería | M0, E1–E3 | Contrato del registro, entorno y dependencias, alcance, entrega y verificación                        |
+| Aplicación | A0–A5     | Actores y superficies, administración, cuenta y captura, catálogo público, contratos y datos, brechas |
 
-| Ciclo | Sección del dossier                                                           | Estado    |
-| ----- | ----------------------------------------------------------------------------- | --------- |
-| 1     | Identidad: dos factores y por qué el enlace de invitación muere al primer uso | Propuesta |
-| 2     | Roles y superficies: por qué tres frontends y no uno                          | Propuesta |
-| 3     | Foto a ficha: contrato de la IA, revisión y publicación en una pantalla       | Escrita   |
-| 4     | Catálogo público: indexación, interés de compra y venta fuera de banda        | Propuesta |
-| 5     | La regla 4/11/21 como función pura y su justificación económica               | Propuesta |
-| 6     | Empaque y cotización: de la estimación burda al dato verificable              | Propuesta |
-
-- Una sección se escribe cuando su hecho ya existe en el código; mientras tanto su estado es
-  `Propuesta` y no se documenta por anticipado.
-- La superficie pública `shop` ya existe como bootstrap (ciclo 3b: workspace, puerto `4202` y Worker
-  `mudanzapp-shop`) y desde 4a sirve el índice del evento. La sección 4 habla del catálogo cuando
-  `publish`, el interés de compra (4e) y el carrito (4f) la llenen de contenido: el apartado de 15
-  minutos quedó sustituido por `app.purchase_interest` (decisión §38, que supera a §25), así que la
-  sección sigue en `Propuesta` hasta que exista 4e. Referencias: decisiones §20 y §28 de
+- El contrato del registro —un dueño por hecho, cabecera de frescura, qué se cita y qué se retira—
+  vive en [`/ingenieria/m0-registro`](src/app/ingenieria/m0-registro/m0-registro.component.html:1).
+- Un tile sin contenido verificado aparece en el índice como `pendiente` y no se enlaza.
+- El roadmap anterior de seis secciones queda superado: las secciones 1, 2 y 4 se absorben en A2, A0
+  y A3; las 5 y 6 pasan a A5 como brechas. La revisión del corte 4g (`direct-upload`) sigue vigente
+  —el navegador escribe las tres variantes con una URL prefirmada y la mediana del borrador va a
+  Railway— y sus claims pertenecen a A2 y A4. Referencias: decisiones §20, §28 y §45 de
   [`decisiones-tecnicas`](../.plans/decisiones-tecnicas-app-mudanzapp.md)).

@@ -1,0 +1,30 @@
+<header
+  class="flex flex-col gap-2 border-b border-slate-200 pb-4"
+  [attr.data-testid]="'tile-header-' + code()"
+>
+  <div class="flex items-baseline gap-2">
+    <span class="font-mono text-xs text-slate-500">{{ code() }}</span>
+    <h2 class="text-xl font-semibold tracking-tight">{{ title() }}</h2>
+  </div>
+  <p class="font-mono text-xs text-slate-400">/{{ route() }}</p>
+
+  <dl class="mt-2 grid grid-cols-[10rem_1fr] gap-x-3 gap-y-1 text-xs">
+    <dt class="text-slate-500">Estado</dt>
+    <dd>
+      @if (status() === 'current') {
+      <span class="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-emerald-700">current</span>
+      } @else {
+      <span class="rounded-full bg-amber-50 px-2 py-0.5 font-mono text-amber-700">stale</span>
+      }
+    </dd>
+
+    <dt class="text-slate-500">Última verificación</dt>
+    <dd class="text-slate-700">{{ verified() }}</dd>
+
+    <dt class="text-slate-500">Áreas del código</dt>
+    <dd class="font-mono text-slate-700">{{ areas().join(' · ') }}</dd>
+
+    <dt class="text-slate-500">Decisiones</dt>
+    <dd class="text-slate-700">{{ decisions().join(' · ') }}</dd>
+  </dl>
+</header>
