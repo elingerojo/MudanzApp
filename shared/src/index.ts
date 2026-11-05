@@ -7,6 +7,23 @@
  */
 export { AI_DRAFT_LIMITS, aiDraftSchema } from './ai.js';
 export type { AiDraft, AiDraftResult } from './ai.js';
+export {
+  CAPTURE_KEY_SEGMENT,
+  CAPTURE_LIMITS,
+  attachPhotosSchema,
+  captureKeyPrefix,
+  captureObjectKey,
+  captureTicketRequestSchema,
+} from './capture.js';
+export type {
+  AttachPhotosRequest,
+  AttachedPhotos,
+  CaptureAttach,
+  CaptureTicket,
+  CaptureTicketRequest,
+  CaptureUploadUrl,
+  CaptureVariantDims,
+} from './capture.js';
 export { EVENT_CARD_LIMITS, EVENT_CARD_SIZES, cardModel, publishedLabel } from './card.js';
 export type { EventCardEntry, EventCardImage, EventCardModel, EventCardThumb } from './card.js';
 export {

@@ -7,6 +7,7 @@ import { createApp } from '../../src/app.js';
 import type { Database } from '../../src/db.js';
 import { createOAuthVerifier, type OAuthVerifier } from '../../src/identity/oauth.js';
 import type { ObjectStore } from '../../src/storage/object-store.js';
+import { createMemoryObjectStore } from './memory-object-store.js';
 
 export interface RunningApp {
   readonly baseUrl: string;
@@ -19,6 +20,11 @@ export interface TestAppOptions {
   readonly database?: Database;
   /** Reloj inyectado; la cortesía de venta no debe depender del reloj de la máquina. */
   readonly now?: () => Date;
+  /**
+   * Almacén que la prueba crea y siembra. Sin él se usa uno nuevo en memoria: una prueba de la
+   * adjunción necesita dejar objetos en el staging antes de llamar al borde.
+   */
+  readonly storage?: ObjectStore;
   /**
    * Verificador concreto cuando la prueba necesita el adaptador y no el doble: el canje del código
    * (4c-1b) solo existe en `live`, así que su frontera se ejerce con un doble del verificador.
@@ -55,17 +61,9 @@ export async function startTestApp(
     });
 
   // Doble en memoria del almacén: el humo no escribe fotos, y un almacén real aquí haría que la
-  // prueba dependiera del sistema de archivos. La base pública es propia del doble, igual que en
-  // `r2-fake`, para que ninguna corrida dependa de R2 (`plan-ciclo-3c` §7).
-  const objects = new Map<string, { readonly bytes: Buffer; readonly contentType: string }>();
-  const storage: ObjectStore = {
-    put: (key, bytes, contentType) => {
-      objects.set(key, { bytes, contentType });
-      return Promise.resolve();
-    },
-    get: (key) => Promise.resolve(objects.get(key) ?? null),
-    publicUrl: (key) => `https://fake.r2.local/${key}`,
-  };
+  // prueba dependiera del sistema de archivos. La concesión de firma es la misma que usa la ruta
+  // `PUT /__fake-r2/put`, así que una prueba de frontera recorre el camino real del navegador.
+  const storage: ObjectStore = options.storage ?? createMemoryObjectStore();
 
   const server = createApp({
     database,

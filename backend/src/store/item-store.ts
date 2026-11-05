@@ -246,12 +246,14 @@ export async function listItemsForEvent(
 }
 
 /**
- * Escribe la foto del artículo —el tamaño `large`— en las columnas heredadas. La posición 0 es única
- * por artículo, así que una segunda subida reemplaza la anterior en vez de acumular filas: el corte
- * admite **una** foto por artículo y la tabla queda lista para más posiciones sin migrar.
+ * Escribe la foto del artículo —el tamaño `large`— en las columnas heredadas.
  *
- * `byte_size` sigue siendo obligatoria y guarda el peso del tamaño `large`: nadie lo lee y se retira
- * con el GC, no en este ciclo.
+ * `position` es la posición de la foto en el artículo y el par `(item_id, position)` es único, así
+ * que reemplazar la foto de una posición no acumula filas: la 0 es la principal y la galería de 3e
+ * usa las siguientes sin migrar (ciclo 4g, `direct-upload`).
+ *
+ * `byte_size` sigue siendo obligatoria y guarda el peso del tamaño `large`: desde 4g lo dicta el
+ * `HEAD` del almacén, no el cliente.
  */
 export async function upsertItemPhoto(
   database: Queryable,
@@ -260,18 +262,19 @@ export async function upsertItemPhoto(
     readonly objectKey: string;
     readonly contentType: ItemPhotoContentType;
     readonly byteSize: number;
+    readonly position: number;
   },
 ): Promise<PhotoRecord> {
   const { rows } = await database.query<PhotoRecord>(
     `INSERT INTO app.item_photo (item_id, object_key, content_type, byte_size, position)
-     VALUES ($1, $2, $3, $4, 0)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (item_id, position) DO UPDATE
         SET object_key = EXCLUDED.object_key,
             content_type = EXCLUDED.content_type,
             byte_size = EXCLUDED.byte_size,
             created_at = now()
      RETURNING ${PHOTO_RETURNING}`,
-    [input.itemId, input.objectKey, input.contentType, input.byteSize],
+    [input.itemId, input.objectKey, input.contentType, input.byteSize, input.position],
   );
 
   const photo = rows[0];

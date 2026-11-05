@@ -89,6 +89,21 @@ export const ERROR_CATALOG = {
     status: 400,
     message: 'Photo is not acceptable',
   },
+  /**
+   * La captura no existe para este evento: el `captureId` no es suyo, o la sesión no puede disponer
+   * del evento. No se distingue de una captura inexistente (`decisiones` §24).
+   */
+  capture_not_found: {
+    code: 'capture_not_found',
+    status: 404,
+    message: 'Capture not found',
+  },
+  /** Falta alguna de las tres variantes en el staging: el cliente sube lo que falta y reintenta. */
+  capture_incomplete: {
+    code: 'capture_incomplete',
+    status: 409,
+    message: 'The capture is missing one of its variants',
+  },
   r2_mode_invalid: {
     code: 'r2_mode_invalid',
     status: 500,

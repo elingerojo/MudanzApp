@@ -1,8 +1,10 @@
 import {
+  attachPhotosSchema,
+  captureObjectKey,
   createItemSchema,
   photoVariantSchema,
-  photoVariantUploadSchema,
   updateItemSchema,
+  type AttachedPhotos,
   type CreatedItem,
   type ItemList,
   type ItemPhoto,
@@ -38,7 +40,6 @@ import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
 import { requireEventAdministrator } from './event-administration.js';
 import { toItemPhoto, toItemSummary } from './presenters.js';
-import { declaredContentType, readPhotoBody } from './raw-body.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
@@ -250,88 +251,116 @@ export function createItemsRouter(deps: IdentityDeps): Router {
   });
 
   /**
-   * Subida de **una** variante: cuerpo binario crudo, el tipo declarado en la cabecera y la variante
-   * con sus dimensiones reales en la URL. La posición 0 es la única del corte, así que una segunda
-   * subida del mismo tamaño reemplaza el objeto anterior.
+   * Adjunta una o varias capturas al artículo (ciclo 4g, `direct-upload`).
    *
-   * El tamaño `large` crea o reemplaza la foto —y rellena las columnas heredadas, que es la deuda
-   * declarada con el GC—; `medium` y `thumb` solo añaden su fila y exigen que la foto exista: una
-   * variante suelta responde `item_not_found`.
+   * El navegador ya subió las tres variantes a su clave de staging; aquí se verifica cada objeto con
+   * `HEAD` —tipo, peso real y el tope del lado de su tamaño—, se copia a la clave definitiva, se
+   * escriben las filas y se borra el staging. El arreglo y el `slot` existen desde el primer día para
+   * que la galería de 3e no cambie el contrato.
    *
-   * El objeto se escribe **antes** que su fila: si la fila falla, queda un objeto huérfano en el
-   * almacén, que es un daño menor y reversible; al revés, la fila apuntaría a una foto inexistente.
+   * Se verifica **antes** de escribir: una captura incompleta responde `capture_incomplete` sin dejar
+   * filas a medias, y un objeto con otro tipo o tamaño responde `photo_invalid`.
    */
-  router.put('/events/:eventId/items/:itemId/photo', requireSession, (request, response, next) => {
-    const handle = async (): Promise<void> => {
-      const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
-      const identity = identityOf(request);
+  router.post(
+    '/events/:eventId/items/:itemId/photos',
+    requireSession,
+    (request, response, next) => {
+      const handle = async (): Promise<void> => {
+        const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+        const identity = identityOf(request);
 
-      if (!(await canAct(identity, eventId))) {
-        throw new AppError('not_found');
-      }
+        if (!(await canAct(identity, eventId))) {
+          throw new AppError('not_found');
+        }
 
-      const item = await findItem(deps.database, eventId, itemId);
-      if (item === null) {
-        throw new AppError('item_not_found');
-      }
+        const item = await findItem(deps.database, eventId, itemId);
+        if (item === null) {
+          throw new AppError('item_not_found');
+        }
 
-      // La variante y sus medidas son parte del cuerpo de la petición: una desconocida, ausente o
-      // fuera del tamaño de su variante es `photo_invalid`, el mismo código con el que el cliente ya
-      // explica el rechazo (`plan-ciclo-3c-optimizar` §5).
-      const upload = photoVariantUploadSchema.safeParse(request.query);
-      if (!upload.success) {
-        throw new AppError('photo_invalid');
-      }
+        const { captures } = parseOrThrow(attachPhotosSchema, request.body);
 
-      const { variant, w, h } = upload.data;
+        const verified = await Promise.all(
+          captures.map(async (capture) => {
+            const variants = await Promise.all(
+              capture.variants.map(async (variant) => {
+                const key = captureObjectKey(eventId, capture.captureId, variant.variant);
+                const head = await deps.storage.head(key);
+                if (head === null) {
+                  throw new AppError('capture_incomplete');
+                }
 
-      const contentType = photoVariantContentType(declaredContentType(request));
-      if (contentType === null || !isAcceptedVariant(variant, contentType, w, h)) {
-        throw new AppError('photo_invalid');
-      }
+                const contentType = photoVariantContentType(head.contentType);
+                if (
+                  contentType === null ||
+                  !isAcceptedVariant(
+                    variant.variant,
+                    contentType,
+                    variant.widthPx,
+                    variant.heightPx,
+                  )
+                ) {
+                  throw new AppError('photo_invalid');
+                }
 
-      const bytes = await readPhotoBody(request);
-      if (bytes.length === 0) {
-        throw new AppError('photo_invalid');
-      }
+                return { ...variant, key, contentType, byteSize: head.byteSize };
+              }),
+            );
 
-      const objectKey = newObjectKey(eventId, itemId, variant);
-      await deps.storage.put(objectKey, bytes, contentType);
+            return { slot: capture.slot, variants };
+          }),
+        );
 
-      const photoId =
-        variant === 'large'
-          ? (
-              await upsertItemPhoto(deps.database, {
-                itemId,
-                objectKey,
-                contentType,
-                byteSize: bytes.length,
-              })
-            ).id
-          : item.photoId;
+        const photos: ItemPhoto[] = [];
 
-      if (photoId === null) {
-        throw new AppError('item_not_found');
-      }
+        for (const capture of verified) {
+          const copied = capture.variants.map((variant) => ({
+            ...variant,
+            finalKey: newObjectKey(eventId, itemId, variant.variant),
+          }));
 
-      await upsertPhotoVariant(deps.database, {
-        photoId,
-        variant,
-        objectKey,
-        contentType,
-        widthPx: w,
-        heightPx: h,
-      });
+          const large = copied.find((variant) => variant.variant === 'large');
+          if (large === undefined) {
+            // El esquema exige las tres variantes; si falta, el defecto es del contrato, no del cliente.
+            throw new AppError('internal_error');
+          }
 
-      const variants = await findPhotoVariants(deps.database, photoId);
-      const payload: { readonly photo: ItemPhoto } = {
-        photo: toItemPhoto(photoId, variants),
+          await Promise.all(
+            copied.map((variant) => deps.storage.copy(variant.key, variant.finalKey)),
+          );
+
+          const photo = await upsertItemPhoto(deps.database, {
+            itemId,
+            objectKey: large.finalKey,
+            contentType: large.contentType,
+            byteSize: large.byteSize,
+            position: capture.slot,
+          });
+
+          for (const variant of copied) {
+            await upsertPhotoVariant(deps.database, {
+              photoId: photo.id,
+              variant: variant.variant,
+              objectKey: variant.finalKey,
+              contentType: variant.contentType,
+              widthPx: variant.widthPx,
+              heightPx: variant.heightPx,
+            });
+          }
+
+          photos.push(toItemPhoto(photo.id, await findPhotoVariants(deps.database, photo.id)));
+
+          // El staging ya cumplió: se borra sin poder tumbar la respuesta (el barrido es la red).
+          await Promise.allSettled(copied.map((variant) => deps.storage.delete(variant.key)));
+        }
+
+        const payload: AttachedPhotos = { photos };
+        response.status(200).json(payload);
       };
-      response.status(200).json(payload);
-    };
 
-    void handle().catch(next);
-  });
+      void handle().catch(next);
+    },
+  );
 
   /**
    * Lectura de una variante (`large` por defecto). Exige sesión del evento del artículo y responde

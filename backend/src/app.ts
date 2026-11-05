@@ -4,17 +4,21 @@ import express, { type Express } from 'express';
 import type { AiDraftProvider } from './ai/draft-provider.js';
 import { createCors } from './cors.js';
 import type { Database } from './db.js';
+import { AppError } from './errors.js';
 import { handleErrors } from './error-handler.js';
 import type { OAuthVerifier } from './identity/oauth.js';
 import { createAdminRouter } from './routes/admin-router.js';
 import { createAiRouter } from './routes/ai-router.js';
 import { createAuthRouter } from './routes/auth-router.js';
+import { createCapturesRouter } from './routes/captures-router.js';
 import { createPublicCartRouter } from './routes/cart-router.js';
 import type { IdentityDeps } from './routes/dependencies.js';
 import { createEventsRouter } from './routes/events-router.js';
 import { createItemsRouter } from './routes/items-router.js';
 import { createListingsRouter, createPublicListingsRouter } from './routes/listings-router.js';
+import { readPhotoBody } from './routes/raw-body.js';
 import type { ObjectStore } from './storage/object-store.js';
+import { FAKE_UPLOAD_PATH, consumeFakeUploadGrant } from './storage/r2-fake.js';
 
 /** El bootstrap inyecta las dependencias; las pruebas pasan dobles deterministas. */
 export interface AppDependencies {
@@ -45,6 +49,25 @@ export function createApp({
 
   // 2. JSON después de CORS: el preflight no lleva cuerpo y no debe pasar por el parser.
   app.use(express.json());
+
+  // 2.b Escritura directa del doble de almacenamiento (ciclo 4g, `direct-upload`). Se monta siempre
+  //     y sólo encuentra una concesión cuando `R2_MODE=fake` firmó el ticket: en `live` no hay
+  //     tokens, así que responde `404` sin revelar que la ruta existe.
+  app.put(FAKE_UPLOAD_PATH, (request, response, next) => {
+    const run = async (): Promise<void> => {
+      const token = typeof request.query.token === 'string' ? request.query.token : '';
+      const grant = consumeFakeUploadGrant(token);
+      if (grant === null) {
+        throw new AppError('not_found');
+      }
+
+      const bytes = await readPhotoBody(request);
+      await storage.put(grant.key, bytes, grant.contentType);
+      response.status(204).end();
+    };
+
+    void run().catch(next);
+  });
 
   // 3. Liveness: nunca 5xx. Una base caída no debe reiniciar un proceso sano; el estado
   //    de la dependencia va en el payload.
@@ -77,6 +100,9 @@ export function createApp({
   app.use(createEventsRouter(identity));
 
   // 7. Artículos y fotos del ciclo 3a (`capture`), con sus tres variantes desde 3c-optimizar.
+  //    Desde 4g, el ticket de captura va antes: firma las escrituras directas al almacén y no recibe
+  //    bytes; la adjunción al artículo sigue viviendo en `items-router`.
+  app.use(createCapturesRouter(identity));
   app.use(createItemsRouter(identity));
 
   // 7.b Borrador de la ficha con IA (`ai-draft`, ciclo 3d): recibe la mediana como cuerpo binario,

@@ -57,6 +57,7 @@ describe('item delete', () => {
       objectKey: `items/${randomUUID()}`,
       contentType: 'image/jpeg',
       byteSize: 1_024,
+      position: 0,
     });
 
     for (const variant of [

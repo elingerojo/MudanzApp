@@ -1,5 +1,13 @@
-import { GetObjectCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  type S3Client,
+} from '@aws-sdk/client-s3';
 
+import type { PresignPut, PresignPutInput } from '../../src/storage/object-store.js';
 import { createR2ObjectStore } from '../../src/storage/r2-live.js';
 
 /**
@@ -11,11 +19,15 @@ const BUCKET = 'mudanzapp-photos';
 const PUBLIC_BASE = 'https://pub-test.r2.dev';
 
 /** El cliente real es el del SDK; el doble solo necesita `send`. */
-function storeWith(send: (command: unknown) => Promise<unknown>) {
+function storeWith(
+  send: (command: unknown) => Promise<unknown>,
+  presign: PresignPut = () => Promise.resolve('https://signed.test/put'),
+) {
   return createR2ObjectStore({
     client: { send } as unknown as Pick<S3Client, 'send'>,
     bucket: BUCKET,
     publicBaseUrl: PUBLIC_BASE,
+    presign,
   });
 }
 
@@ -104,8 +116,97 @@ describe('r2 live object store', () => {
       >,
       bucket: BUCKET,
       publicBaseUrl: `${PUBLIC_BASE}/`,
+      presign: () => Promise.resolve('https://signed.test/put'),
     });
 
     expect(store.publicUrl('event/item/photo')).toBe(`${PUBLIC_BASE}/event/item/photo`);
+  });
+
+  it('signs a write with the declared type and the requested lifetime', async () => {
+    const calls: PresignPutInput[] = [];
+    const store = storeWith(
+      () => Promise.reject(new Error('not used')),
+      (input) => {
+        calls.push(input);
+        return Promise.resolve('https://signed.test/put?X-Amz-Signature=abc');
+      },
+    );
+
+    const url = await store.presignPut('event/captures/cap/large', 'image/webp', 900);
+
+    expect(url).toContain('X-Amz-Signature');
+    expect(calls).toEqual([
+      { key: 'event/captures/cap/large', contentType: 'image/webp', expiresInSeconds: 900 },
+    ]);
+  });
+
+  it('translates a signing failure into r2_unavailable', async () => {
+    const store = storeWith(
+      () => Promise.reject(new Error('not used')),
+      () => Promise.reject(new Error('no credentials')),
+    );
+
+    await expect(store.presignPut('k', 'image/webp', 900)).rejects.toMatchObject({
+      code: 'r2_unavailable',
+    });
+  });
+
+  it('reads the real type and size of an object with head', async () => {
+    const store = storeWith((command) => {
+      expect(command).toBeInstanceOf(HeadObjectCommand);
+
+      return Promise.resolve({ ContentType: 'image/webp', ContentLength: 1234 });
+    });
+
+    await expect(store.head('event/item/photo')).resolves.toEqual({
+      contentType: 'image/webp',
+      byteSize: 1234,
+    });
+  });
+
+  it('returns null from head when the object is not there', async () => {
+    const store = storeWith(() => Promise.reject(missingObject()));
+
+    await expect(store.head('event/item/photo')).resolves.toBeNull();
+  });
+
+  it('copies inside the bucket with the source encoded and the bucket in front', async () => {
+    const sent: unknown[] = [];
+    const store = storeWith((command) => {
+      sent.push(command);
+      return Promise.resolve({});
+    });
+
+    await store.copy('event/captures/cap/large', 'event/item/photo-large');
+
+    const [command] = sent;
+    expect(command).toBeInstanceOf(CopyObjectCommand);
+
+    const { input } = command as CopyObjectCommand;
+    expect(input.Bucket).toBe(BUCKET);
+    expect(input.Key).toBe('event/item/photo-large');
+    expect(input.CopySource).toBe(`${BUCKET}/event/captures/cap/large`);
+  });
+
+  it('translates a copy failure into r2_unavailable', async () => {
+    const store = storeWith(() => Promise.reject(new Error('access denied')));
+
+    await expect(store.copy('a', 'b')).rejects.toMatchObject({ code: 'r2_unavailable' });
+  });
+
+  it('deletes by key and tolerates a failure with the stable code', async () => {
+    const sent: unknown[] = [];
+    const store = storeWith((command) => {
+      sent.push(command);
+      return Promise.resolve({});
+    });
+
+    await store.delete('event/captures/cap/large');
+
+    expect(sent[0]).toBeInstanceOf(DeleteObjectCommand);
+    expect((sent[0] as DeleteObjectCommand).input.Key).toBe('event/captures/cap/large');
+
+    const failing = storeWith(() => Promise.reject(new Error('access denied')));
+    await expect(failing.delete('k')).rejects.toMatchObject({ code: 'r2_unavailable' });
   });
 });
