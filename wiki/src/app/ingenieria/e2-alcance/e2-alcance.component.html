@@ -1,0 +1,240 @@
+<article class="flex flex-col gap-6 text-sm leading-relaxed text-slate-700">
+  <app-tile-header
+    code="E2"
+    title="Alcance y límites"
+    route="ingenieria/e2-alcance"
+    status="current"
+    verified="2026-11-05 · este ciclo"
+    [areas]="areas"
+    [decisions]="decisions"
+  />
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué se construyó</h3>
+    <p>
+      Un evento de mudanza se organiza entre varias personas y varios dispositivos: se invita a un
+      co-dispositivo con un enlace, se captura cada artículo con su foto, se publica un catálogo por
+      enlace para el comprador y la venta se cierra <strong>fuera</strong> de la aplicación, por
+      WhatsApp.
+    </p>
+    <p>
+      La fuente autoritativa del alcance es
+      <code class="font-mono text-xs">.plans/resumen-funcional-app-mudanzapp.md</code>: capacidades,
+      estado de cada una y hechos pendientes. Este tile no la copia; registra el criterio y el
+      estado.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El alcance es una hipótesis</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>
+        Se construye el corte vertical más pequeño que permita implementar, revisar y decidir; no la
+        cobertura completa.
+      </li>
+      <li>Un ciclo a la vez: una hipótesis, un corte, una revisión y una decisión.</li>
+      <li>
+        Nada de lo no listado en el resumen funcional se considera aprobado, aunque exista en el
+        stack o en un código de referencia.
+      </li>
+      <li>Si falta un hecho, el ciclo no se abre: se registra el vacío y se pregunta.</li>
+      <li>
+        Si el alcance cambia, se propone el cambio con su costo; no se amplía por iniciativa propia.
+      </li>
+      <li>
+        Nada se considera fijo hasta que su revisión funcione; si la revisión contradice la
+        hipótesis, se vuelve al alcance.
+      </li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.guidelines/01</code>;
+      <code class="font-mono">.roo/rules/01-scope.md</code>; commit
+      <code class="font-mono">a119106</code> (2026-10-30).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Estado de las capacidades</h3>
+    <p>
+      <strong>Tentativa</strong> y <strong>propuesta</strong> no autorizan construir nada. Cada
+      capacidad construida tiene un tile dueño que la describe; aquí solo se rutea.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Capacidad</th>
+            <th class="py-1 pr-3 font-medium">Estado</th>
+            <th class="py-1 pr-3 font-medium">Dueño</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">invite · session · account-link</td>
+            <td class="py-1 pr-3">Construida</td>
+            <td class="py-1 pr-3">A2</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">invite-device</td>
+            <td class="py-1 pr-3">Construida, con emisión desde la Cuenta</td>
+            <td class="py-1 pr-3">A2</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">capture · publish · item-edit</td>
+            <td class="py-1 pr-3">Construida</td>
+            <td class="py-1 pr-3">A2</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">ai-draft</td>
+            <td class="py-1 pr-3">Construida; el contrato es de A4</td>
+            <td class="py-1 pr-3">A2</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">
+              event-index · settle-sale · shop-account · cart-request
+            </td>
+            <td class="py-1 pr-3">Construida</td>
+            <td class="py-1 pr-3">A3</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">event-admin</td>
+            <td class="py-1 pr-3">Construida</td>
+            <td class="py-1 pr-3">A1</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">account-upgrade</td>
+            <td class="py-1 pr-3">Tentativa, sin ciclo abierto</td>
+            <td class="py-1 pr-3">A5</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">packing · quote-brief · receive-check</td>
+            <td class="py-1 pr-3">Tentativa, sin ciclo abierto</td>
+            <td class="py-1 pr-3">A5</td>
+          </tr>
+          <tr>
+            <td class="py-1 pr-3 font-mono">decide-destination</td>
+            <td class="py-1 pr-3">Propuesta, sin ciclo</td>
+            <td class="py-1 pr-3">A5</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">resumen-funcional</code> §4; commit
+      <code class="font-mono">a119106</code> (2026-10-30).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Fuera de alcance</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>Cobro en línea y cualquier pasarela de pago.</li>
+      <li>
+        Datos personales de visitantes: nombre, teléfono, correo o dirección. Las operaciones que
+        los exigirían ocurren en WhatsApp, fuera de la aplicación.
+      </li>
+      <li>Portal o cuenta para proveedores de mudanza: se tratan por teléfono o WhatsApp.</li>
+      <li>Automatización de WhatsApp y bots de conversación.</li>
+      <li>
+        Tarjeta de vista previa por artículo y <em>passkey</em>: aparcadas con disparador (§28 y
+        §29).
+      </li>
+      <li>Indexación curada, sitemap y posicionamiento pagado.</li>
+      <li>Cuentas de comprador persistentes fuera del evento.</li>
+    </ul>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">resumen-funcional</code> §5.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Hechos pendientes de dueño</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="py-1 pr-3 font-medium">Hecho</th>
+            <th class="py-1 pr-3 font-medium">Disparador</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">
+              Si documentar sin cuenta se corta en un número de artículos y con qué código falla
+            </td>
+            <td class="py-1 pr-3">Apertura de <code class="font-mono">account-upgrade</code></td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">
+              Semántica de <code class="font-mono">APP_MODE</code> frente a la publicación propia
+            </td>
+            <td class="py-1 pr-3">
+              Antes de construir cualquier adaptador de la integración primaria
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Monto registrado al cerrar una venta</td>
+            <td class="py-1 pr-3">Antes de construir una venta con monto</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Cuota, límite de tasa o presupuesto de gasto de la IA</td>
+            <td class="py-1 pr-3">Primera factura inesperada o un uso en bucle; hoy no hay tope</td>
+          </tr>
+          <tr class="border-b border-slate-100 align-top">
+            <td class="py-1 pr-3">Política de datos del proveedor de IA</td>
+            <td class="py-1 pr-3">
+              Cambio de política o aparición de un dato personal en una foto
+            </td>
+          </tr>
+          <tr class="align-top">
+            <td class="py-1 pr-3">Alcance del dossier en <code class="font-mono">wiki</code></td>
+            <td class="py-1 pr-3">
+              Cerrado para la sección 3 en su ciclo; el alcance del registro lo fija ahora el mapa
+              de tiles de <a class="underline" routerLink="/ingenieria/m0-registro">M0</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">resumen-funcional</code> §6; commit
+      <code class="font-mono">79b2ae0</code> (2026-10-30).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Cuándo se decide</h3>
+    <p>
+      Se cierran antes las decisiones caras de revertir —esquema, contratos públicos e
+      identificadores externos— y se difieren las reversibles hasta tener evidencia. La
+      experimentación de datos vive en una sola dev branch, local y remota; la rama principal no es
+      un sandbox.
+    </p>
+    <p>
+      Un contrato es mínimo y provisional: el artefacto más delgado que permite integrar el
+      siguiente paso. Los códigos de error forman parte del contrato y el cliente ramifica por
+      <code class="font-mono text-xs">code</code>, nunca por el mensaje.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">.guidelines/01</code> §4 y §5;
+      <code class="font-mono">.guidelines/02</code> §2 y §4.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Qué no cubre este tile</h3>
+    <ul class="flex list-disc flex-col gap-1 pl-5">
+      <li>El detalle de cada capacidad construida vive en A1, A2 y A3.</li>
+      <li>
+        Lo aparcado, lo tentativo y sus disparadores se listan en
+        <code class="font-mono text-xs">/app/a5-brechas</code>.
+      </li>
+      <li>Las reglas con las que se escribe este registro viven en M0.</li>
+    </ul>
+  </section>
+
+  <footer class="flex gap-4 border-t border-slate-200 pt-4">
+    <a class="text-xs underline" routerLink="/">Volver al índice</a>
+    <a class="text-xs underline" routerLink="/ingenieria/m0-registro">Contrato del registro (M0)</a>
+  </footer>
+</article>
