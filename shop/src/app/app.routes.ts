@@ -28,6 +28,12 @@ export const routes: Routes = [
       import('./event-index/event-index.component').then((m) => m.EventIndexComponent),
   },
   {
+    // El carrito es por evento (ciclo 4e): la ruta lleva su `publicSlug` y va **antes** de `:slug`,
+    // igual que `cuenta`. El Worker ya excluye `carrito` de las fichas.
+    path: 'carrito/:publicSlug',
+    loadComponent: () => import('./cart/shop-cart.component').then((m) => m.ShopCartComponent),
+  },
+  {
     path: ':slug',
     loadComponent: () => import('./listing/listing.component').then((m) => m.ListingComponent),
   },

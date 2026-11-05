@@ -15,6 +15,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { listingPageModel, type ListingPageModel, type PublicListing } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../api-base-url.token';
+import { ShopCartStore } from '../cart/shop-cart.store';
 
 /**
  * Loader de identidad de la foto pública.
@@ -55,6 +56,7 @@ export class ListingComponent {
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly title = inject(Title);
   private readonly document = inject(DOCUMENT);
+  private readonly cart = inject(ShopCartStore);
 
   protected readonly slug = this.route.snapshot.paramMap.get('slug') ?? '';
 
@@ -93,6 +95,18 @@ export class ListingComponent {
     () => this.listing.status() === 'error' && !this.notFound() && !this.gone(),
   );
 
+  /** ¿Ya está en la selección de su evento? Es estado del comprador, no del contrato. */
+  protected readonly inCart = computed(() => this.cart.has(this.slug));
+
+  /** La ruta del carrito de este evento; `null` mientras la ficha no resolvió. */
+  protected readonly cartHref = computed<readonly string[] | null>(() => {
+    const publicSlug = this.value()?.event.publicSlug;
+    return publicSlug === undefined ? null : ['/carrito', publicSlug];
+  });
+
+  /** El guardado está en vuelo: el botón no se repite. */
+  protected readonly savingCart = signal(false);
+
   /** Qué hizo el componente con el snapshot. Es estado de la visita, no del contrato. */
   protected readonly snapshot = signal<'absent' | 'retired' | 'replaced'>('absent');
 
@@ -108,6 +122,14 @@ export class ListingComponent {
       const model = this.model();
       if (model !== null) {
         this.title.setTitle(model.title);
+      }
+    });
+
+    // La selección es por evento: al resolver la ficha se abre el carrito de **su** evento.
+    effect(() => {
+      const publicSlug = this.value()?.event.publicSlug;
+      if (publicSlug !== undefined) {
+        this.cart.open(publicSlug);
       }
     });
 
@@ -127,6 +149,29 @@ export class ListingComponent {
       container.remove();
       this.snapshot.set(embedded === this.value()?.version ? 'retired' : 'replaced');
     });
+  }
+
+  /**
+   * Guarda o quita el artículo de la selección (ciclo 4e).
+   *
+   * Sin sesión solo toca la lista local del navegador: el carrito completo, el precio y la solicitud
+   * viven en `/carrito/:publicSlug`, que es donde se entra con la cuenta de tienda. Guardar no exige
+   * cuenta; pedir, sí.
+   */
+  protected async toggleCart(): Promise<void> {
+    const publicSlug = this.value()?.event.publicSlug;
+    if (publicSlug === undefined || this.savingCart()) {
+      return;
+    }
+
+    this.cart.open(publicSlug);
+    this.savingCart.set(true);
+
+    try {
+      await this.cart.toggle(this.slug);
+    } finally {
+      this.savingCart.set(false);
+    }
   }
 
   protected openZoom(origin: HTMLElement): void {

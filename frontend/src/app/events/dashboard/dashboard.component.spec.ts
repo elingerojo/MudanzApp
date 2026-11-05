@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import type {
+  CartRequestSummary,
   IdentityUser,
   InvitationSummary,
   ItemSummary,
@@ -29,6 +30,9 @@ const REVOKE_URL = '/api/events/event-1/sessions/device-1';
 const CANCEL_URL = '/api/events/event-1/invitations/invitation-1';
 const ITEMS_URL = '/api/events/event-1/items';
 const ITEM_DELETE_URL = '/api/events/event-1/items/item-1';
+const CONTACT_URL = '/api/events/event-1/contact';
+const REQUESTS_URL = '/api/events/event-1/cart-requests';
+const REQUEST_DISMISS_URL = '/api/events/event-1/cart-requests/request-1';
 
 const EVENT = {
   id: 'event-1',
@@ -65,6 +69,17 @@ const INVITATION: InvitationSummary = {
 };
 
 const CANCELLED: InvitationSummary = { ...INVITATION, revokedAt: '2026-11-03T10:00:00.000Z' };
+
+const CART_REQUEST: CartRequestSummary = {
+  id: 'request-1',
+  reference: 'ab12cd34',
+  buyerName: 'Compradora',
+  itemCount: 1,
+  items: [{ title: 'Mesa de roble', priceCents: 125_000 }],
+  requestedAt: '2026-11-04T18:00:00.000Z',
+  dismissedAt: null,
+  cancelledAt: null,
+};
 
 const ITEM: ItemSummary = {
   id: 'item-1',
@@ -120,8 +135,10 @@ describe('DashboardComponent', () => {
     administrator: IdentityUser | null,
     invitations: readonly InvitationSummary[] = [],
     items: readonly ItemSummary[] = [ITEM],
+    requests: readonly CartRequestSummary[] = [],
+    contactPhone: string | null = null,
   ): Promise<Awaited<ReturnType<typeof build>>> {
-    return build(devices, administrator, invitations, items);
+    return build(devices, administrator, invitations, items, requests, contactPhone);
   }
 
   async function build(
@@ -129,6 +146,8 @@ describe('DashboardComponent', () => {
     administrator: IdentityUser | null,
     invitations: readonly InvitationSummary[] = [],
     items: readonly ItemSummary[] = [ITEM],
+    requests: readonly CartRequestSummary[] = [],
+    contactPhone: string | null = null,
   ) {
     const store = TestBed.inject(DashboardStore);
     const loading = store.load('event-1');
@@ -138,8 +157,17 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     fixture.detectChanges();
 
+    await tick();
+
     for (const request of httpTesting.match((candidate) => candidate.url === ITEMS_URL)) {
       request.flush({ items });
+    }
+
+    // Desde el ciclo 4e el panel tiene dos lecturas propias: el WhatsApp del evento y sus solicitudes.
+    for (const request of httpTesting.match(
+      (candidate) => candidate.url === CONTACT_URL || candidate.url === REQUESTS_URL,
+    )) {
+      request.flush(request.request.url === CONTACT_URL ? { contactPhone } : { requests });
     }
 
     await tick();
@@ -278,6 +306,12 @@ describe('DashboardComponent', () => {
       .expectOne(DASHBOARD_URL)
       .flush({ administrator: ADMINISTRATOR, devices: [REVOKED], invitations: [] });
 
+    // Mientras el panel recarga se desmonta: al volver, el campo del WhatsApp se monta otra vez y
+    // relee el número.
+    await tick();
+    fixture.detectChanges();
+    httpTesting.expectOne(CONTACT_URL).flush({ contactPhone: null });
+
     await tick();
     fixture.detectChanges();
 
@@ -302,10 +336,95 @@ describe('DashboardComponent', () => {
 
     await tick();
     fixture.detectChanges();
+    httpTesting.expectOne(CONTACT_URL).flush({ contactPhone: null });
+
+    await tick();
+    fixture.detectChanges();
 
     expect(query(fixture, 'access-invitation-cancel')).toBeNull();
     expect(query(fixture, 'access-invitation-state')?.textContent).toContain('cancelado');
     expect(text(fixture)).not.toContain('Cancelar enlace');
+  });
+
+  it('publishes the cart requests with the buyer name and the snapshot of what was asked', async () => {
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [CART_REQUEST]);
+
+    expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('Compradora');
+    expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('Mesa de roble');
+    expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('$1,250.00 MXN');
+    expect(query(fixture, 'dashboard-request-state')?.textContent).toContain('pendiente');
+    expect(query(fixture, 'dashboard-request-dismiss')).not.toBeNull();
+  });
+
+  it('dismisses a request in two touches and reloads the list', async () => {
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [CART_REQUEST]);
+
+    query(fixture, 'dashboard-request-dismiss')?.click();
+    fixture.detectChanges();
+    expect(query(fixture, 'dashboard-request-dismiss-confirm')).not.toBeNull();
+
+    query(fixture, 'dashboard-request-dismiss-confirm')?.click();
+    httpTesting
+      .expectOne(REQUEST_DISMISS_URL)
+      .flush(null, { status: 204, statusText: 'No Content' });
+
+    await tick();
+    httpTesting.expectOne(REQUESTS_URL).flush({
+      requests: [{ ...CART_REQUEST, dismissedAt: '2026-11-04T19:00:00.000Z' }],
+    });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-request-state')?.textContent).toContain('atendida');
+    expect(query(fixture, 'dashboard-request-dismiss')).toBeNull();
+  });
+
+  it('says there are no requests yet instead of inventing rows', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    expect(query(fixture, 'dashboard-requests-empty')).not.toBeNull();
+    expect(query(fixture, 'dashboard-request-state')).toBeNull();
+  });
+
+  it('publishes the WhatsApp of the event and saves the normalized number', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    expect(query(fixture, 'dashboard-contact-empty')).not.toBeNull();
+
+    const input = query(fixture, 'dashboard-contact-input') as HTMLInputElement;
+    input.value = '+52 55 1234 5678';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    query(fixture, 'dashboard-contact-save')?.click();
+    httpTesting.expectOne(CONTACT_URL).flush({ contactPhone: '525512345678' });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-contact-saved')?.textContent).toContain('+525512345678');
+    expect(query(fixture, 'dashboard-contact-clear')).not.toBeNull();
+  });
+
+  it('translates a rejected number instead of saving it', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    const input = query(fixture, 'dashboard-contact-input') as HTMLInputElement;
+    input.value = 'doce';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    query(fixture, 'dashboard-contact-save')?.click();
+    httpTesting
+      .expectOne(CONTACT_URL)
+      .flush({ error: 'validation_failed' }, { status: 400, statusText: 'Bad Request' });
+
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-contact-error')?.textContent).toContain('8 y 15 dígitos');
+    expect(query(fixture, 'dashboard-contact-empty')).not.toBeNull();
   });
 
   it('translates the forbidden cancel into its own phrase', async () => {

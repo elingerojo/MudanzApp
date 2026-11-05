@@ -175,4 +175,31 @@
       {{ listing.publishedLabel }}
     </p>
   </article>
+
+  <!--
+    Seleccionados (ciclo 4e): vive **fuera** del `article` porque el snapshot del backend no lo
+    pinta y `listing-parity` compara las dos renderizaciones del artículo. Guardar no exige cuenta;
+    pedir, sí, y se hace en el carrito.
+  -->
+  <section class="space-y-2 border-t border-slate-200 pt-3" data-testid="listing-cart">
+    <button
+      type="button"
+      class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+      [disabled]="savingCart()"
+      (click)="toggleCart()"
+      data-testid="listing-save"
+    >
+      {{ inCart() ? 'Quitar de seleccionados' : 'Guardar en seleccionados' }}
+    </button>
+
+    @if (cartHref(); as href) {
+      <a
+        [routerLink]="href"
+        class="inline-block text-sm text-slate-700 underline"
+        data-testid="listing-cart-link"
+      >
+        Ver seleccionados
+      </a>
+    }
+  </section>
 }

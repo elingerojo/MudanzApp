@@ -34,14 +34,18 @@ implante.
 - `/auth/callback` — `ShopOAuthCallbackComponent`: vuelta pública del proveedor. Canjea el `id_token`
   en `POST /auth/shop/sessions` y vuelve a la página que inició el flujo —`/cuenta` si no hay una
   guardada—.
-- `/carrito` — pendiente del ciclo 4f: carrito del visitante con sesión de alcance `shop`, con el total
-  derivado y la entrega de la compra a WhatsApp.
+- `/carrito/:publicSlug` — `ShopCartComponent`: carrito de **seleccionados** del evento (ciclo 4e). Es
+  por evento, así que la ruta lleva su `publicSlug` y va antes de `:slug`. Sin sesión anuncia lo que hay
+  guardado en el navegador y ofrece `Entrar`; con sesión lista los artículos con su precio y ofrece
+  `Pídelos por WhatsApp`, que compone el enlace `wa.me` con el número configurado por el vendedor en su
+  dashboard. Sin número, el botón queda deshabilitado con su motivo. **Sin total** (decisión §44).
 - `**` — redirección a `/`: fallback de la SPA.
 
 Reglas del mapa:
 
 - Crece **una ruta por ciclo**. `publish` (3c) abrió la ruta por artículo; `event-index` (4a) abrió
-  `/evento/:publicSlug`; `cart` (4f) abre `/carrito`.
+  `/evento/:publicSlug`; `shop-account` (4d) abrió `/cuenta` y `/auth/callback`; `cart-request` (4e)
+  abrió `/carrito/:publicSlug`.
 - `/` sigue siendo pública e indexable a propósito: es la prueba de que el Worker sirve la shell y el
   backend responde cross-origin. El ciclo 4 **no** la sustituye: el catálogo es por evento
   (`/evento/:publicSlug`), así que no hay un catálogo global que la reemplace. La deuda de 3b se
@@ -60,7 +64,14 @@ noindex` en una ficha vendida, que el Worker propaga del backend.
   alcance `shop` con su propia clave en `localStorage` (`mudanzapp.shop.session`). El nombre visible es
   opcional y se fija después del primer acceso; no hay membresía de evento ni inicio de sesión único
   entre superficies. El proveedor debe tener registrado `<origen-de-shop>/auth/callback` además del de
-  `frontend`. El interés (4e) y el carrito (4f) consumen esa sesión; la ficha y el índice no.
+  `frontend`. El carrito (4e) consume esa sesión; la ficha y el índice no.
+- La selección (ciclo 4e) vive en `localStorage` bajo `mudanzapp.shop.selected.<publicSlug>` mientras el
+  visitante no tiene cuenta, y en `app.cart` cuando la tiene: al entrar, las dos listas se **unen** y se
+  escriben con un `PUT` que reemplaza el carrito entero. Guardar no exige cuenta; pedir, sí. El mensaje
+  de WhatsApp lleva solo la referencia de la solicitud, y el vendedor la ve en el dashboard de su
+  evento. La ficha guarda con `Guardar en seleccionados` y la ruta del carrito es
+  `/carrito/:publicSlug`; `carrito` está en `RESERVED_PATHS`, así que una navegación no se confunde con
+  una ficha.
 - La barra de cuenta de la shell aparece en las páginas públicas (`/evento/:publicSlug` y `/:slug`), se
   oculta en `/cuenta` y en `/auth/callback`, y guarda en `sessionStorage` la ruta de origen para volver
   a ella después del acceso. Solo acepta rutas internas; cualquier otro destino vuelve a `/cuenta`.

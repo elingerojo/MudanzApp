@@ -25,3 +25,9 @@ export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';
 export const OAUTH_INVALID_TOKEN = 'oauth_invalid_token';
 export const OAUTH_NOT_CONFIGURED = 'oauth_not_configured';
+
+/** Los códigos del carrito y de su solicitud (ciclo 4e), cada uno con su frase en la tienda. */
+export const CART_EMPTY = 'cart_empty';
+export const WHATSAPP_NOT_CONFIGURED = 'whatsapp_not_configured';
+export const PRICE_MISSING = 'price_missing';
+export const LISTING_SOLD = 'listing_sold';

@@ -386,4 +386,22 @@ describe('reserved map paths', () => {
     expect(response.headers.get('X-Snapshot')).toBeNull();
     await expect(response.text()).resolves.toBe(SHELL);
   });
+
+  it('serves the shell for the cart of an event instead of treating it as a listing', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleListingRequest(
+      new Request('https://shop.test/carrito/bogota-ciudad-de-mexico-3f9a2c', {
+        headers: { accept: 'text/html' },
+      }),
+      workerEnv(),
+      context(),
+      memoryCache(),
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers.get('X-Snapshot')).toBeNull();
+    await expect(response.text()).resolves.toBe(SHELL);
+  });
 });

@@ -30,6 +30,8 @@ export const ITEM_SOLD = 'item_sold';
 export const LISTING_PHOTO_REQUIRED = 'listing_photo_required';
 export const LISTING_NOT_PUBLISHED = 'listing_not_published';
 export const LISTING_GONE = 'listing_gone';
+/** El cuerpo no cumple el contrato (ciclo 4e): el WhatsApp del evento con una forma imposible. */
+export const VALIDATION_FAILED = 'validation_failed';
 export const SESSION_REVOKED = 'session_revoked';
 export const UNAUTHORIZED = 'unauthorized';
 /** La sesión no administra el evento (ciclo 4c-2): el evento se ve, el derecho no existe. */

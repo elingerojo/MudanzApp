@@ -1,0 +1,65 @@
+<section class="space-y-2 border-t border-slate-200 pt-3" data-testid="dashboard-contact">
+  <h2 class="text-sm font-semibold text-slate-900">WhatsApp del evento</h2>
+  <p class="text-xs text-slate-600">
+    Es el número que recibe los pedidos del carrito. Sin número, «Pídelos por WhatsApp» no se
+    habilita en la tienda.
+  </p>
+
+  @if (loading()) {
+    <p class="text-sm text-slate-600" data-testid="dashboard-contact-loading">Cargando…</p>
+  } @else {
+    @if (saved(); as current) {
+      <p class="text-sm text-slate-700" data-testid="dashboard-contact-saved">
+        Configurado: <span class="font-medium">+{{ current }}</span>
+      </p>
+    } @else {
+      <p class="text-sm text-slate-600" data-testid="dashboard-contact-empty">
+        Sin configurar: el comprador no puede pedir todavía.
+      </p>
+    }
+
+    <div class="flex flex-wrap items-end gap-2">
+      <label class="w-full text-xs font-medium text-slate-700" for="event-contact">
+        Número para recibir mensajes
+      </label>
+
+      <input
+        id="event-contact"
+        type="tel"
+        inputmode="tel"
+        autocomplete="off"
+        class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+        placeholder="525512345678"
+        [value]="input()"
+        (input)="onInput($event)"
+        data-testid="dashboard-contact-input"
+      />
+
+      <button
+        type="button"
+        [class]="saveClasses"
+        [disabled]="saving()"
+        (click)="save()"
+        data-testid="dashboard-contact-save"
+      >
+        {{ saving() ? 'Guardando…' : 'Guardar' }}
+      </button>
+
+      @if (saved() !== null) {
+        <button
+          type="button"
+          [class]="clearClasses"
+          [disabled]="saving()"
+          (click)="clear()"
+          data-testid="dashboard-contact-clear"
+        >
+          Quitar
+        </button>
+      }
+    </div>
+
+    @if (error(); as failure) {
+      <p class="text-sm text-red-600" data-testid="dashboard-contact-error">{{ failure }}</p>
+    }
+  }
+</section>

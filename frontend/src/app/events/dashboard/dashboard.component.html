@@ -178,6 +178,84 @@
         }
       </section>
 
+      <!-- El WhatsApp es del evento y lo fija quien lo administra (ciclo 4e). Sin él, el botón del
+           carrito de la tienda no se habilita. -->
+      <app-dashboard-contact />
+
+      <!-- Solicitudes de carrito (ciclo 4e): el aviso del vendedor. Descartar no cambia ningún
+           artículo; el resto de la conversación ocurre en WhatsApp. -->
+      <section class="space-y-2 border-t border-slate-200 pt-3" data-testid="dashboard-requests">
+        <h2 class="text-sm font-semibold text-slate-900">Solicitudes de carrito</h2>
+        <p class="text-xs text-slate-600">
+          Cada fila es un carrito que un comprador pidió por WhatsApp. Descartarla no cambia ningún
+          artículo: la venta se cierra fuera de la aplicación.
+        </p>
+
+        @if (requests.failed()) {
+          <p class="text-sm text-red-600" data-testid="dashboard-requests-error">
+            No se pudieron cargar las solicitudes. Recarga la página.
+          </p>
+        } @else if (requests.requests().length === 0) {
+          <p class="text-sm text-slate-600" data-testid="dashboard-requests-empty">
+            Todavía no hay solicitudes. Sin el WhatsApp configurado, el comprador no puede pedir.
+          </p>
+        } @else {
+          <ul class="divide-y divide-slate-200">
+            @for (request of requests.requests(); track request.id) {
+              <li
+                class="flex flex-wrap items-center gap-3 py-3"
+                [attr.data-testid]="'dashboard-request-' + request.id"
+              >
+                <div class="min-w-0 flex-1">
+                  <p
+                    class="text-sm font-medium text-slate-900"
+                    data-testid="dashboard-request-reference"
+                  >
+                    Solicitud <span class="font-mono text-xs">{{ request.reference }}</span>
+                  </p>
+                  <p class="text-xs text-slate-600">{{ requestDetail(request) }}</p>
+                  <p class="text-xs text-slate-700">{{ requestItemsLabel(request) }}</p>
+                </div>
+
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs"
+                  [class]="requestStateClasses(request)"
+                  data-testid="dashboard-request-state"
+                >
+                  {{ requestState(request) }}
+                </span>
+
+                @if (request.dismissedAt === null && request.cancelledAt === null) {
+                  <button
+                    type="button"
+                    [class]="dangerClasses"
+                    [disabled]="requests.dismissingId() !== null"
+                    (click)="confirmDismiss(request)"
+                    [attr.data-testid]="
+                      confirmingDismissId() === request.id
+                        ? 'dashboard-request-dismiss-confirm'
+                        : 'dashboard-request-dismiss'
+                    "
+                  >
+                    {{
+                      confirmingDismissId() === request.id
+                        ? requests.dismissingId() === request.id
+                          ? 'Descartando…'
+                          : 'Confirmar'
+                        : 'Descartar'
+                    }}
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (requests.failure(); as failure) {
+          <p class="text-sm text-red-600" data-testid="dashboard-request-error">{{ failure }}</p>
+        }
+      </section>
+
       <!-- Capturas: el rey retira una captura equivocada (4c-4). Un vendido se conserva como evidencia
            de la venta y la pantalla lo dice en vez de ofrecer un botón que el borde rechazaría. -->
       <section class="space-y-2" data-testid="dashboard-captures">

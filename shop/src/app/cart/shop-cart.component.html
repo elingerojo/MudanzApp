@@ -1,0 +1,130 @@
+<section class="space-y-4" data-testid="cart-page">
+  <header class="space-y-1">
+    <h2 class="text-xl font-semibold text-slate-900">Tu selección</h2>
+    <p class="text-sm text-slate-600">
+      Guarda lo que te interesa y pídelo por WhatsApp. Después, la conversación sigue fuera de la
+      aplicación.
+    </p>
+
+    <a
+      [routerLink]="eventHref()"
+      class="inline-block text-sm text-slate-700 underline"
+      data-testid="cart-event-link"
+    >
+      Volver al evento
+    </a>
+  </header>
+
+  @if (!hasSession()) {
+    <p class="text-sm text-slate-700" data-testid="cart-anonymous">
+      Tienes {{ countLabel() }} guardados en este navegador. Entra para verlos con su precio y
+      pedirlos.
+    </p>
+
+    <button
+      type="button"
+      class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+      [disabled]="connecting()"
+      (click)="signIn()"
+      data-testid="cart-signin"
+    >
+      {{ connecting() ? 'Entrando…' : 'Entrar' }}
+    </button>
+  } @else if (cart.items().length === 0) {
+    <p class="text-sm text-slate-600" data-testid="cart-empty">
+      Tu selección está vacía. Guarda artículos desde su ficha.
+    </p>
+  } @else {
+    <ul class="divide-y divide-slate-200">
+      @for (item of cart.items(); track item.slug) {
+        <li
+          class="flex flex-wrap items-center gap-3 py-3"
+          [attr.data-testid]="'cart-item-' + item.slug"
+        >
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-slate-900">{{ item.title }}</p>
+            <p class="text-sm text-slate-700" data-testid="cart-item-price">
+              {{ priceLabel(item) }}
+            </p>
+
+            @if (item.soldAt !== null) {
+              <p class="text-xs text-slate-600" data-testid="cart-item-sold">
+                Vendido: quítalo para poder pedir.
+              </p>
+            }
+          </div>
+
+          <button
+            type="button"
+            class="text-sm text-red-600 hover:bg-red-50"
+            (click)="remove(item.slug)"
+            [attr.data-testid]="'cart-item-remove-' + item.slug"
+          >
+            Quitar
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (cart.openRequest(); as request) {
+    <div class="space-y-2 rounded-lg bg-emerald-50 p-3" data-testid="cart-requested">
+      <p class="text-sm text-emerald-900">
+        Solicitud <span class="font-mono text-xs">{{ request.reference }}</span> enviada. El
+        vendedor la verá en su panel.
+      </p>
+
+      @if (request.whatsappUrl; as url) {
+        <a
+          [href]="url"
+          target="_blank"
+          rel="noopener"
+          class="inline-block text-sm font-medium text-emerald-900 underline"
+          data-testid="cart-whatsapp"
+        >
+          Abrir WhatsApp
+        </a>
+      }
+
+      <button
+        type="button"
+        class="block text-sm text-red-600 hover:bg-red-50"
+        (click)="cancel()"
+        data-testid="cart-request-cancel"
+      >
+        Cancelar solicitud
+      </button>
+    </div>
+  } @else if (hasSession() && cart.items().length > 0) {
+    <button
+      type="button"
+      class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+      [disabled]="!cart.whatsappAvailable() || cart.busy()"
+      (click)="request()"
+      data-testid="cart-whatsapp-request"
+    >
+      {{ cart.busy() ? 'Pidiendo…' : 'Pídelos por WhatsApp' }}
+    </button>
+
+    @if (!cart.whatsappAvailable()) {
+      <p class="text-xs text-slate-600" data-testid="cart-whatsapp-disabled">
+        El vendedor todavía no configuró su WhatsApp: el botón se habilita cuando lo haga.
+      </p>
+    }
+  }
+
+  @if (cart.dropped().length > 0) {
+    <p class="text-xs text-amber-700" data-testid="cart-dropped">
+      {{ cart.dropped().length }} artículo(s) ya no estaban disponibles y se quitaron de la
+      selección.
+    </p>
+  }
+
+  @if (cart.failure(); as failure) {
+    <p class="text-sm text-red-600" data-testid="cart-error">{{ failure }}</p>
+  }
+
+  @if (error(); as failure) {
+    <p class="text-sm text-red-600" data-testid="cart-signin-error">{{ failure }}</p>
+  }
+</section>

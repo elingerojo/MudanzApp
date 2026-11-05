@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import type { InvitationSummary, ItemSummary, SessionSummary } from '@mudanzapp/shared';
+import {
+  formatPriceCents,
+  type CartRequestSummary,
+  type InvitationSummary,
+  type ItemSummary,
+  type SessionSummary,
+} from '@mudanzapp/shared';
 
 import { ItemPhotoComponent } from '../../items/item-photo.component';
 import { itemStatusClasses, itemStatusLabel } from '../../items/item-status';
@@ -9,7 +15,9 @@ import { uiButtonClasses } from '../../ui/ui-button/ui-button';
 import { UiCardComponent } from '../../ui/ui-card/ui-card';
 import { EventItemsStore } from '../event-items.store';
 import { eventPublicUrl } from '../event-public-url';
+import { CartRequestsStore } from './cart-requests.store';
 import { DashboardStore } from './dashboard.store';
+import { EventContactComponent } from './event-contact.component';
 
 /**
  * Pestaña `Dashboard` del marco del evento (ciclos 4c-2 y 4c-3, decisión §37).
@@ -28,9 +36,12 @@ import { DashboardStore } from './dashboard.store';
  */
 @Component({
   selector: 'app-dashboard',
-  imports: [ItemPhotoComponent, UiCardComponent],
+  imports: [EventContactComponent, ItemPhotoComponent, UiCardComponent],
   templateUrl: './dashboard.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // El panel no tiene push ni proveedor externo: al volver a la pestaña se releen las solicitudes,
+  // que es el aviso del vendedor (decisión §38: refresco al enfocar y recarga manual).
+  host: { '(window:focus)': 'reloadRequests()' },
 })
 export class DashboardComponent {
   private readonly session = inject(SessionStore);
@@ -38,12 +49,22 @@ export class DashboardComponent {
 
   protected readonly store = inject(DashboardStore);
 
+  /** Las solicitudes de carrito del evento (ciclo 4e), con su propia lectura. */
+  protected readonly requests = inject(CartRequestsStore);
+
   /** El recurso de artículos lo posee el marco del evento: de ahí sale el contador. */
   protected readonly items = inject(EventItemsStore);
 
   private readonly eventId = this.items.eventId;
 
+  constructor() {
+    this.requests.load(this.eventId);
+  }
+
   protected readonly dangerClasses = uiButtonClasses('danger');
+
+  /** Solicitud cuyo botón `Descartar` ya se pulsó una vez y espera la confirmación. */
+  protected readonly confirmingDismissId = signal<string | null>(null);
 
   protected readonly event = computed(() => this.session.eventById(this.eventId));
 
@@ -177,5 +198,54 @@ export class DashboardComponent {
     if (await this.store.remove(this.eventId, item)) {
       this.items.reload();
     }
+  }
+
+  /** Recarga de las solicitudes; la dispara el foco de la ventana (`host`). */
+  protected reloadRequests(): void {
+    this.requests.reload();
+  }
+
+  /** `pendiente`, `atendida` o `cancelada`: el estado es el que el borde escribió, no uno deducido. */
+  protected requestState(request: CartRequestSummary): string {
+    if (request.cancelledAt !== null) {
+      return 'cancelada';
+    }
+
+    return request.dismissedAt === null ? 'pendiente' : 'atendida';
+  }
+
+  protected requestStateClasses(request: CartRequestSummary): string {
+    if (request.cancelledAt !== null) {
+      return 'bg-slate-200 text-slate-700';
+    }
+
+    return request.dismissedAt === null
+      ? 'bg-amber-100 text-amber-900'
+      : 'bg-emerald-100 text-emerald-900';
+  }
+
+  /** Quién pidió, cuántos artículos y cuándo: el renglón del aviso del vendedor. */
+  protected requestDetail(request: CartRequestSummary): string {
+    const items = request.itemCount === 1 ? '1 artículo' : `${String(request.itemCount)} artículos`;
+    return `${request.buyerName} · ${items} · ${this.day(request.requestedAt)}`;
+  }
+
+  /** La instantánea del pedido, con la moneda del evento (decisión §35). */
+  protected requestItemsLabel(request: CartRequestSummary): string {
+    const currency = this.event()?.currency ?? 'MXN';
+    return request.items
+      .map((item) => `${item.title} — ${formatPriceCents(item.priceCents, currency)}`)
+      .join(' · ');
+  }
+
+  /** Descartar es el acto del vendedor y se confirma en dos toques, como los demás del panel. */
+  protected confirmDismiss(request: CartRequestSummary): void {
+    if (this.confirmingDismissId() === request.id) {
+      this.confirmingDismissId.set(null);
+      void this.requests.dismiss(request);
+      return;
+    }
+
+    this.confirmingDismissId.set(request.id);
   }
 }
