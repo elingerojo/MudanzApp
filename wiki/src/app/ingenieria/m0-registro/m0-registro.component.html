@@ -16,12 +16,11 @@
       si una capacidad no existe, no tiene página.
     </p>
     <p>
-      Se escribe desde el texto de los commits —asunto y cuerpo— y se verifica contra el código solo
-      en lo que cada claim necesita. Leer todo el código produce demasiado contexto, deja puntos
-      ciegos y mezcla hechos vigentes con correcciones posteriores.
+      Cada claim cita su evidencia —commit, archivo o confirmación del dueño— y su fecha. La forma
+      de citar es parte del contrato: sin evidencia, el claim no entra.
     </p>
     <p class="text-xs text-slate-500">
-      Evidencia: <code class="font-mono">plans/pre-backfill-plan-wiki.md</code> §1 y §4.
+      Evidencia: <code class="font-mono">.plans/wiki-delta.md</code> §2 y §4.
     </p>
   </section>
 
@@ -110,12 +109,19 @@
   </section>
 
   <section class="flex flex-col gap-2">
-    <h3 class="text-base font-semibold text-slate-900">Procedencia</h3>
+    <h3 class="text-base font-semibold text-slate-900">Cómo se mantiene fresco</h3>
     <p>
-      El contenido nace del texto de commits clasificado en
-      <code class="font-mono text-xs">plans/pre-backfill-plan-wiki.md</code>. El procedimiento de
-      mantenimiento por funcionalidad todavía no está escrito: es una brecha registrada en A5, con
-      disparador en el primer cierre de funcionalidad posterior a este backfill.
+      Cada funcionalidad lleva el delta del tile dueño en su propio commit, o declara
+      <code class="font-mono text-xs">wiki: sin delta — motivo</code>. Lo exige
+      <code class="font-mono text-xs">.roo/rules/04-verificacion.md</code>; la tabla área → tile, la
+      cabecera y la forma de citar viven en
+      <code class="font-mono text-xs">.plans/wiki-delta.md</code>.
+    </p>
+    <p>
+      Un claim que no se puede verificar se marca
+      <code class="font-mono text-xs">stale</code> y se registra en
+      <code class="font-mono text-xs">/app/a5-brechas</code> con su disparador. Nunca se rellena por
+      inferencia.
     </p>
   </section>
 

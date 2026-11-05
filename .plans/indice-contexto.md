@@ -20,9 +20,8 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | Corte de UI o frontend | stack §3, `02`, `03` | modelo-datos |
 | Corte de identidad o sesión | `04`, `05`, `02`, modelo-datos, `07-secretos` | dossier, manual |
 | Corte del eCommerce | `03`, `02`, stack §7, modelo-datos | manual, auditoría |
-| Sección del dossier en `wiki` (corregir un tile) | post-backfill-plan-wiki §3–§6 y el `.html` del tile | pre-backfill, fact sheets, modelo-datos |
-| Crear el plan de backfill del wiki | pre-backfill-plan-wiki, `00`, `02`, decisiones-tecnicas | modelo-datos |
-| Mantener el wiki sincronizado con cada feature | post-backfill-plan-wiki (completo), `04-verificacion`, `02-commits` | el resto |
+| Sección del dossier en `wiki` (corregir un tile) | wiki-delta §2–§4 y el `.html` del tile | los planes de ciclo, fact sheets, modelo-datos |
+| Mantener el wiki sincronizado con cada feature | wiki-delta (completo), `04-verificacion`, `02-commits` | el resto |
 | Ciclo del indicador de carga | indicador-carga-componente | el resto |
 | Cerrar el ciclo | `06`, `02-commits`, `04-verificacion` | plantilla |
 | Duda sobre jerarquía o excepción | glosario-de-criterios | el resto |
@@ -41,8 +40,7 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | `decisiones-tecnicas-app-mudanzapp.md` | biblioteca de patrones | sí | consulta |
 | `glosario-de-criterios.md` | jerarquía y excepción | sí | consulta |
 | `indicador-carga-componente.md` | contrato y aprendizaje del indicador de carga | sí | solo ciclos del indicador |
-| [`pre-backfill-plan-wiki.md`](../plans/pre-backfill-plan-wiki.md:1) | pre-plan del backfill del wiki: método commit-first, 20 aspectos, ruteo a M0/E1-E3/A0-A5 y respuestas del dueño | sí | al abrir el backfill o el post-backfill |
-| [`post-backfill-plan-wiki.md`](../plans/post-backfill-plan-wiki.md:1) | contrato de sincronía: delta del tile en el commit del feature, ruteo área→tile y cabecera de frescura | sí | todo ciclo de feature, en su §4 |
+| [`wiki-delta.md`](wiki-delta.md:1) | contrato de sincronía: delta del tile en el commit del feature, ruteo área → tile, cabecera de frescura y gate | sí | todo ciclo de feature, en su §3 |
 | `auditoria-consistencia-workspace.md` | evidencia de la apertura | sí | rara vez |
 | `plantilla-inicializacion-workspace.md` | cómo se arranca | no | solo arranque |
 | `manual-setup-workspace-local-y-remoto.md` | consolas | no | arranque y hechos remotos |

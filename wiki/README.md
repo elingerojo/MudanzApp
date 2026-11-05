@@ -48,9 +48,8 @@ actualiza cuando su hecho cambia.
   vive en [`/ingenieria/m0-registro`](src/app/ingenieria/m0-registro/m0-registro.component.html:1).
 - El registro se mantiene en el mismo commit de cada funcionalidad: lo exige
   [`04-verificacion`](../.roo/rules/04-verificacion.md:1), y el procedimiento —tabla área → tile,
-  cabecera y forma de citar— vive en
-  [`post-backfill-plan-wiki`](../plans/post-backfill-plan-wiki.md:1). Sin delta, el cuerpo del commit
-  declara `wiki: sin delta — <motivo>`.
+  cabecera y forma de citar— vive en [`wiki-delta`](../.plans/wiki-delta.md:1). Sin delta, el cuerpo
+  del commit declara `wiki: sin delta — <motivo>`.
 - Un tile sin contenido verificado aparece en el índice como `pendiente` y no se enlaza.
 - El roadmap anterior de seis secciones queda superado: las secciones 1, 2 y 4 se absorben en A2, A0
   y A3; las 5 y 6 pasan a A5 como brechas. La revisión del corte 4g (`direct-upload`) sigue vigente

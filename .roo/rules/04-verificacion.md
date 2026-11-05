@@ -47,8 +47,7 @@ Cierre de una funcionalidad (delta del wiki):
 - Sin delta, el cuerpo del commit declara `wiki: sin delta — <motivo>`. La ausencia explícita es
   válida; la silenciosa no.
 - El tile dueño se identifica con la tabla área → tile de
-  [`post-backfill-plan-wiki`](../../plans/post-backfill-plan-wiki.md:1) §4; no se abre el registro
-  entero para decidirlo.
+  [`wiki-delta`](../../.plans/wiki-delta.md:1) §3; no se abre el registro entero para decidirlo.
 - Un claim obsoleto se corrige o se borra; su historia no se anota. Lo no construido va a A5 con su
   disparador.
 

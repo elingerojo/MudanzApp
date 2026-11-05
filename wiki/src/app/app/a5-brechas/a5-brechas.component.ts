@@ -18,8 +18,6 @@ import { TileHeader } from '../../ui/tile-header/tile-header';
 })
 export class A5BrechasComponent {
   protected readonly areas = [
-    'plans/pre-backfill-plan-wiki.md',
-    'plans/backfill-plan-wiki.md',
     '.plans/resumen-funcional-app-mudanzapp.md',
     '.plans/decisiones-tecnicas-app-mudanzapp.md',
     'backend/.env.example',

@@ -18,11 +18,11 @@ import { TileHeader } from '../../ui/tile-header/tile-header';
 })
 export class M0RegistroComponent {
   protected readonly areas = [
-    'plans/pre-backfill-plan-wiki.md',
+    '.plans/wiki-delta.md',
     'wiki/src/app/tiles.ts',
     'wiki/src/app/app.routes.ts',
     'wiki/README.md',
   ];
 
-  protected readonly decisions = ['decisiones §20', 'pre-plan §7 y §14'];
+  protected readonly decisions = ['§20'];
 }

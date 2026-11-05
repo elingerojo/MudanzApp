@@ -159,7 +159,8 @@
       </table>
     </div>
     <p class="text-xs text-slate-500">
-      Evidencia: <code class="font-mono">plans/pre-backfill-plan-wiki.md</code> §14;
+      Evidencia: lectura de <code class="font-mono">.roo/rules/00-stack.md</code> y de
+      <code class="font-mono">.plans/decisiones-tecnicas-app-mudanzapp.md</code> §20;
       <code class="font-mono">README.md</code> §8 comparado con
       <code class="font-mono">backend/src/routes/ai-router.ts</code>; lectura de
       <code class="font-mono">backend/.env.example</code>.
@@ -167,56 +168,26 @@
   </section>
 
   <section class="flex flex-col gap-2">
-    <h3 class="text-base font-semibold text-slate-900">Mantenimiento del registro</h3>
+    <h3 class="text-base font-semibold text-slate-900">Hueco del propio registro</h3>
     <p>
-      El delta del wiki viaja en el <strong>mismo commit</strong> de la funcionalidad, exigido por
-      <code class="font-mono text-xs">.roo/rules/04-verificacion.md</code>. El procedimiento —tabla
-      área → tile, cabecera de frescura y forma de citar— vive en
-      <code class="font-mono text-xs">plans/post-backfill-plan-wiki.md</code>: el ciclo que toca un
-      hecho abre solo el tile dueño, no el registro entero.
+      El mecanismo de sincronía está escrito y exigido, pero todavía no ejercitado: ningún cierre de
+      funcionalidad lo ha usado. Su contrato vive en
+      <a class="underline" routerLink="/ingenieria/m0-registro">M0</a>; el procedimiento, en
+      <code class="font-mono text-xs">.plans/wiki-delta.md</code>.
     </p>
-    <p>
-      Sin delta, el commit declara
-      <code class="font-mono text-xs">wiki: sin delta — motivo</code>. La ausencia explícita es
-      válida; la silenciosa no. Un claim que no se puede verificar se marca
-      <code class="font-mono text-xs">stale</code> y se registra aquí con su disparador, en vez de
-      rellenarse por inferencia.
+    <p class="text-xs text-slate-500">
+      Disparador: el primer cierre de funcionalidad que toque un hecho del registro.
     </p>
-    <p>
-      Lo que falta no es la regla: es la prueba con el primer cierre de funcionalidad posterior a
-      este backfill. Hasta entonces este registro está escrito y exigido, no ejercitado.
-    </p>
-  </section>
-
-  <section class="flex flex-col gap-2">
-    <h3 class="text-base font-semibold text-slate-900">Resuelto por este backfill</h3>
-    <ul class="flex list-disc flex-col gap-1 pl-5">
-      <li>
-        La página heredada de la sección 3 se absorbió en A2 y A4 y su ruta se retiró junto con su
-        componente.
-      </li>
-      <li>
-        El mapa de rutas del wiki dejó de ser un roadmap de seis secciones y pasó a ser el mapa fijo
-        de diez tiles (<a class="underline" routerLink="/ingenieria/m0-registro">M0</a>).
-      </li>
-      <li>
-        La discrepancia sobre el transporte del borrador se resolvió leyendo el adaptador: viajan
-        los bytes de la variante mediana, y el almacén no participa. La fila del README que dice lo
-        contrario queda registrada arriba.
-      </li>
-    </ul>
   </section>
 
   <section class="flex flex-col gap-2">
     <h3 class="text-base font-semibold text-slate-900">Lo que queda fuera del registro</h3>
     <p>
       Los commits de higiene de herramienta y los hallazgos de auditoría que el dueño declaró
-      <strong>no vigentes</strong> no entran al mapa: no son hechos del producto. Su texto sigue en
-      el pre-plan como histórico y no se usa como fuente.
+      <strong>no vigentes</strong> no entran al mapa: no son hechos del producto y no se usan como
+      fuente.
     </p>
-    <p class="text-xs text-slate-500">
-      Evidencia: <code class="font-mono">plans/pre-backfill-plan-wiki.md</code> §13.6.
-    </p>
+    <p class="text-xs text-slate-500">Evidencia: confirmación del dueño, 2026-11-05.</p>
   </section>
 
   <footer class="flex gap-4 border-t border-slate-200 pt-4">
