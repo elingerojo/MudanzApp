@@ -3,19 +3,46 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { API_BASE_URL } from '../api-base-url.token';
+import { PROGRESS_DONE_FLASH_MS } from '../ui/ui-progress-button/ui-progress-button';
 import { ItemFormComponent } from './item-form.component';
 import { PHOTO_OPTIMIZER } from './photo-optimizer.token';
+import { uploadVariants, type UploadTask } from './photo-upload';
+import { PHOTO_UPLOADER } from './photo-upload.token';
 
 /**
- * El `Blob` de la variante `medium` es el mismo objeto que viaja al borrador y a R2: el optimizador
- * se sustituye por un doble detrás de su token, así que la identidad del cuerpo se puede afirmar.
+ * La captura en la interfaz (`plan-ciclo-4g-direct-upload` §3, §5 y §8): el ticket que firma las
+ * subidas, las tres variantes que viajan **directo** al almacén con su progreso ponderado, la
+ * adjunción al artículo y las reglas que no cambian desde 3d —
+ *
+ * 1. el borrador solo se pide con un toque y no bloquea a nadie;
+ * 2. la mediana que viaja al borrador es el mismo `Blob` que después se sube;
+ * 3. el cuerpo de la foto no cruza el API.
  */
-const mockMedium = new Blob(['webp-bytes'], { type: 'image/webp' });
+
+const blobs = {
+  thumb: new Blob(['thumb-bytes'], { type: 'image/webp' }),
+  medium: new Blob(['medium-bytes'], { type: 'image/webp' }),
+  large: new Blob(['large-bytes'], { type: 'image/webp' }),
+};
 
 const ITEMS_URL = '/api/events/event-1/items';
+const TICKET_URL = '/api/events/event-1/captures';
 const DRAFTS_URL = '/api/events/event-1/ai/drafts';
-const UPLOAD_URL = '/api/events/event-1/items/item-1/photo?variant=medium&w=768&h=512';
+const PHOTOS_URL = '/api/events/event-1/items/item-1/photos';
 const LISTING_URL = '/api/events/event-1/items/item-1/listing';
+
+const TICKET = {
+  captureId: '7b0d3f43-2a4e-4f7a-9a51-0d3a1e6f5c11',
+  expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+  contentType: 'image/webp',
+  // Relativas al API, como las emite el doble: el cliente pone el prefijo y ninguna prueba depende
+  // de un host. En `live` llegarían absolutas y pasarían tal cual.
+  uploads: {
+    thumb: { url: '/__fake-r2/put?token=thumb', key: 'event-1/captures/cap/thumb' },
+    medium: { url: '/__fake-r2/put?token=medium', key: 'event-1/captures/cap/medium' },
+    large: { url: '/__fake-r2/put?token=large', key: 'event-1/captures/cap/large' },
+  },
+};
 
 const CREATED = {
   item: {
@@ -42,19 +69,14 @@ function tick(): Promise<void> {
   });
 }
 
-/**
- * La captura en la interfaz (`plan-ciclo-3d` §6 y §9): lo que se rechaza antes de salir a la red, lo
- * que se envía cuando la ficha está completa, y las tres reglas del corte —
- *
- * 1. el borrador solo se pide con un toque;
- * 2. envía el mismo `Blob` de la mediana que después se sube, sin base64 ni recodificar;
- * 3. la IA nunca bloquea a la persona: `Publicar` no depende de que el borrador haya vuelto.
- */
 describe('ItemFormComponent', () => {
   let httpTesting: HttpTestingController;
+  let uploads: { tasks: readonly UploadTask[]; contentType: string }[];
 
   beforeEach(async () => {
     localStorage.clear();
+    uploads = [];
+
     await TestBed.configureTestingModule({
       imports: [ItemFormComponent],
       providers: [
@@ -64,7 +86,32 @@ describe('ItemFormComponent', () => {
         {
           provide: PHOTO_OPTIMIZER,
           useValue: () =>
-            Promise.resolve([{ variant: 'medium', blob: mockMedium, widthPx: 768, heightPx: 512 }]),
+            Promise.resolve([
+              { variant: 'thumb', blob: blobs.thumb, widthPx: 320, heightPx: 240 },
+              { variant: 'medium', blob: blobs.medium, widthPx: 768, heightPx: 576 },
+              { variant: 'large', blob: blobs.large, widthPx: 1_440, heightPx: 1_080 },
+            ]),
+        },
+        {
+          // Doble del transporte: ninguna prueba abre un `XMLHttpRequest` real.
+          provide: PHOTO_UPLOADER,
+          useValue: ((
+            tasks: readonly UploadTask[],
+            contentType: string,
+            onProgress: (percent: number) => void,
+          ) => {
+            uploads.push({ tasks, contentType });
+            onProgress(42);
+            onProgress(99);
+
+            return Promise.resolve(
+              tasks.map((task) => ({
+                variant: task.variant,
+                widthPx: task.widthPx,
+                heightPx: task.heightPx,
+              })),
+            );
+          }) satisfies typeof uploadVariants,
         },
       ],
     }).compileComponents();
@@ -93,6 +140,15 @@ describe('ItemFormComponent', () => {
     await tick();
   }
 
+  /** Espera el destello de cierre, que es lo último antes de limpiar la ficha. */
+  async function flash(fixture: Fixture): Promise<void> {
+    await new Promise((resolve) => {
+      setTimeout(resolve, PROGRESS_DONE_FLASH_MS + 20);
+    });
+    fixture.detectChanges();
+    await tick();
+  }
+
   function formOf(fixture: Fixture): HTMLFormElement {
     return fixture.nativeElement.querySelector('form') as HTMLFormElement;
   }
@@ -112,13 +168,15 @@ describe('ItemFormComponent', () => {
     return query(fixture, 'item-error')?.textContent ?? '';
   }
 
-  /** Adjunta una foto válida y espera a que el doble del optimizador entregue sus tamaños. */
+  /** Adjunta una foto válida, espera al optimizador y deja resuelto su ticket de captura. */
   async function attachPhoto(fixture: Fixture): Promise<void> {
     const input = query(fixture, 'item-photo-input') as HTMLInputElement;
     const file = new File(['foto'], 'silla.webp', { type: 'image/webp' });
     Object.defineProperty(input, 'files', { value: [file], configurable: true });
     input.dispatchEvent(new Event('change'));
 
+    await settle(fixture);
+    httpTesting.expectOne(TICKET_URL).flush(TICKET);
     await settle(fixture);
   }
 
@@ -144,7 +202,7 @@ describe('ItemFormComponent', () => {
     httpTesting.expectNone(ITEMS_URL);
   });
 
-  it('rejects a photo whose type is not declared, before uploading anything', () => {
+  it('rejects a photo whose type is not declared, before asking for a ticket', () => {
     const fixture = render();
     const input = query(fixture, 'item-photo-input') as HTMLInputElement;
 
@@ -154,7 +212,16 @@ describe('ItemFormComponent', () => {
     fixture.detectChanges();
 
     expect(errorText(fixture)).toContain('JPEG');
-    httpTesting.expectNone(ITEMS_URL);
+    httpTesting.expectNone(TICKET_URL);
+  });
+
+  it('asks for the capture ticket as soon as the photo is optimized', async () => {
+    const fixture = render();
+    await attachPhoto(fixture);
+
+    // No hay subida en la foto: el ticket sólo firma, y sigue sin tocar el almacén.
+    expect(uploads).toHaveLength(0);
+    expect((query(fixture, 'item-photo-sizes') as HTMLElement).children).toHaveLength(3);
   });
 
   it('does not offer the draft until the photo is optimized', () => {
@@ -172,7 +239,7 @@ describe('ItemFormComponent', () => {
     const request = httpTesting.expectOne(DRAFTS_URL);
     expect(request.request.method).toBe('POST');
     // La identidad importa: es el mismo objeto, no una copia ni un base64.
-    expect(request.request.body).toBe(mockMedium);
+    expect(request.request.body).toBe(blobs.medium);
     expect(request.request.headers.get('Content-Type')).toBe('image/webp');
 
     request.flush({ draft: { title: 'Silla de madera', note: 'Con respaldo alto.' } });
@@ -230,7 +297,7 @@ describe('ItemFormComponent', () => {
     expect((query(fixture, 'item-form-publish') as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('publishes: creates the article, uploads the photo and returns the slug', async () => {
+  it('uploads the three variants to their signed urls and attaches the capture', async () => {
     const fixture = render();
     const saved = vi.fn();
     fixture.componentInstance.saved.subscribe(saved);
@@ -241,19 +308,51 @@ describe('ItemFormComponent', () => {
     formOf(fixture).dispatchEvent(new Event('submit'));
     await settle(fixture);
 
-    const create = httpTesting.expectOne(ITEMS_URL);
-    expect(create.request.method).toBe('POST');
-    create.flush(CREATED);
+    httpTesting.expectOne(ITEMS_URL).flush(CREATED);
     await settle(fixture);
 
-    const upload = httpTesting.expectOne(UPLOAD_URL);
-    expect(upload.request.method).toBe('PUT');
-    expect(upload.request.body).toBe(mockMedium);
-    upload.flush({ photo: { id: 'photo-1', sizes: {} } });
+    // Las URL salen del ticket y el prefijo del API las resuelve: no hay ninguna ruta de subida
+    // propia del borde.
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0]?.contentType).toBe('image/webp');
+    expect(uploads[0]?.tasks.map((task) => task.url)).toEqual([
+      '/api/__fake-r2/put?token=thumb',
+      '/api/__fake-r2/put?token=medium',
+      '/api/__fake-r2/put?token=large',
+    ]);
+    expect(uploads[0]?.tasks.map((task) => task.blob)).toEqual([
+      blobs.thumb,
+      blobs.medium,
+      blobs.large,
+    ]);
+
+    // Mientras se adjunta, el botón pulsado muestra el 99 % y no se puede repetir.
+    const publish = query(fixture, 'item-form-publish') as HTMLButtonElement;
+    expect(publish.textContent?.trim()).toBe('99%');
+    expect(publish.disabled).toBe(true);
+    expect(publish.getAttribute('aria-busy')).toBe('true');
+
+    const attach = httpTesting.expectOne(PHOTOS_URL);
+    expect(attach.request.method).toBe('POST');
+    expect(attach.request.body).toEqual({
+      captures: [
+        {
+          captureId: TICKET.captureId,
+          slot: 0,
+          variants: [
+            { variant: 'thumb', widthPx: 320, heightPx: 240 },
+            { variant: 'medium', widthPx: 768, heightPx: 576 },
+            { variant: 'large', widthPx: 1_440, heightPx: 1_080 },
+          ],
+        },
+      ],
+    });
+    attach.flush({ photos: [{ id: 'photo-1', sizes: {} }] });
     await settle(fixture);
 
     httpTesting.expectOne(LISTING_URL).flush({ slug: 'mesa-3f9a2c', path: '/mesa-3f9a2c' });
     await settle(fixture);
+    await flash(fixture);
 
     expect(saved).toHaveBeenCalledWith('mesa-3f9a2c');
     expect((query(fixture, 'item-title-input') as HTMLInputElement).value).toBe('');
@@ -273,14 +372,15 @@ describe('ItemFormComponent', () => {
     httpTesting.expectOne(ITEMS_URL).flush(CREATED);
     await settle(fixture);
 
-    httpTesting.expectOne(UPLOAD_URL).flush({ photo: { id: 'photo-1', sizes: {} } });
+    httpTesting.expectOne(PHOTOS_URL).flush({ photos: [] });
     await settle(fixture);
+    await flash(fixture);
 
     expect(saved).toHaveBeenCalledWith(null);
     httpTesting.expectNone(LISTING_URL);
   });
 
-  it('keeps the ficha and offers a photo retry when the upload fails', async () => {
+  it('keeps the ficha and offers a photo retry when the attach fails', async () => {
     const fixture = render();
     await attachPhoto(fixture);
     fill(fixture, 'item-title-input', 'Mesa');
@@ -292,7 +392,7 @@ describe('ItemFormComponent', () => {
     await settle(fixture);
 
     httpTesting
-      .expectOne(UPLOAD_URL)
+      .expectOne(PHOTOS_URL)
       .flush({ error: 'r2_unavailable' }, { status: 503, statusText: 'Unavailable' });
     await settle(fixture);
 
@@ -317,7 +417,7 @@ describe('ItemFormComponent', () => {
     await settle(fixture);
 
     httpTesting
-      .expectOne(UPLOAD_URL)
+      .expectOne(PHOTOS_URL)
       .flush({ error: 'r2_unavailable' }, { status: 503, statusText: 'Unavailable' });
     await settle(fixture);
 
@@ -326,8 +426,9 @@ describe('ItemFormComponent', () => {
 
     // No hay segundo alta: el artículo ya existía.
     httpTesting.expectNone(ITEMS_URL);
-    httpTesting.expectOne(UPLOAD_URL).flush({ photo: { id: 'photo-1', sizes: {} } });
+    httpTesting.expectOne(PHOTOS_URL).flush({ photos: [] });
     await settle(fixture);
+    await flash(fixture);
 
     expect(saved).toHaveBeenCalledWith(null);
   });

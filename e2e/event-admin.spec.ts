@@ -7,6 +7,7 @@ import type {
   PublishedListing,
 } from '@mudanzapp/shared';
 
+import { attachCapture } from './support/attach-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
@@ -101,25 +102,6 @@ async function createItem(
   });
   expect(response.status()).toBe(201);
   return ((await response.json()) as CreatedItem).item;
-}
-
-/** Sube una variante con el tipo declarado de la salida del codificador. */
-async function uploadVariant(
-  request: APIRequestContext,
-  eventId: string,
-  itemId: string,
-  token: string,
-  variant: { readonly variant: string; readonly w: number; readonly h: number },
-): Promise<void> {
-  const response = await request.put(
-    `${BACKEND_URL}/events/${eventId}/items/${itemId}/photo` +
-      `?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
-    {
-      headers: { ...bearer(token), 'Content-Type': 'image/jpeg' },
-      data: JPEG,
-    },
-  );
-  expect(response.status()).toBe(200);
 }
 
 /** Deja el dispositivo con la credencial que la aplicación lee al arrancar. */
@@ -263,9 +245,18 @@ test('the event administrator retires a mistaken capture and the public page sto
 
   // 1. Un artículo publicado: la ficha pública existe antes del borrado.
   const item = await createItem(request, event.id, king.sessionToken, 'Sillón equivocado');
-  for (const variant of VARIANTS) {
-    await uploadVariant(request, event.id, item.id, king.sessionToken, variant);
-  }
+  // El ticket firma las tres escrituras y el cuerpo de la foto no atraviesa el API.
+  await attachCapture(request, {
+    eventId: event.id,
+    itemId: item.id,
+    token: king.sessionToken,
+    body: JPEG,
+    variants: VARIANTS.map((variant) => ({
+      variant: variant.variant,
+      widthPx: variant.w,
+      heightPx: variant.h,
+    })),
+  });
 
   const published = await request.post(
     `${BACKEND_URL}/events/${event.id}/items/${item.id}/listing`,

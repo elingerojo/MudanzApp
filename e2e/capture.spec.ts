@@ -1,5 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import type {
+  AttachedPhotos,
+  CaptureTicket,
   CreatedEvent,
   CreatedInvitation,
   CreatedItem,
@@ -13,12 +15,14 @@ import { ADMIN_TOKEN, BACKEND_URL, testDatabaseUrl } from './support/harness.js'
 const { Client } = pg;
 
 /**
- * Evidencia del ciclo 3a (`capture`, `resumen-funcional` §3 y §4) y de la frontera por variante del
- * ciclo 3c-optimizar: un co-dispositivo documenta su primer artículo con foto dentro de su evento, la
- * foto se lee solo con sesión del evento y ningún otro evento la alcanza.
+ * Evidencia de `capture` (ciclo 3a) y de la subida directa del ciclo 4g (`direct-upload`).
+ *
+ * La hipótesis de 4g es una negativa y una positiva: el cuerpo de la foto **no** atraviesa el API —el
+ * navegador escribe las tres variantes con la URL prefirmada del ticket— y el artículo queda con su
+ * foto completa después de adjuntarla. La lectura por variante sigue exigiendo sesión del evento.
  *
  * Dos suites en un archivo: la de API, que corre una vez, y la de interfaz, que abre la superficie
- * privada en un navegador real. Los binarios del fixture se generan en memoria — 1×1 px — para no
+ * privada en un navegador real. Los binarios del fixture se generan en memoria —1×1 px— para no
  * versionar imágenes: el backend no decodifica la imagen, juzga el tipo declarado y las dimensiones.
  */
 const adminHeaders = { Authorization: `Bearer ${ADMIN_TOKEN}` };
@@ -43,9 +47,9 @@ function bearer(token: string): Record<string, string> {
 
 /** Las tres variantes con sus dimensiones reales: la única forma de que la foto exista completa. */
 const VARIANTS = [
-  { variant: 'large', w: 1_440, h: 960 },
-  { variant: 'medium', w: 768, h: 512 },
-  { variant: 'thumb', w: 320, h: 213 },
+  { variant: 'large', widthPx: 1_440, heightPx: 960 },
+  { variant: 'medium', widthPx: 768, heightPx: 512 },
+  { variant: 'thumb', widthPx: 320, heightPx: 213 },
 ] as const;
 
 /**
@@ -84,8 +88,46 @@ async function eventWithSession(
   return { event, invitation, session };
 }
 
-function photoUrl(eventId: string, itemId: string, query: string): string {
-  return `${BACKEND_URL}/events/${eventId}/items/${itemId}/photo?${query}`;
+/** El ticket: firma las escrituras y no recibe ningún byte. */
+async function openCapture(
+  request: APIRequestContext,
+  eventId: string,
+  token: string,
+  contentType = 'image/jpeg',
+): Promise<CaptureTicket> {
+  const response = await request.post(`${BACKEND_URL}/events/${eventId}/captures`, {
+    headers: { ...bearer(token), 'Content-Type': 'application/json' },
+    data: { contentType },
+  });
+  expect(response.status()).toBe(201);
+
+  return (await response.json()) as CaptureTicket;
+}
+
+/**
+ * Sube por la URL prefirmada, como el navegador: el cuerpo **no** pasa por el API. En `fake` la URL
+ * es relativa al API y `photo-upload` la resuelve contra el prefijo de la app.
+ */
+async function uploadVariant(
+  request: APIRequestContext,
+  ticket: CaptureTicket,
+  variant: keyof CaptureTicket['uploads'],
+  body: Buffer = JPEG,
+): Promise<void> {
+  const { url } = ticket.uploads[variant];
+
+  const response = await request.put(`${BACKEND_URL}${url}`, {
+    headers: { 'Content-Type': ticket.contentType },
+    data: body,
+  });
+
+  expect(response.status()).toBe(204);
+}
+
+function attachBody(ticket: CaptureTicket) {
+  return {
+    captures: [{ captureId: ticket.captureId, slot: 0, variants: VARIANTS }],
+  };
 }
 
 test('a co-device captures an article and only its event can read the photo', async ({
@@ -123,35 +165,30 @@ test('a co-device captures an article and only its event can read the photo', as
   const list = (await listResponse.json()) as ItemList;
   expect(list.items.map((entry) => entry.id)).toContain(item.id);
 
-  // 3. Las tres variantes entran por cuerpo binario crudo, cada una con su variante y sus medidas.
-  let photoId = '';
-  for (const [index, variant] of VARIANTS.entries()) {
-    const uploadResponse = await request.put(
-      photoUrl(own.event.id, item.id, `variant=${variant.variant}&w=${variant.w}&h=${variant.h}`),
-      {
-        headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
-        data: JPEG,
-      },
-    );
-    expect(uploadResponse.status()).toBe(200);
+  // 3. El ticket firma tres escrituras y las variantes suben por su URL: el cuerpo no toca el API.
+  const ticket = await openCapture(request, own.event.id, own.session.sessionToken);
+  expect(Object.keys(ticket.uploads).sort()).toEqual(['large', 'medium', 'thumb']);
 
-    const uploaded = (await uploadResponse.json()) as {
-      photo: {
-        id: string;
-        sizes: Record<string, { widthPx: number; heightPx: number } | null>;
-      };
-    };
-
-    photoId = uploaded.photo.id;
-    expect(uploaded.photo.sizes[variant.variant]).toEqual({
-      widthPx: variant.w,
-      heightPx: variant.h,
-    });
-    // Las que faltan siguen en `null`, nunca en un objeto vacío.
-    expect(Object.values(uploaded.photo.sizes).filter((size) => size !== null)).toHaveLength(
-      index + 1,
-    );
+  for (const variant of VARIANTS) {
+    await uploadVariant(request, ticket, variant.variant);
   }
+
+  const attachResponse = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos`,
+    {
+      headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'application/json' },
+      data: attachBody(ticket),
+    },
+  );
+  expect(attachResponse.status()).toBe(200);
+
+  const attached = (await attachResponse.json()) as AttachedPhotos;
+  expect(attached.photos).toHaveLength(1);
+
+  const photoId = attached.photos[0]?.id ?? '';
+  expect(attached.photos[0]?.sizes.large).toEqual({ widthPx: 1_440, heightPx: 960 });
+  expect(attached.photos[0]?.sizes.medium).toEqual({ widthPx: 768, heightPx: 512 });
+  expect(attached.photos[0]?.sizes.thumb).toEqual({ widthPx: 320, heightPx: 213 });
 
   // 4. La lectura por variante responde su tipo, y sin parámetro sirve el tamaño grande.
   for (const variant of VARIANTS) {
@@ -181,7 +218,7 @@ test('a co-device captures an article and only its event can read the photo', as
   expect(foreignPhoto.status()).toBe(404);
   await expect(foreignPhoto.json()).resolves.toEqual({ error: 'item_not_found' });
 
-  // 6. El evento ajeno responde `not_found` en sus tres caminos, sin revelar que existe.
+  // 6. El evento ajeno responde `not_found` en sus caminos, sin revelar que existe.
   const foreignList = await request.get(`${BACKEND_URL}/events/${own.event.id}/items`, {
     headers: bearer(foreign.session.sessionToken),
   });
@@ -194,15 +231,22 @@ test('a co-device captures an article and only its event can read the photo', as
   expect(foreignItem.status()).toBe(404);
   await expect(foreignItem.json()).resolves.toEqual({ error: 'not_found' });
 
-  const foreignUpload = await request.put(
-    photoUrl(own.event.id, item.id, 'variant=thumb&w=320&h=213'),
+  const foreignTicket = await request.post(`${BACKEND_URL}/events/${own.event.id}/captures`, {
+    headers: { ...bearer(foreign.session.sessionToken), 'Content-Type': 'application/json' },
+    data: { contentType: 'image/jpeg' },
+  });
+  expect(foreignTicket.status()).toBe(404);
+  await expect(foreignTicket.json()).resolves.toEqual({ error: 'not_found' });
+
+  const foreignAttach = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos`,
     {
-      headers: { ...bearer(foreign.session.sessionToken), 'Content-Type': 'image/jpeg' },
-      data: JPEG,
+      headers: { ...bearer(foreign.session.sessionToken), 'Content-Type': 'application/json' },
+      data: attachBody(ticket),
     },
   );
-  expect(foreignUpload.status()).toBe(404);
-  await expect(foreignUpload.json()).resolves.toEqual({ error: 'not_found' });
+  expect(foreignAttach.status()).toBe(404);
+  await expect(foreignAttach.json()).resolves.toEqual({ error: 'not_found' });
 
   // Un artículo que no está en el evento responde su propio código.
   const missingItem = await request.get(
@@ -212,47 +256,57 @@ test('a co-device captures an article and only its event can read the photo', as
   expect(missingItem.status()).toBe(404);
   await expect(missingItem.json()).resolves.toEqual({ error: 'item_not_found' });
 
-  // 7. Los tres rechazos del borde: variante desconocida, dimensiones que pasan su tamaño y tipo que
-  //    no es la salida del codificador. Ninguno toca lo ya guardado.
-  const unknownVariant = await request.put(
-    photoUrl(own.event.id, item.id, 'variant=huge&w=100&h=100'),
-    {
-      headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
-      data: JPEG,
-    },
-  );
-  expect(unknownVariant.status()).toBe(400);
-  await expect(unknownVariant.json()).resolves.toEqual({ error: 'photo_invalid' });
-
-  const withoutVariant = await request.put(photoUrl(own.event.id, item.id, 'w=100&h=100'), {
-    headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
-    data: JPEG,
+  // 7. Los rechazos del nuevo borde: el tipo del ticket, la captura incompleta, las dimensiones
+  //    fuera de su tamaño y el tope de transporte de la escritura directa. Ninguno toca lo guardado.
+  const badTicket = await request.post(`${BACKEND_URL}/events/${own.event.id}/captures`, {
+    headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'application/json' },
+    data: { contentType: 'image/gif' },
   });
-  expect(withoutVariant.status()).toBe(400);
-  await expect(withoutVariant.json()).resolves.toEqual({ error: 'photo_invalid' });
+  expect(badTicket.status()).toBe(400);
+  await expect(badTicket.json()).resolves.toEqual({ error: 'validation_failed' });
 
-  const oversized = await request.put(
-    photoUrl(own.event.id, item.id, 'variant=thumb&w=1024&h=768'),
+  const incomplete = await openCapture(request, own.event.id, own.session.sessionToken);
+  await uploadVariant(request, incomplete, 'large');
+  await uploadVariant(request, incomplete, 'medium');
+  const incompleteAttach = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos`,
     {
-      headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
-      data: JPEG,
+      headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'application/json' },
+      data: attachBody(incomplete),
     },
   );
-  expect(oversized.status()).toBe(400);
-  await expect(oversized.json()).resolves.toEqual({ error: 'photo_invalid' });
+  expect(incompleteAttach.status()).toBe(409);
+  await expect(incompleteAttach.json()).resolves.toEqual({ error: 'capture_incomplete' });
 
-  const wrongType = await request.put(
-    photoUrl(own.event.id, item.id, 'variant=thumb&w=320&h=213'),
+  const oversized = await openCapture(request, own.event.id, own.session.sessionToken);
+  for (const variant of ['large', 'medium', 'thumb'] as const) {
+    await uploadVariant(request, oversized, variant);
+  }
+  const oversizedAttach = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos`,
     {
-      headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/png' },
-      data: PNG,
+      headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'application/json' },
+      data: {
+        captures: [
+          {
+            captureId: oversized.captureId,
+            slot: 0,
+            variants: [
+              { variant: 'large', widthPx: 1_440, heightPx: 960 },
+              { variant: 'medium', widthPx: 768, heightPx: 512 },
+              { variant: 'thumb', widthPx: 1_024, heightPx: 768 },
+            ],
+          },
+        ],
+      },
     },
   );
-  expect(wrongType.status()).toBe(400);
-  await expect(wrongType.json()).resolves.toEqual({ error: 'photo_invalid' });
+  expect(oversizedAttach.status()).toBe(400);
+  await expect(oversizedAttach.json()).resolves.toEqual({ error: 'validation_failed' });
 
-  const tooBig = await request.put(photoUrl(own.event.id, item.id, 'variant=large&w=1440&h=960'), {
-    headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
+  const transport = await openCapture(request, own.event.id, own.session.sessionToken);
+  const tooBig = await request.put(`${BACKEND_URL}${transport.uploads.large.url}`, {
+    headers: { 'Content-Type': transport.contentType },
     data: Buffer.concat([JPEG, Buffer.alloc(5 * 1024 * 1024)]),
   });
   expect(tooBig.status()).toBe(400);
@@ -278,7 +332,7 @@ test('a co-device captures an article and only its event can read the photo', as
     expect(itemRows.rows[0]?.event_id).toBe(own.event.id);
     expect(itemRows.rows[0]?.title).toBe('Bicicleta');
 
-    // Las columnas heredadas describen el tamaño `large`: es la deuda declarada con el GC.
+    // Las columnas heredadas describen el tamaño `large`; desde 4g el peso lo dicta el `HEAD`.
     const photoRows = await client.query<{ content_type: string; byte_size: number }>(
       'SELECT content_type, byte_size FROM app.item_photo WHERE item_id = $1 AND position = 0',
       [item.id],
@@ -343,17 +397,30 @@ test('a co-device opens the link and captures the first article from the browser
   await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
   await expect(page.getByTestId('item-photo-size-large')).toBeVisible();
 
-  // La captura no publica: guarda la ficha privada y ofrece el enlace a `Capturados`.
+  // 3. El botón dice cuánto falta: la escritura directa se retrasa para que el progreso sea visible.
+  await page.route('**/__fake-r2/**', async (route) => {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 400);
+    });
+    await route.continue();
+  });
+
   await page.getByTestId('item-form-save-only').click();
+  await expect(page.getByTestId('item-form-save-only')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByTestId('item-form-save-only')).toContainText('%');
+
+  // La captura no publica: guarda la ficha privada y ofrece el enlace a `Capturados`.
   await expect(page.getByTestId('capture-saved')).toBeVisible();
+  await expect(page.getByTestId('item-form-save-only')).toBeDisabled();
+
   await page.getByTestId('capture-go-captured').click();
 
-  // 3. Aparece en la lista con su miniatura, servida con la sesión del dispositivo.
+  // 4. Aparece en la lista con su miniatura, servida con la sesión del dispositivo.
   await expect(page.getByTestId('items-list')).toBeVisible();
   await expect(page.getByTestId('item-title')).toHaveText('Mesa de comedor');
   await expect(page.getByTestId('item-photo')).toBeVisible();
 
-  // 4. Recargar conserva la sesión y el artículo: la credencial se restaura antes del guard.
+  // 5. Recargar conserva la sesión y el artículo: la credencial se restaura antes del guard.
   await page.reload();
   await expect(page.getByTestId('item-title')).toHaveText('Mesa de comedor');
   await expect(page.getByTestId('item-photo')).toBeVisible();

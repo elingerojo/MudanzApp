@@ -9,6 +9,7 @@ import {
   type PublishedListing,
 } from '@mudanzapp/shared';
 
+import { attachCapture } from './support/attach-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
@@ -87,17 +88,18 @@ async function publishArticle(
   expect(itemResponse.status()).toBe(201);
   const { item } = (await itemResponse.json()) as CreatedItem;
 
-  for (const variant of VARIANTS) {
-    const upload = await request.put(
-      `${BACKEND_URL}/events/${eventId}/items/${item.id}/photo` +
-        `?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
-      {
-        headers: { ...bearer(sessionToken), 'Content-Type': 'image/jpeg' },
-        data: JPEG,
-      },
-    );
-    expect(upload.status()).toBe(200);
-  }
+  // El ticket firma las tres escrituras y el cuerpo de la foto no atraviesa el API.
+  await attachCapture(request, {
+    eventId,
+    itemId: item.id,
+    token: sessionToken,
+    body: JPEG,
+    variants: VARIANTS.map((variant) => ({
+      variant: variant.variant,
+      widthPx: variant.w,
+      heightPx: variant.h,
+    })),
+  });
 
   const published = await request.post(
     `${BACKEND_URL}/events/${eventId}/items/${item.id}/listing`,

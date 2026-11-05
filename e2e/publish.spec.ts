@@ -9,6 +9,12 @@ import {
   type PublishedListing,
 } from '@mudanzapp/shared';
 
+import {
+  CAPTURE_VARIANTS,
+  attachCapture,
+  openCapture,
+  uploadCaptureVariant,
+} from './support/attach-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL } from './support/harness.js';
 
 /**
@@ -98,31 +104,6 @@ async function createItem(
   return item;
 }
 
-const VARIANTS = [
-  { variant: 'large', w: 1_440, h: 1_080 },
-  { variant: 'medium', w: 768, h: 576 },
-  { variant: 'thumb', w: 320, h: 240 },
-] as const;
-
-/** Sube una variante; el tipo declarado es el de la salida del codificador. */
-async function uploadVariant(
-  request: APIRequestContext,
-  eventId: string,
-  itemId: string,
-  sessionToken: string,
-  variant: { readonly variant: string; readonly w: number; readonly h: number },
-): Promise<void> {
-  const response = await request.put(
-    `${BACKEND_URL}/events/${eventId}/items/${itemId}/photo` +
-      `?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
-    {
-      headers: { ...bearer(sessionToken), 'Content-Type': 'image/jpeg' },
-      data: JPEG,
-    },
-  );
-  expect(response.status()).toBe(200);
-}
-
 test('the first published article opens without a session', async ({ request, page }, testInfo) => {
   test.skip(testInfo.project.name !== 'shop', 'public publish suite runs once against shop');
 
@@ -132,9 +113,13 @@ test('the first published article opens without a session', async ({ request, pa
   // 1. El artículo existe y sus tres tamaños entran por el cuerpo binario crudo.
   const item = await createItem(request, own.event.id, own.session.sessionToken, 'Silla de madera');
 
-  for (const variant of VARIANTS) {
-    await uploadVariant(request, own.event.id, item.id, own.session.sessionToken, variant);
-  }
+  // El ticket firma las tres escrituras; el cuerpo de la foto no atraviesa el API.
+  await attachCapture(request, {
+    eventId: own.event.id,
+    itemId: item.id,
+    token: own.session.sessionToken,
+    body: JPEG,
+  });
 
   // 2. Publicar devuelve un `slug` que cumple el contrato y su camino relativo.
   const publishResponse = await request.post(
@@ -215,8 +200,29 @@ test('the first published article opens without a session', async ({ request, pa
     own.session.sessionToken,
     'Caja a medias',
   );
-  const [largeOnly] = VARIANTS;
-  await uploadVariant(request, own.event.id, partial.id, own.session.sessionToken, largeOnly);
+
+  // Una captura a la que le falta una variante no se adjunta: el borde la rechaza y el artículo
+  // sigue sin foto, así que tampoco se puede publicar.
+  const partialTicket = await openCapture(request, own.event.id, own.session.sessionToken);
+  const [largeOnly, mediumOnly] = CAPTURE_VARIANTS;
+  if (largeOnly === undefined || mediumOnly === undefined) {
+    throw new Error('capture-variants-missing');
+  }
+
+  expect(await uploadCaptureVariant(request, partialTicket, largeOnly.variant, JPEG)).toBe(204);
+  expect(await uploadCaptureVariant(request, partialTicket, mediumOnly.variant, JPEG)).toBe(204);
+
+  const incomplete = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${partial.id}/photos`,
+    {
+      headers: bearer(own.session.sessionToken),
+      data: {
+        captures: [{ captureId: partialTicket.captureId, slot: 0, variants: CAPTURE_VARIANTS }],
+      },
+    },
+  );
+  expect(incomplete.status()).toBe(409);
+  await expect(incomplete.json()).resolves.toEqual({ error: 'capture_incomplete' });
 
   const withOneVariant = await request.post(
     `${BACKEND_URL}/events/${own.event.id}/items/${partial.id}/listing`,

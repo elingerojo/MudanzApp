@@ -9,6 +9,7 @@ import {
   type PublishedListing,
 } from '@mudanzapp/shared';
 
+import { attachCapture } from './support/attach-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL } from './support/harness.js';
 
 /**
@@ -148,18 +149,16 @@ test('the device optimizes a heavy photo into three sizes and the original never
 
   const source = await generateHeavyPhoto(page);
 
-  // 2. Cada cuerpo que se sube se mide: es la prueba de que la original no viaja.
-  const uploads: { readonly variant: string; readonly bytes: number }[] = [];
+  // 2. Cada cuerpo que se sube se mide: es la prueba de que la original no viaja. Desde 4g la
+  //    escritura va a la URL prefirmada del almacén, así que lo que se intercepta es esa ruta.
+  const uploads: { readonly bytes: number }[] = [];
   page.on('request', (request) => {
     const url = request.url();
-    if (request.method() !== 'PUT' || !url.includes('/photo?variant=')) {
+    if (request.method() !== 'PUT' || !url.includes('/__fake-r2/put?token=')) {
       return;
     }
 
-    uploads.push({
-      variant: new URL(url).searchParams.get('variant') ?? '',
-      bytes: request.postDataBuffer()?.length ?? 0,
-    });
+    uploads.push({ bytes: request.postDataBuffer()?.length ?? 0 });
   });
 
   await page.getByTestId('item-title-input').fill('Sofá de tres puestos');
@@ -219,7 +218,8 @@ test('the device optimizes a heavy photo into three sizes and the original never
   await expect(page.getByTestId('items-list')).toBeVisible();
   await expect(page.getByTestId('item-title')).toHaveText('Sofá de tres puestos');
 
-  expect(uploads.map((entry) => entry.variant).sort()).toEqual(['large', 'medium', 'thumb']);
+  // Tres cuerpos, uno por tamaño: la tarjeta de pesos ya demostró cuál es cuál.
+  expect(uploads).toHaveLength(3);
   for (const entry of uploads) {
     expect(entry.bytes).toBeLessThan(source.size);
     expect(entry.bytes).toBeLessThanOrEqual(ITEM_PHOTO_ENCODING.targetBytes);
@@ -247,17 +247,17 @@ test('the public listing paints the thumbnail and the medium, and the medium ope
     { variant: 'thumb', w: 320, h: 213 },
   ] as const;
 
-  for (const variant of variants) {
-    const upload = await request.put(
-      `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photo` +
-        `?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
-      {
-        headers: { ...bearer(own.session.sessionToken), 'Content-Type': 'image/jpeg' },
-        data: JPEG,
-      },
-    );
-    expect(upload.status()).toBe(200);
-  }
+  await attachCapture(request, {
+    eventId: own.event.id,
+    itemId: item.id,
+    token: own.session.sessionToken,
+    body: JPEG,
+    variants: variants.map((variant) => ({
+      variant: variant.variant,
+      widthPx: variant.w,
+      heightPx: variant.h,
+    })),
+  });
 
   const publishResponse = await request.post(
     `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/listing`,

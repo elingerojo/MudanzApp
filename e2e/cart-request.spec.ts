@@ -7,6 +7,7 @@ import type {
   PublishedListing,
 } from '@mudanzapp/shared';
 
+import { attachCapture } from './support/attach-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
@@ -82,14 +83,18 @@ async function eventWithPublishedArticle(
   expect(itemResponse.status()).toBe(201);
   const { item } = (await itemResponse.json()) as CreatedItem;
 
-  for (const variant of VARIANTS) {
-    const upload = await request.put(
-      `${BACKEND_URL}/events/${event.id}/items/${item.id}/photo` +
-        `?variant=${variant.variant}&w=${variant.w}&h=${variant.h}`,
-      { headers: { ...bearer(sessionToken), 'Content-Type': 'image/jpeg' }, data: JPEG },
-    );
-    expect(upload.status()).toBe(200);
-  }
+  // La foto viaja directo al almacén con el ticket; el API sólo recibe la adjunción.
+  await attachCapture(request, {
+    eventId: event.id,
+    itemId: item.id,
+    token: sessionToken,
+    body: JPEG,
+    variants: VARIANTS.map((variant) => ({
+      variant: variant.variant,
+      widthPx: variant.w,
+      heightPx: variant.h,
+    })),
+  });
 
   const priced = await request.patch(`${BACKEND_URL}/events/${event.id}/items/${item.id}`, {
     headers: bearer(sessionToken),
