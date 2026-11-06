@@ -1,6 +1,7 @@
 # Plan del ciclo E1 — `dashboard-plataforma`: el administrador de plataforma opera sin `curl` y sin guardar la credencial
 
-> **Estado:** **en curso.** Sin migración, sin dependencia nueva y sin rama por ciclo.
+> **Estado:** **cerrada en `0e917e6` (2026-11-06).** Sin migración, sin dependencia nueva y sin
+> rama por ciclo.
 > **Hipótesis:** el administrador de plataforma puede ver todos los eventos, crear uno y emitir su
 > enlace desde el navegador, sosteniendo `ADMIN_TOKEN` solo en la memoria de esa pestaña.
 > **Fuentes:** [`resumen-funcional`](../.plans/resumen-funcional-app-mudanzapp.md:66) §3 y §4;
@@ -160,4 +161,25 @@ AdminEventSummary {
 
 ## 13. Cierre
 
-Se escribe al cerrar: fecha, sha corto, evidencia observada y lo que quedó pendiente con su disparador.
+- **Fecha y sha:** 2026-11-06, `0e917e6` — `feat(web): add the platform admin surface over
+ADMIN_TOKEN`.
+- **Evidencia observada:** el gate de `workflow` §7 con `frontend/` y `shared/` tocados corrió
+  completo, un comando por invocación, en verde: `typecheck`, `lint`, `format:check`,
+  `build:web:frontend`, `build:web:shop`, `build:web:wiki`, `test:api` (269/269, 7 nuevos),
+  `test:web:frontend` (142/142, 10 nuevos) y `test:web:wiki` (12/12). Las aserciones de §7 se
+  cumplieron una por una, incluida la que falla si la credencial aparece en `localStorage` y la que
+  exige que el cursor vuelva al SQL como parámetro.
+- **Revisión `live`:** no aplica. El corte no crea una variable de entorno —`ADMIN_TOKEN` ya existía—
+  ni cambia un Worker, un dominio o una migración, así que no hay hecho remoto que verificar
+  (`07` §5).
+- **Delta del wiki:** A1 (tile dueño, `backend/src/routes/admin-router.ts`), más A0 —la ruta en el
+  mapa de superficies— y E2 —la capacidad en su tabla—. E3 sin delta: el gate no cambió.
+- **Pendiente con su disparador:**
+  - Editar, renombrar o borrar un evento: F1 y X10 del backlog, cada uno con su decisión.
+  - Sesión de plataforma con OAuth y backend-for-frontend: alternativas (b) y (c) de la decisión §46;
+    se reabren con el disparador escrito allí —una segunda persona que necesite administrar, o una
+    credencial que deba vivir más que una pestaña.
+  - e2e de la superficie: no se construyó porque la hipótesis se responde con la frontera y la
+    pantalla. Su disparador es la primera regresión del interceptor de sesión o de la lista que el
+    unit no atrape.
+  - El aviso de presupuesto de bundle sigue siendo la deuda D5, ajena a este corte.
