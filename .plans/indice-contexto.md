@@ -14,7 +14,9 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | Tarea | Leer | No leer |
 | --- | --- | --- |
 | Arrancar un workspace nuevo | plantilla, manual, `.scripts/workspace-params.md`, `00`–`07`, stack | modelo-datos (salvo el runner) |
-| Planificar un ciclo 0 → 1 | `00`–`07`, resumen-funcional, stack | plantilla, manual |
+| Planificar un ciclo 0 → 1 | `00`–`07`, resumen-funcional, stack, workflow-ciclos, plantilla-plan-ciclo | plantilla, manual |
+| Abrir o cerrar un ciclo | workflow-ciclos, backlog §0, `04-verificacion`, `02-commits`, wiki-delta | plantilla, manual |
+| Anotar o triar una idea | inbox y workflow-ciclos §3 | el resto |
 | Corte con base de datos | `04`, `06`, modelo-datos §9, `06-datos`, `07-secretos` | auditoría, glosario |
 | Corte de integración externa | stack §7, `03`, `05`, `00-stack` | manual |
 | Corte de UI o frontend | stack §3, `02`, `03` | modelo-datos |
@@ -37,6 +39,9 @@ Cargar todo el memory-bank en cada ciclo multiplica el contexto sin agregar hech
 | `stack-tecnologico-app-mudanzapp.md` | el CÓMO | sí | por tarea |
 | `modelo-datos-app-mudanzapp.md` | modelo de datos | sí | cortes con datos |
 | `resumen-funcional-app-mudanzapp.md` | el QUÉ | sí | planificación |
+| [`workflow-ciclos.md`](../plans/workflow-ciclos.md:1) | procedimiento del ciclo: estados, promoción, gate y cierre | sí | abrir y cerrar ciclo |
+| [`plantilla-plan-ciclo.md`](../plans/plantilla-plan-ciclo.md:1) | forma del plan de ciclo y variante spike | sí | al abrir un corte |
+| [`inbox.md`](../plans/inbox.md:1) | ideas que todavía no son alcance | sí | triage |
 | `decisiones-tecnicas-app-mudanzapp.md` | biblioteca de patrones | sí | consulta |
 | `glosario-de-criterios.md` | jerarquía y excepción | sí | consulta |
 | `indicador-carga-componente.md` | contrato y aprendizaje del indicador de carga | sí | solo ciclos del indicador |
