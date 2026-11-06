@@ -105,3 +105,21 @@ subdominio `workers.dev`, URL de cada Worker y `APP_BASE_URL`). Es la fuente **v
 y la única: [`workspace-params.md`](workspace-params.md) los deja como `pending` porque registra
 nombres derivados del nombre público, no puede conocer hechos de plataforma y, desde la primera fila
 de §5, es un snapshot congelado. Al obtener un valor nuevo se anota en §5, nunca en el snapshot.
+
+## `ciclo-*.mjs`
+
+Bookkeeping del ciclo 0 → 1 ([`workflow-ciclos`](../plans/workflow-ciclos.md:1) §10). Leen el árbol,
+imprimen y salen distinto de cero cuando el invariante es duro; ninguno edita documentos ni hace
+commits.
+
+| Comando                                                 | Qué hace                                                                                                                                                |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run ciclo:check`                                   | Invariantes: ids únicos, migraciones sin duplicado, planes citados, §4 con plan, enlaces y estado por fila; imprime el gate y los tiles del árbol sucio |
+| `npm run ciclo:new -- <ID> [--slug <slug>] [--dry-run]` | Crea el plan desde la plantilla; se niega si el corte no está declarado en `resumen-funcional`                                                          |
+| `npm run ciclo:close -- [--id <ID>] [--plan <ruta>]`    | Imprime gate, tiles, cuerpo de commit y checklist de cierre                                                                                             |
+
+Códigos de salida de `ciclo:new`: `0` plan creado, `1` falta la plantilla o las fuentes, `2` id
+desconocido o uso inválido, `3` corte no declarado y `4` el plan ya existe. `ciclo:check` sale `1`
+solo con violaciones duras; los avisos no bloquean.
+
+Ninguno lee `.env*`, imprime credenciales ni escribe fuera de `plans/`.

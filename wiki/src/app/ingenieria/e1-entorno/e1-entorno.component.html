@@ -4,7 +4,7 @@
     title="Entorno y dependencias"
     route="ingenieria/e1-entorno"
     status="current"
-    verified="2026-11-05 · este ciclo"
+    verified="2026-11-06 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -27,6 +27,30 @@
       Evidencia: <code class="font-mono">package.json</code> de la raíz;
       <code class="font-mono">tsconfig.base.json</code>; commit
       <code class="font-mono">7475b3d</code> (2026-10-23).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Procedimiento de ciclos</h3>
+    <p>
+      Abrir, ejecutar y cerrar un ciclo tiene un procedimiento único en
+      <code class="font-mono text-xs">plans/workflow-ciclos.md</code>: estados, bandeja de ideas,
+      promoción del corte a <code class="font-mono text-xs">resumen-funcional</code>, gate y cierre.
+      Una idea que todavía no es alcance entra por
+      <code class="font-mono text-xs">plans/inbox.md</code> y no cambia nada hasta su triage.
+    </p>
+    <p>
+      Tres comandos repiten la mecánica y no forman parte del gate:
+      <code class="font-mono text-xs">ciclo:check</code> verifica invariantes e imprime el gate y
+      los tiles del árbol sucio; <code class="font-mono text-xs">ciclo:new</code> crea el plan y se
+      niega si el corte no está declarado;
+      <code class="font-mono text-xs">ciclo:close</code> imprime el gate, el cuerpo del commit y el
+      checklist. Ninguno edita documentos ni commitea.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">package.json</code> de la raíz;
+      <code class="font-mono">.scripts/ciclo-check.mjs</code>;
+      <code class="font-mono">.scripts/README.md</code>.
     </p>
   </section>
 

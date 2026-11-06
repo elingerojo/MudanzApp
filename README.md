@@ -184,6 +184,7 @@ Los valores no se versionan y no se imprimen. Una variable **vacía cuenta como 
 | `db:ping[:test][:branch][:branch:test][:remote][:remote:branch]`    | Conectividad; emite solo `ok` o un error estable    | Datos                                              |
 | `db:migrate[:test][:branch][:branch:test][:remote][:remote:branch]` | Migración **manual**, nunca en el arranque          | Datos                                              |
 | `invite`                                                            | `tsx .../scripts/invite.ts` con `ADMIN_TOKEN`       | Emite una invitación con el API de administración  |
+| `ciclo:check` / `ciclo:new` / `ciclo:close`                         | `node .scripts/ciclo-*.mjs`                         | Bookkeeping del ciclo; **no** forma parte del gate |
 | `lint` / `format:check`                                             | Pasada única desde la raíz (incluye `e2e/`)         | Gate                                               |
 
 Reglas del contrato:

@@ -4,7 +4,7 @@
     title="Entrega y verificación"
     route="ingenieria/e3-entrega"
     status="current"
-    verified="2026-11-05 · este ciclo"
+    verified="2026-11-06 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -96,6 +96,13 @@
         <code class="font-mono text-xs">invite</code> es el único script de administración: reenvía
         sus banderas al workspace del backend, por eso se invoca con
         <code class="font-mono text-xs">--</code> antes de los argumentos.
+      </li>
+      <li>
+        <code class="font-mono text-xs">ciclo:check</code>,
+        <code class="font-mono text-xs">ciclo:new</code> y
+        <code class="font-mono text-xs">ciclo:close</code> son bookkeeping del ciclo: leen el árbol,
+        imprimen y fallan cuando el invariante es duro. No forman parte del gate, no editan
+        documentos y no hacen el commit.
       </li>
     </ul>
     <p class="text-xs text-slate-500">

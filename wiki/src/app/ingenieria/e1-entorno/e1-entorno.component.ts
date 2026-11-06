@@ -24,6 +24,9 @@ export class E1EntornoComponent {
     'backend/.env.example',
     '.roo/rules/00-stack.md',
     '.plans/stack-tecnologico-app-mudanzapp.md §12',
+    '.scripts/ciclo-*.mjs',
+    'plans/workflow-ciclos.md',
+    'plans/inbox.md',
   ];
 
   protected readonly decisions = ['§13', '§21', '§26', '§34', '§45'];

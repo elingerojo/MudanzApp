@@ -25,6 +25,7 @@ export class E3EntregaComponent {
     'e2e/playwright.config.ts',
     'e2e/support/harness.ts',
     'backend/scripts/migrate.ts',
+    '.scripts/ciclo-*.mjs',
   ];
 
   protected readonly decisions = ['§16', '§17', '§18', '§19'];
