@@ -3,6 +3,7 @@ import {
   eventPublicSlugSchema,
   type CartWriteResult,
   type IssuedCartRequest,
+  type UnpublishedCartItem,
 } from '@mudanzapp/shared';
 import { Router, type Request } from 'express';
 
@@ -109,6 +110,10 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
    * evento, ya se vendió o no tiene precio— **no** hace fallar el acto: se devuelve en `dropped` y el
    * carrito resultante es el que se guardó. Un `409` perdería cuál sobró, porque el contrato de errores
    * no lleva carga.
+   *
+   * Desde F3 un artículo **despublicado** tiene su propio destino: se retira del carrito y se devuelve
+   * en `unpublished` con su título, para que la pantalla diga por qué desapareció en vez de confundirlo
+   * con «sin precio» o «vendido».
    */
   router.put('/public/events/:publicSlug/cart', requireShopSession, (request, response, next) => {
     const handle = async (): Promise<void> => {
@@ -122,9 +127,20 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
 
       const kept: string[] = [];
       const dropped: string[] = [];
+      const unpublished: UnpublishedCartItem[] = [];
       for (const slug of slugs) {
         const listing = bySlug.get(slug);
-        if (listing === undefined || listing.soldAt !== null || listing.priceCents === null) {
+        if (listing === undefined) {
+          dropped.push(slug);
+          continue;
+        }
+
+        if (listing.unpublishedAt !== null) {
+          unpublished.push({ slug: listing.slug, title: listing.title });
+          continue;
+        }
+
+        if (listing.soldAt !== null || listing.priceCents === null) {
           dropped.push(slug);
           continue;
         }
@@ -142,6 +158,7 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
       const payload: CartWriteResult = {
         cart: toPublicCart(event, cart, open),
         dropped,
+        unpublished,
       };
       response.set('Cache-Control', 'private, no-store').json(payload);
     };
@@ -178,6 +195,13 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
         if (open !== null) {
           response.status(200).json(issued(contactPhone, open));
           return;
+        }
+
+        // Un artículo despublicado ya no está a la vista: la solicitud no se emite con él. La lectura
+        // del carrito lo retira con su aviso, pero dos peticiones pueden competir y el borde no confía
+        // en que el cliente lo haya limpiado.
+        if (cart.items.some((item) => item.unpublishedAt !== null)) {
+          throw new AppError('listing_not_published');
         }
 
         // Un artículo cuyo precio se vació después de entrar al carrito no se puede pedir: el

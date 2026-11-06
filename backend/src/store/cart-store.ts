@@ -22,6 +22,8 @@ export type CartItemRow = {
   /** Nulo solo si el vendedor vació el precio después de que el artículo entró al carrito. */
   readonly priceCents: number | null;
   readonly soldAt: Date | null;
+  /** Instante de la despublicación; el borde lo retira del carrito con su aviso (F3). */
+  readonly unpublishedAt: Date | null;
   readonly addedAt: Date;
 };
 
@@ -35,8 +37,11 @@ export type CartRow = {
 export type CartableListing = {
   readonly listingId: string;
   readonly slug: string;
+  readonly title: string;
   readonly priceCents: number | null;
   readonly soldAt: Date | null;
+  /** Distingue «despublicado» de «sin precio» y «vendido» en la respuesta del `PUT` (F3). */
+  readonly unpublishedAt: Date | null;
 };
 
 /** La solicitud **abierta** de un carrito: sin descartar y sin cancelar. */
@@ -70,6 +75,7 @@ type CartJoinRow = {
   readonly title: string | null;
   readonly priceCents: number | null;
   readonly soldAt: Date | null;
+  readonly unpublishedAt: Date | null;
   readonly addedAt: Date | null;
 };
 
@@ -91,7 +97,8 @@ export async function findCart(
             l.slug,
             i.title,
             i.price_cents AS "priceCents",
-            l.sold_at AS "soldAt"
+            l.sold_at AS "soldAt",
+            l.unpublished_at AS "unpublishedAt"
        FROM app.cart c
        LEFT JOIN app.cart_item ci ON ci.cart_id = c.id
        LEFT JOIN app.listing l ON l.id = ci.listing_id
@@ -119,6 +126,7 @@ export async function findCart(
       title: row.title,
       priceCents: row.priceCents,
       soldAt: row.soldAt,
+      unpublishedAt: row.unpublishedAt,
       addedAt: row.addedAt,
     });
   }
@@ -142,8 +150,10 @@ export async function findCartableListings(
   const { rows } = await database.query<CartableListing>(
     `SELECT l.id AS "listingId",
             l.slug,
+            i.title,
             i.price_cents AS "priceCents",
-            l.sold_at AS "soldAt"
+            l.sold_at AS "soldAt",
+            l.unpublished_at AS "unpublishedAt"
        FROM app.listing l
        JOIN app.item i ON i.id = l.item_id
       WHERE i.event_id = $1

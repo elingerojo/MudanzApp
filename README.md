@@ -252,13 +252,20 @@ npm run db:migrate:branch:test
 
 ### Publicación del ciclo 3c
 
-| Ruta                                          | Credencial        | Respuesta                                                                                                                         |
-| --------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /events/:eventId/items/:itemId/listing` | Sesión del evento | `201` con `{ slug, path }`; `200` si ya estaba publicado; `404 not_found`/`item_not_found`; `409 listing_photo_required` sin foto |
-| `GET /public/listings/:slug`                  | **Ninguna**       | `200` con la ficha y `Cache-Control: public, max-age=60`; `404 not_found` si el `slug` no existe o no cumple el patrón            |
+| Ruta                                            | Credencial        | Respuesta                                                                                                                                                                                                        |
+| ----------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /events/:eventId/items/:itemId/listing`   | Sesión del evento | `201` con `{ slug, path }`; `200` si ya estaba publicado o se **republicó**; `404 not_found`/`item_not_found`; `409 listing_photo_required` sin foto                                                             |
+| `DELETE /events/:eventId/items/:itemId/listing` | Sesión del evento | `204` sin cuerpo; idempotente si ya estaba despublicado o nunca se publicó; `409 item_sold` si la ficha se vendió                                                                                                |
+| `GET /public/listings/:slug`                    | **Ninguna**       | `200` con la ficha y `Cache-Control: public, max-age=60`; `404 not_found` si el `slug` no existe o no cumple el patrón; `410` si está despublicada (`listing_unpublished`) o la venta ya venció (`listing_gone`) |
 
 - Publicar exige foto y es idempotente: republicar devuelve el mismo `slug`. La URL de la foto la
   compone el backend desde `R2_PUBLIC_BASE_URL` y el navegador la descarga del almacén, no de la API.
+- Despublicar **no borra** la captura: escribe `app.listing.unpublished_at`, conserva el `slug` y la
+  foto, retira la ficha del índice y responde `410` con `noindex`. Republicar restaura la misma URL y
+  mueve `published_at` a `now()`, así que la ficha vuelve al tope del índice. Un artículo vendido no se
+  despublica: su venta es la evidencia (decisión §40).
+- El carrito del comprador retira con un aviso (`unpublished` en la respuesta) los artículos que el
+  vendedor despublicó; no los confunde con «vendido» ni con «sin precio».
 - La ficha pública no expone `eventId`, `itemId` ni `object_key`, y no muestra precio ni moneda.
 - Códigos nuevos y estables: `listing_photo_required` (409) y `r2_unavailable` (503). Un fallo de
   credencial de R2 se ve como `r2_not_configured` o `r2_unavailable`, nunca como una foto en blanco

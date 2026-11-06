@@ -4,7 +4,7 @@
     title="Cuenta y captura"
     route="app/a2-captura"
     status="current"
-    verified="2026-11-05 · este ciclo"
+    verified="2026-11-06 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -123,6 +123,12 @@
       <li>
         <strong>Publicar</strong> es un acto explícito: exige foto y es idempotente, porque
         republicar devuelve el mismo <code class="font-mono text-xs">slug</code>.
+      </li>
+      <li>
+        <strong>Despublicar</strong> es el acto inverso: conserva la captura, la foto y la URL,
+        retira la ficha del índice y la responde con <code class="font-mono text-xs">410</code>.
+        Republicar la devuelve con el mismo <code class="font-mono text-xs">slug</code> y la mueve
+        al tope del índice. Una ficha vendida no se despublica: la venta es su evidencia.
       </li>
       <li>
         <strong>Solo guardar</strong> deja el artículo en proceso dentro del evento y no crea URL

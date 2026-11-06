@@ -30,6 +30,7 @@ const CART: PublicCart = {
       addedAt: '2026-11-04T18:00:00.000Z',
     },
   ],
+  unpublished: [],
   whatsappAvailable: true,
   request: null,
 };
@@ -162,6 +163,37 @@ describe('ShopCartStore', () => {
     await tick();
 
     expect(store.requestBlock()).toBe('unavailable');
+  });
+
+  it('removes an article the seller unpublished and keeps its notice', async () => {
+    store.open(PUBLIC_SLUG);
+    await signIn();
+
+    // La lectura revela la fila despublicada: ya no está en `items` y viaja aparte con su título.
+    httpTesting.expectOne(CART_URL).flush({
+      cart: {
+        ...CART,
+        items: [],
+        unpublished: [{ slug: 'silla', title: 'Silla' }],
+      },
+    });
+    await tick();
+
+    // La limpieza es un `PUT` con el carrito que sí se puede pedir; la tabla pierde la fila inerte.
+    httpTesting.expectOne({ method: 'PUT', url: CART_URL }).flush({
+      cart: { ...CART, items: [], unpublished: [] },
+      dropped: [],
+      unpublished: [{ slug: 'silla', title: 'Silla' }],
+    });
+    await tick();
+
+    expect(store.items()).toEqual([]);
+    expect(store.has('silla')).toBe(false);
+    expect(store.unpublished()).toEqual([{ slug: 'silla', title: 'Silla' }]);
+    expect(globalThis.localStorage.getItem(`mudanzapp.shop.selected.${PUBLIC_SLUG}`)).toBe('[]');
+
+    store.dismissUnpublished();
+    expect(store.unpublished()).toEqual([]);
   });
 
   it('requests the cart and keeps the reference and the link of the open request', async () => {

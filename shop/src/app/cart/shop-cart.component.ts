@@ -56,6 +56,23 @@ export class ShopCartComponent {
     return count === 1 ? '1 artículo' : `${String(count)} artículos`;
   }
 
+  /**
+   * El aviso de despublicación (F3). Nombra el artículo cuando es uno; con varios, dice cuántos. La
+   * fila ya se retiró del carrito: el texto explica el hecho, no ofrece una acción sobre ella.
+   */
+  protected unpublishedLabel(): string {
+    const entries = this.cart.unpublished();
+    if (entries.length === 1) {
+      return `«${entries[0]?.title ?? ''}» fue despublicado por el vendedor y se quitó de tu selección.`;
+    }
+
+    return `${String(entries.length)} artículos fueron despublicados por el vendedor y se quitaron de tu selección.`;
+  }
+
+  protected dismissUnpublished(): void {
+    this.cart.dismissUnpublished();
+  }
+
   protected async remove(slug: string): Promise<void> {
     await this.cart.toggle(slug);
   }

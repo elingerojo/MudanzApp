@@ -71,6 +71,20 @@
     </ul>
   }
 
+  @if (cart.unpublished().length > 0) {
+    <div class="space-y-2 rounded-lg bg-amber-50 p-3" data-testid="cart-unpublished">
+      <p class="text-sm text-amber-900">{{ unpublishedLabel() }}</p>
+      <button
+        type="button"
+        class="text-sm font-medium text-amber-900 underline"
+        (click)="dismissUnpublished()"
+        data-testid="cart-unpublished-dismiss"
+      >
+        Entendido
+      </button>
+    </div>
+  }
+
   @if (cart.openRequest(); as request) {
     <div class="space-y-2 rounded-lg bg-emerald-50 p-3" data-testid="cart-requested">
       <p class="text-sm text-emerald-900">
@@ -103,12 +117,18 @@
     <button
       type="button"
       class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      [disabled]="cart.requestBlock() !== null || cart.busy()"
+      [disabled]="cart.requestBlock() !== null || cart.busy() || cart.cleaning()"
       (click)="request()"
       data-testid="cart-whatsapp-request"
     >
       {{ cart.busy() ? 'Pidiendo…' : 'Pídelos por WhatsApp' }}
     </button>
+
+    @if (cart.cleaning()) {
+      <p class="text-xs text-slate-600" data-testid="cart-cleaning">
+        Quitando los artículos que el vendedor despublicó…
+      </p>
+    }
 
     @if (cart.requestBlock() === 'whatsapp') {
       <p class="text-xs text-slate-600" data-testid="cart-whatsapp-disabled">

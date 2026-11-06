@@ -23,6 +23,7 @@ import {
   findListingBySlug,
   findPublicEventIndex,
   markListingSold,
+  unpublishListing,
   upsertListing,
 } from '../store/listing-store.js';
 import { parseOrThrow } from '../validation.js';
@@ -94,14 +95,17 @@ export function createListingsRouter(deps: IdentityDeps): Router {
           throw new AppError('item_not_found');
         }
 
-        // Republicar devuelve la publicación existente: el `slug` es un hecho publicado y no se
-        // recalcula aunque el título haya cambiado.
+        // Una ficha ya a la vista no se toca: el `slug` es un hecho publicado y no se recalcula aunque
+        // el título haya cambiado. Una **despublicada** sí se restaura: la misma URL vuelve al catálogo
+        // y `published_at` pasa a `now()`, así que sube al tope del índice (decisión del dueño, F3).
         const existing = await findListingByItemId(deps.database, itemId);
-        if (existing !== null) {
+        if (existing !== null && existing.unpublishedAt === null) {
           response.status(200).json(published(existing.slug));
           return;
         }
 
+        // Republicar también exige la foto en sus tres tamaños: una ficha que perdió sus variantes no
+        // vuelve a la vista con un hueco.
         if (item.photoId === null || !hasEveryVariant(item.photoVariants)) {
           throw new AppError('listing_photo_required');
         }
@@ -111,7 +115,8 @@ export function createListingsRouter(deps: IdentityDeps): Router {
           slug: listingSlug(item.title, itemId),
         });
 
-        response.status(201).json(published(listing.slug));
+        // `201` la primera vez; `200` cuando la fila ya existía y el acto la devolvió a la vista.
+        response.status(existing === null ? 201 : 200).json(published(listing.slug));
       };
 
       void handle().catch(next);
@@ -139,6 +144,12 @@ export function createListingsRouter(deps: IdentityDeps): Router {
         throw new AppError('item_not_found');
       }
 
+      // Una ficha retirada del catálogo no se vende sin volver a publicarla: el acto se explica con el
+      // mismo código estable que «no está publicada».
+      if (item.unpublishedAt !== null) {
+        throw new AppError('listing_not_published');
+      }
+
       const sold = await markListingSold(deps.database, itemId, deps.now());
       if (sold === null) {
         throw new AppError('listing_not_published');
@@ -155,6 +166,49 @@ export function createListingsRouter(deps: IdentityDeps): Router {
 
     void handle().catch(next);
   });
+
+  /**
+   * `DELETE /events/:eventId/items/:itemId/listing` — el vendedor retira la ficha del catálogo (F3).
+   *
+   * Despublicar **no** borra: escribe `app.listing.unpublished_at` y conserva la foto, el artículo y
+   * el `slug`. La URL compartida responde `410 listing_unpublished` en la siguiente lectura y el
+   * índice del evento deja de enumerarla. Republicar es el `POST` de arriba y restaura la misma URL.
+   *
+   * Es idempotente: una ficha ya despublicada o que nunca se publicó responde `204`, porque el estado
+   * deseado ya se cumple. Una vendida responde `item_sold` (409): la venta es su evidencia y no se
+   * retira (§40). La autorización es la misma que publicar, no la del panel de administración.
+   */
+  router.delete(
+    '/events/:eventId/items/:itemId/listing',
+    requireSession,
+    (request, response, next) => {
+      const handle = async (): Promise<void> => {
+        const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+        const identity = identityOf(request);
+
+        if (!(await canAct(identity, eventId))) {
+          throw new AppError('not_found');
+        }
+
+        const item = await findItem(deps.database, eventId, itemId);
+        if (item === null) {
+          throw new AppError('item_not_found');
+        }
+
+        if (item.soldAt !== null) {
+          throw new AppError('item_sold');
+        }
+
+        // El `UPDATE` conserva el primer instante y no toca una ficha vendida aunque dos peticiones
+        // compitan; el `findItem` de arriba ya dio la respuesta exacta para el caso normal.
+        await unpublishListing(deps.database, itemId, deps.now());
+
+        response.status(204).end();
+      };
+
+      void handle().catch(next);
+    },
+  );
 
   return router;
 }
@@ -244,11 +298,15 @@ export function createPublicListingsRouter(deps: IdentityDeps): Router {
   /**
    * La ficha pública, resuelta una sola vez para sus dos lecturas. Un `slug` mal formado y uno
    * inexistente responden lo mismo (`not_found`). El estado se decide con el reloj inyectado:
-   * `live`, `sold` dentro de la cortesía o `gone` después.
+   * `live`, `sold` dentro de la cortesía o `gone` después. Una ficha despublicada (F3) no tiene
+   * cuerpo público: solo el `410` con `noindex`.
    */
-  const loadListing = async (
-    slug: string,
-  ): Promise<{ readonly listing: PublicListing; readonly state: 'live' | 'sold' | 'gone' }> => {
+  type PublicListingState = 'live' | 'sold' | 'gone';
+  type LoadedPublicListing =
+    | { readonly state: 'unpublished' }
+    | { readonly state: PublicListingState; readonly listing: PublicListing };
+
+  const loadListing = async (slug: string): Promise<LoadedPublicListing> => {
     const parsed = listingSlugSchema.safeParse(slug);
     if (!parsed.success) {
       throw new AppError('not_found');
@@ -259,6 +317,10 @@ export function createPublicListingsRouter(deps: IdentityDeps): Router {
       throw new AppError('not_found');
     }
 
+    if (found.unpublishedAt !== null) {
+      return { state: 'unpublished' };
+    }
+
     const listing = toPublicListing(found, (objectKey) => deps.storage.publicUrl(objectKey));
 
     return { listing, state: listingState(listing.soldAt, deps.now()) };
@@ -267,7 +329,14 @@ export function createPublicListingsRouter(deps: IdentityDeps): Router {
   /** `GET /public/listings/:slug` — la ficha como JSON, **sin sesión**. */
   router.get('/public/listings/:slug', (request: Request, response, next) => {
     const handle = async (): Promise<void> => {
-      const { listing, state } = await loadListing(pathParam(request.params.slug));
+      const loaded = await loadListing(pathParam(request.params.slug));
+
+      if (loaded.state === 'unpublished') {
+        response.set('X-Robots-Tag', 'noindex').status(410).json({ error: 'listing_unpublished' });
+        return;
+      }
+
+      const { listing, state } = loaded;
 
       if (state === 'gone') {
         response.set('X-Robots-Tag', 'noindex').status(410).json({ error: 'listing_gone' });
@@ -293,7 +362,14 @@ export function createPublicListingsRouter(deps: IdentityDeps): Router {
    */
   router.get('/public/listings/:slug/page', (request: Request, response, next) => {
     const handle = async (): Promise<void> => {
-      const { listing, state } = await loadListing(pathParam(request.params.slug));
+      const loaded = await loadListing(pathParam(request.params.slug));
+
+      if (loaded.state === 'unpublished') {
+        response.set('X-Robots-Tag', 'noindex').status(410).end();
+        return;
+      }
+
+      const { listing, state } = loaded;
 
       if (state === 'gone') {
         response.set('X-Robots-Tag', 'noindex').status(410).end();

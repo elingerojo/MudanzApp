@@ -11,7 +11,12 @@ import {
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
-import { LISTING_NOT_PUBLISHED, LISTING_PHOTO_REQUIRED, apiErrorCode } from '../session/api-error';
+import {
+  ITEM_SOLD,
+  LISTING_NOT_PUBLISHED,
+  LISTING_PHOTO_REQUIRED,
+  apiErrorCode,
+} from '../session/api-error';
 import { SessionStore } from '../session/session.store';
 import { SHOP_BASE_URL } from '../shop-base-url.token';
 
@@ -27,6 +32,13 @@ function soldMessage(code: string | null): string {
   return code === LISTING_NOT_PUBLISHED
     ? 'Publica el artículo antes de marcarlo vendido.'
     : 'No se pudo marcar como vendido. Inténtalo de nuevo.';
+}
+
+/** Mensaje de un fallo al despublicar; una venta cerrada es la única negativa esperada. */
+function unpublishMessage(code: string | null): string {
+  return code === ITEM_SOLD
+    ? 'Un artículo vendido no se puede despublicar: la venta es su evidencia.'
+    : 'No se pudo despublicar el artículo. Inténtalo de nuevo.';
 }
 
 /**
@@ -65,14 +77,22 @@ export class EventItemsStore {
   /** Moneda del evento, para no guardar una moneda por artículo (decisión §35). */
   readonly currency = computed(() => this.session.eventById(this.eventId)?.currency ?? 'MXN');
 
-  /** Artículo cuya publicación está en vuelo; mientras haya uno, ningún botón se repite. */
+  /** Artículo cuya publicación —o republicación— está en vuelo; ningún botón se repite. */
   readonly publishingId = signal<string | null>(null);
+
+  /** Artículo cuya despublicación está en vuelo; `Capturados` no repite el botón. */
+  readonly unpublishingId = signal<string | null>(null);
 
   /** Artículo cuya venta está en vuelo; `Capturados` no repite el botón. */
   readonly sellingId = signal<string | null>(null);
 
   /** Último fallo de publicación, atado a su artículo para no teñir toda la lista. */
   readonly publishFailure = signal<{ readonly itemId: string; readonly message: string } | null>(
+    null,
+  );
+
+  /** Último fallo de despublicación, atado a su artículo. */
+  readonly unpublishFailure = signal<{ readonly itemId: string; readonly message: string } | null>(
     null,
   );
 
@@ -96,10 +116,6 @@ export class EventItemsStore {
     return `${this.shopBaseUrl}/${slug}`;
   }
 
-  /**
-   * Publica un artículo `en proceso`. Publicar es idempotente, así que reintentar es seguro; el
-   * `slug` nuevo llega en la recarga, no en una copia local que se perdería al recargar.
-   */
   /**
    * Marca la publicación como vendida (ciclo 4b, decisión §40). Es idempotente; la lista se recarga
    * porque el estado es del servidor, no de una copia local.
@@ -128,6 +144,10 @@ export class EventItemsStore {
     }
   }
 
+  /**
+   * Publica un artículo `en proceso` o devuelve a la vista uno despublicado. Publicar es idempotente,
+   * así que reintentar es seguro; el `slug` llega en la recarga, no en una copia local que se perdería.
+   */
   async publish(item: ItemSummary): Promise<void> {
     if (this.publishingId() !== null) {
       return;
@@ -154,11 +174,42 @@ export class EventItemsStore {
   }
 
   /**
+   * Despublica la ficha sin borrarla (F3). La lista se recarga porque el estado es del servidor; el
+   * `slug` y la foto se conservan y `Republicar` los devuelve a la vista.
+   */
+  async unpublish(item: ItemSummary): Promise<void> {
+    if (this.unpublishingId() !== null) {
+      return;
+    }
+
+    this.unpublishingId.set(item.id);
+    this.unpublishFailure.set(null);
+    this.copiedId.set(null);
+
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(
+          `${this.apiBaseUrl}/events/${this.eventId}/items/${item.id}/listing`,
+        ),
+      );
+
+      this.reload();
+    } catch (error: unknown) {
+      this.unpublishFailure.set({
+        itemId: item.id,
+        message: unpublishMessage(apiErrorCode(error)),
+      });
+    } finally {
+      this.unpublishingId.set(null);
+    }
+  }
+
+  /**
    * Copia el enlace al portapapeles. Sin API de portapapeles (o con el permiso negado) la fila
    * conserva el enlace visible y seleccionable: el botón es una comodidad, no el único camino.
    */
   async copyLink(item: ItemSummary): Promise<void> {
-    if (item.publishedSlug === null) {
+    if (item.publishedSlug === null || item.unpublishedAt !== null) {
       return;
     }
 

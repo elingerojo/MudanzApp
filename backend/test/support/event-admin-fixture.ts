@@ -229,6 +229,7 @@ export function dashboardDatabase(fixture: DashboardFixture): Database {
                 photoId: null,
                 photoVariants: null,
                 publishedSlug: null,
+                unpublishedAt: null,
               },
             ])
           : none();

@@ -7,6 +7,13 @@
       Puede que el artículo ya no esté publicado. Pide un enlace nuevo a quien te lo compartió.
     </p>
   </section>
+} @else if (unpublished()) {
+  <section class="space-y-2" data-testid="listing-unpublished">
+    <h2 class="text-lg font-semibold text-slate-900">Este artículo ya no está publicado</h2>
+    <p class="text-sm text-slate-600">
+      El vendedor lo retiró del catálogo. Si te interesa, pídele un enlace nuevo.
+    </p>
+  </section>
 } @else if (gone()) {
   <section class="space-y-2" data-testid="listing-gone">
     <h2 class="text-lg font-semibold text-slate-900">Este artículo ya no está disponible</h2>

@@ -19,6 +19,7 @@ export type ListingRecord = {
   readonly itemId: string;
   readonly slug: string;
   readonly publishedAt: Date;
+  readonly unpublishedAt: Date | null;
   readonly createdAt: Date;
 };
 
@@ -53,6 +54,8 @@ export type ListingWithItemRecord = {
   readonly destinationCity: string;
   readonly currency: string;
   readonly publishedAt: Date;
+  /** Instante de la despublicación; `null` mientras la ficha está a la vista (F3). */
+  readonly unpublishedAt: Date | null;
 };
 
 /**
@@ -92,14 +95,19 @@ export type PublicEventIndexRecord = {
 };
 
 const LISTING_RETURNING =
-  'id, item_id AS "itemId", slug, published_at AS "publishedAt", created_at AS "createdAt"';
+  'id, item_id AS "itemId", slug, published_at AS "publishedAt", ' +
+  'unpublished_at AS "unpublishedAt", created_at AS "createdAt"';
 
 /**
- * Publica el artículo o devuelve la publicación existente.
+ * Publica el artículo o lo devuelve a la vista.
  *
  * El `slug` propuesto solo se escribe la primera vez: un cambio de título no reescribe una URL que ya
  * se compartió (`plan-ciclo-3c` §3). Si el `slug` propuesto ya pertenece a otro artículo, la
  * restricción única falla y el borde responde un error interno: no se inventa un desempate silencioso.
+ *
+ * Desde F3 la misma sentencia **republica**: limpia `unpublished_at` y mueve `published_at` a `now()`,
+ * así que el artículo vuelve al tope del índice con la misma URL. El borde evita la sentencia cuando la
+ * fila ya está a la vista, porque republicar no debe reordenar el catálogo sin un acto.
  */
 export async function upsertListing(
   database: Queryable,
@@ -108,7 +116,10 @@ export async function upsertListing(
   const { rows } = await database.query<ListingRecord>(
     `INSERT INTO app.listing (item_id, slug)
      VALUES ($1, $2)
-     ON CONFLICT (item_id) DO UPDATE SET slug = app.listing.slug
+     ON CONFLICT (item_id) DO UPDATE
+        SET slug = app.listing.slug,
+            unpublished_at = NULL,
+            published_at = now()
      RETURNING ${LISTING_RETURNING}`,
     [input.itemId, input.slug],
   );
@@ -170,7 +181,8 @@ export async function findListingBySlug(
             e.origin_city AS "originCity",
             e.destination_city AS "destinationCity",
             e.currency,
-            l.published_at AS "publishedAt"
+            l.published_at AS "publishedAt",
+            l.unpublished_at AS "unpublishedAt"
        FROM app.listing l
        JOIN app.item i ON i.id = l.item_id
        JOIN app.event e ON e.id = i.event_id
@@ -191,7 +203,8 @@ export type ListingSaleRecord = {
 /**
  * Marca la publicación como vendida sin monto y sin exigir precio (decisión §40). Es idempotente:
  * `COALESCE` conserva la primera venta, así que reintentar no reescribe la fecha. Un artículo sin
- * fila en `app.listing` devuelve `null` y el borde responde `listing_not_published`.
+ * fila en `app.listing` —o despublicado— devuelve `null` y el borde responde
+ * `listing_not_published`: vender no es publicar y una ficha retirada no se vende.
  */
 export async function markListingSold(
   database: Queryable,
@@ -202,8 +215,40 @@ export async function markListingSold(
     `UPDATE app.listing
         SET sold_at = COALESCE(sold_at, $2)
       WHERE item_id = $1
+        AND unpublished_at IS NULL
       RETURNING slug, sold_at AS "soldAt"`,
     [itemId, soldAt],
+  );
+
+  return rows[0] ?? null;
+}
+
+/** Lo que una despublicación deja escrito. `unpublishedAt` es el instante ya persistido. */
+export type ListingUnpublishRecord = {
+  readonly slug: string;
+  readonly unpublishedAt: Date;
+};
+
+/**
+ * Retira la publicación de la vista sin borrar la fila ni el `slug` (F3).
+ *
+ * Es idempotente: `COALESCE` conserva el primer instante y reintentar no reescribe la evidencia. Una
+ * ficha vendida **no** se despublica (`sold_at` es la evidencia de la venta, §40); el `AND` del SQL lo
+ * impide incluso si dos peticiones compiten. Un artículo que nunca se publicó devuelve `null`, que el
+ * borde trata como el estado deseado ya cumplido.
+ */
+export async function unpublishListing(
+  database: Queryable,
+  itemId: string,
+  now: Date,
+): Promise<ListingUnpublishRecord | null> {
+  const { rows } = await database.query<ListingUnpublishRecord>(
+    `UPDATE app.listing
+        SET unpublished_at = COALESCE(unpublished_at, $2)
+      WHERE item_id = $1
+        AND sold_at IS NULL
+      RETURNING slug, unpublished_at AS "unpublishedAt"`,
+    [itemId, now],
   );
 
   return rows[0] ?? null;
@@ -253,8 +298,9 @@ async function listPublicEventListings(
        LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0
        LEFT JOIN app.item_photo_variant v ON v.photo_id = p.id AND v.variant = 'thumb'
       WHERE i.event_id = $1
-        AND l.sold_at IS NULL
-      ORDER BY l.published_at DESC, l.id`,
+       AND l.sold_at IS NULL
+       AND l.unpublished_at IS NULL
+     ORDER BY l.published_at DESC, l.id`,
     [eventId],
   );
 

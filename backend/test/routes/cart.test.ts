@@ -48,6 +48,15 @@ const UNPRICED: CartListingFixture = {
   soldAt: null,
 };
 
+const UNPUBLISHED: CartListingFixture = {
+  listingId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  slug: 'ropero-jkl012',
+  title: 'Ropero',
+  priceCents: 45_000,
+  soldAt: null,
+  unpublishedAt: NOW,
+};
+
 const BUYER = {
   token: 'buyer-token',
   userId: 'user-buyer',
@@ -120,6 +129,7 @@ describe('public cart', () => {
         cart: {
           event: { publicSlug: CART_PUBLIC_SLUG, currency: 'MXN' },
           items: [],
+          unpublished: [],
           whatsappAvailable: false,
           request: null,
         },
@@ -146,11 +156,72 @@ describe('public cart', () => {
       const payload = (await response.json()) as {
         readonly cart: { readonly items: readonly { readonly slug: string }[] };
         readonly dropped: readonly string[];
+        readonly unpublished: readonly { readonly slug: string; readonly title: string }[];
       };
 
       expect(payload.cart.items.map((item) => item.slug)).toEqual([AVAILABLE.slug]);
       expect(payload.dropped).toEqual([SOLD.slug, UNPRICED.slug]);
+      expect(payload.unpublished).toEqual([]);
       expect(harness.state.items).toEqual([AVAILABLE.listingId]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('removes an unpublished article and reports it with its title', async () => {
+    const { app, harness } = await start({
+      sessions: [BUYER],
+      listings: [AVAILABLE, UNPUBLISHED],
+    });
+
+    try {
+      const response = await fetch(`${app.baseUrl}${cartUrl()}`, {
+        method: 'PUT',
+        headers: { ...bearer(BUYER.token), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slugs: [AVAILABLE.slug, UNPUBLISHED.slug] }),
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        readonly cart: { readonly items: readonly { readonly slug: string }[] };
+        readonly dropped: readonly string[];
+        readonly unpublished: readonly { readonly slug: string; readonly title: string }[];
+      };
+
+      // No es «no se pudo guardar» ni «vendido»: es un hecho propio y la pantalla lo nombra.
+      expect(payload.cart.items.map((item) => item.slug)).toEqual([AVAILABLE.slug]);
+      expect(payload.dropped).toEqual([]);
+      expect(payload.unpublished).toEqual([{ slug: UNPUBLISHED.slug, title: UNPUBLISHED.title }]);
+      expect(harness.state.items).toEqual([AVAILABLE.listingId]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('hides an unpublished article from the cart read and keeps it out of items', async () => {
+    const { app } = await start({
+      sessions: [BUYER],
+      listings: [AVAILABLE, UNPUBLISHED],
+      cartItems: [AVAILABLE.listingId, UNPUBLISHED.listingId],
+    });
+
+    try {
+      const response = await fetch(`${app.baseUrl}${cartUrl()}`, {
+        headers: bearer(BUYER.token),
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        readonly cart: {
+          readonly items: readonly { readonly slug: string }[];
+          readonly unpublished: readonly { readonly slug: string; readonly title: string }[];
+        };
+      };
+
+      expect(payload.cart.items.map((item) => item.slug)).toEqual([AVAILABLE.slug]);
+      expect(payload.cart.unpublished).toEqual([
+        { slug: UNPUBLISHED.slug, title: UNPUBLISHED.title },
+      ]);
     } finally {
       await app.close();
     }
@@ -254,6 +325,27 @@ describe('cart request', () => {
 
       expect(response.status).toBe(409);
       await expect(response.json()).resolves.toEqual({ error: 'price_missing' });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('refuses a cart with an unpublished article', async () => {
+    const { app } = await start({
+      sessions: [BUYER],
+      listings: [AVAILABLE, UNPUBLISHED],
+      cartItems: [AVAILABLE.listingId, UNPUBLISHED.listingId],
+      contactPhone: PHONE,
+    });
+
+    try {
+      const response = await fetch(`${app.baseUrl}${cartUrl()}/request`, {
+        method: 'POST',
+        headers: bearer(BUYER.token),
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual({ error: 'listing_not_published' });
     } finally {
       await app.close();
     }

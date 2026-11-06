@@ -125,10 +125,16 @@ export function createItemsRouter(deps: IdentityDeps): Router {
         draft: normalizeItemDraft(input),
       });
 
-      // Un artículo recién creado no tiene foto ni fila en `app.listing`: ambos hechos son `null` y
-      // la pestaña `Capturados` lo pinta como `en proceso` hasta que se publique.
+      // Un artículo recién creado no tiene foto ni fila en `app.listing`: todos esos hechos son `null`
+      // y la pestaña `Capturados` lo pinta como `en proceso` hasta que se publique.
       const payload: CreatedItem = {
-        item: toItemSummary({ ...item, photoId: null, photoVariants: null, publishedSlug: null }),
+        item: toItemSummary({
+          ...item,
+          photoId: null,
+          photoVariants: null,
+          publishedSlug: null,
+          unpublishedAt: null,
+        }),
       };
       response.status(201).json(payload);
     };

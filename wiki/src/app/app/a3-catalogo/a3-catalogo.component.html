@@ -4,7 +4,7 @@
     title="Catálogo público"
     route="app/a3-catalogo"
     status="current"
-    verified="2026-11-05 · este ciclo"
+    verified="2026-11-06 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -133,7 +133,10 @@
     </div>
     <p>
       La ficha vendida conserva su URL a propósito: quien compartió el enlace por WhatsApp no se
-      encuentra un error, sino que el artículo ya no está disponible.
+      encuentra un error, sino que el artículo ya no está disponible. Una ficha **despublicada** por
+      el vendedor también conserva el <code class="font-mono text-xs">slug</code>, pero responde
+      <code class="font-mono text-xs">410 listing_unpublished</code> y deja de aparecer en el
+      índice; republicar la devuelve con la misma URL.
     </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">shared/src/listing.ts</code> (<code class="font-mono"
@@ -191,6 +194,11 @@
       <li>
         No hay bloqueo, ni vencimiento, ni exclusividad: ningún estado del artículo cambia por estar
         en un carrito.
+      </li>
+      <li>
+        Si el vendedor despublica un artículo que estaba en la selección, el carrito lo retira y
+        muestra un aviso con su título; el comprador no lo confunde con «vendido» ni con «sin
+        precio».
       </li>
     </ul>
     <p class="text-xs text-slate-500">

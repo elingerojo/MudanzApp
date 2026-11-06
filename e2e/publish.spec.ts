@@ -240,6 +240,34 @@ test('the first published article opens without a session', async ({ request, pa
   const sameListing = (await republished.json()) as PublishedListing;
   expect(sameListing.slug).toBe(listing.slug);
 
+  // 6b. Despublicar retira la URL con `410` y el índice deja de enumerarla; republicar la devuelve
+  // con el mismo `slug`, que es el hecho publicado.
+  const unpublished = await request.delete(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/listing`,
+    { headers: bearer(own.session.sessionToken) },
+  );
+  expect(unpublished.status()).toBe(204);
+
+  const gone = await request.get(`${BACKEND_URL}/public/listings/${listing.slug}`);
+  expect(gone.status()).toBe(410);
+  expect(gone.headers()['x-robots-tag']).toBe('noindex');
+  await expect(gone.json()).resolves.toEqual({ error: 'listing_unpublished' });
+
+  const index = await request.get(`${BACKEND_URL}/public/events/${own.event.publicSlug}`);
+  expect(index.status()).toBe(200);
+  const indexBody = (await index.json()) as { readonly listings: readonly { slug: string }[] };
+  expect(indexBody.listings.some((entry) => entry.slug === listing.slug)).toBe(false);
+
+  const restored = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/listing`,
+    { headers: bearer(own.session.sessionToken) },
+  );
+  expect(restored.status()).toBe(200);
+  expect(((await restored.json()) as PublishedListing).slug).toBe(listing.slug);
+
+  const visibleAgain = await request.get(`${BACKEND_URL}/public/listings/${listing.slug}`);
+  expect(visibleAgain.status()).toBe(200);
+
   // 7. Una sesión de otro evento no publica en este: no se distingue ajeno de inexistente.
   const foreignAttempt = await request.post(
     `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/listing`,

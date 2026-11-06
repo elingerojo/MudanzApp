@@ -128,6 +128,16 @@ export const eventContactSchema = z.object({
 export type EventContactRequest = z.infer<typeof eventContactSchema>;
 
 /**
+ * Un artículo que el vendedor despublicó después de que el comprador lo guardó. El carrito no lo
+ * esconde: lo retira con este aviso, que es la única forma de que el comprador entienda por qué ya no
+ * está. `title` es la instantánea de la lectura que lo retiró.
+ */
+export interface UnpublishedCartItem {
+  readonly slug: string;
+  readonly title: string;
+}
+
+/**
  * Una fila del carrito. `addedAt` es cuándo lo guardó el comprador, no cuándo se publicó.
  *
  * `priceCents` es nulo solo si el vendedor **vacía** el precio después de que el artículo entró: el
@@ -162,6 +172,10 @@ export interface OpenCartRequest {
  * `GET` y `PUT` del carrito: sus artículos, el evento al que pertenecen, si hay WhatsApp configurado
  * y la solicitud abierta, si existe. No publica `eventId`, `itemId` ni `listingId` (`decisiones`
  * §24): el `slug` es la dirección.
+ *
+ * `items` es lo que el comprador puede pedir o quitar; `unpublished` es lo que el vendedor retiró del
+ * catálogo y el borde *ya quitó* de la selección. La lista viaja aparte para que la pantalla pueda
+ * nombrar el artículo despublicado sin conservar una fila inerte en el carrito.
  */
 export interface PublicCart {
   readonly event: {
@@ -169,6 +183,7 @@ export interface PublicCart {
     readonly currency: string;
   };
   readonly items: readonly CartItem[];
+  readonly unpublished: readonly UnpublishedCartItem[];
   /** `app.event.contact_phone IS NOT NULL`: es lo que habilita `Pídelos por WhatsApp`. */
   readonly whatsappAvailable: boolean;
   readonly request: OpenCartRequest | null;
@@ -178,10 +193,14 @@ export interface PublicCart {
  * Resultado del `PUT`. `dropped` son los `slug` que no se pudieron guardar —vendidos, sin precio o
  * fuera del evento—: el contrato de errores no lleva carga, así que la respuesta dice cuáles
  * sobraron en vez de fallar entera.
+ *
+ * `unpublished` son los que se retiraron porque el vendedor los despublicó: es un hecho distinto de
+ * «no se pudo guardar» y la pantalla lo explica con su propio aviso.
  */
 export interface CartWriteResult {
   readonly cart: PublicCart;
   readonly dropped: readonly string[];
+  readonly unpublished: readonly UnpublishedCartItem[];
 }
 
 /**

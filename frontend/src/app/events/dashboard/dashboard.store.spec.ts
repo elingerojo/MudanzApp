@@ -58,6 +58,7 @@ const ITEM: ItemSummary = {
   soldAt: null,
   photo: null,
   publishedSlug: null,
+  unpublishedAt: null,
   createdAt: '2026-10-31T00:00:00.000Z',
 };
 /** Un turno de macro-tarea: deja correr la cadena de promesas entre dos peticiones encadenadas. */

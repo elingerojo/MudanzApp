@@ -35,13 +35,15 @@ export interface CartSessionFixture {
   readonly revokedAt?: Date | null;
 }
 
-/** Un artículo publicado del evento, con los dos hechos que el carrito mira: precio y venta. */
+/** Un artículo publicado del evento, con los hechos que el carrito mira: precio, venta y retiro. */
 export interface CartListingFixture {
   readonly listingId: string;
   readonly slug: string;
   readonly title: string;
   readonly priceCents: number | null;
   readonly soldAt: Date | null;
+  /** Instante de la despublicación; ausente equivale a una ficha a la vista (F3). */
+  readonly unpublishedAt?: Date | null;
 }
 
 /** Una solicitud tal como el doble la guarda y la devuelve. */
@@ -180,6 +182,7 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
           readonly title: string | null;
           readonly priceCents: number | null;
           readonly soldAt: Date | null;
+          readonly unpublishedAt: Date | null;
         };
 
         const found: CartJoinRow[] = [];
@@ -197,6 +200,7 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
             title: listing.title,
             priceCents: listing.priceCents,
             soldAt: listing.soldAt,
+            unpublishedAt: listing.unpublishedAt ?? null,
           });
         }
 
@@ -209,6 +213,7 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
           title: null,
           priceCents: null,
           soldAt: null,
+          unpublishedAt: null,
         };
 
         return rows(found.length === 0 ? [empty] : found);
@@ -222,8 +227,10 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
             .map((listing) => ({
               listingId: listing.listingId,
               slug: listing.slug,
+              title: listing.title,
               priceCents: listing.priceCents,
               soldAt: listing.soldAt,
+              unpublishedAt: listing.unpublishedAt ?? null,
             })),
         );
       }

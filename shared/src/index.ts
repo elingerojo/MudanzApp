@@ -62,6 +62,7 @@ export type {
   IssuedCartRequest,
   OpenCartRequest,
   PublicCart,
+  UnpublishedCartItem,
 } from './cart.js';
 export {
   EVENT_SLUG_RETRY_SUFFIX_LENGTH,

@@ -172,6 +172,10 @@ export interface ItemPhoto {
  * publicado y, cuando existe, es la dirección pública con la que se comparte: se lee de
  * `app.listing`, no de la memoria de la visita, así que recargar no lo pierde
  * (`plan-ciclo-3d` §5).
+ *
+ * Desde F3 un artículo despublicado **conserva** su `publishedSlug` —la URL no se destruye— y
+ * publica además `unpublishedAt`. La UI distingue `publicado` de `despublicado` con los dos hechos:
+ * el `slug` dice que hubo una URL emitida y la fecha dice que hoy no está a la vista.
  */
 export interface ItemSummary {
   readonly id: string;
@@ -188,6 +192,8 @@ export interface ItemSummary {
   readonly soldAt: string | null;
   readonly photo: ItemPhoto | null;
   readonly publishedSlug: string | null;
+  /** Instante de la última despublicación; `null` mientras la ficha está a la vista o nunca se publicó. */
+  readonly unpublishedAt: string | null;
   readonly createdAt: string;
 }
 

@@ -1,11 +1,17 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
-import type { CartItem, IssuedCartRequest, PublicCart } from '@mudanzapp/shared';
+import type {
+  CartItem,
+  IssuedCartRequest,
+  PublicCart,
+  UnpublishedCartItem,
+} from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import {
   CART_EMPTY,
+  LISTING_NOT_PUBLISHED,
   LISTING_SOLD,
   PRICE_MISSING,
   SESSION_REVOKED,
@@ -45,6 +51,10 @@ function failureMessage(code: string | null): string {
     return 'Alguno de los artículos ya se vendió: quítalo para poder pedir.';
   }
 
+  if (code === LISTING_NOT_PUBLISHED) {
+    return 'Alguno de los artículos fue despublicado: quítalo para poder pedir.';
+  }
+
   if (code === CART_EMPTY) {
     return 'Tu selección está vacía.';
   }
@@ -80,6 +90,15 @@ export class ShopCartStore {
 
   /** Lo que el borde no pudo guardar en el último `PUT` (vendido, sin precio o fuera del evento). */
   private readonly droppedSlugs = signal<readonly string[]>([]);
+
+  /**
+   * Los artículos que el vendedor despublicó. El borde los retira del carrito y esta señal conserva
+   * el aviso hasta que el comprador lo descarta; no se borra al terminar la limpieza.
+   */
+  private readonly removedUnpublished = signal<readonly UnpublishedCartItem[]>([]);
+
+  /** La limpieza del `PUT` que retira las filas despublicadas; el botón no se dispara mientras corre. */
+  private readonly cleaningSignal = signal(false);
 
   private readonly requesting = signal(false);
   private readonly failures = signal<string | null>(null);
@@ -136,8 +155,12 @@ export class ShopCartStore {
   });
 
   readonly dropped = computed<readonly string[]>(() => this.droppedSlugs());
+  /** Los artículos despublicados que se retiraron, para que la pantalla los nombre. */
+  readonly unpublished = computed<readonly UnpublishedCartItem[]>(() => this.removedUnpublished());
   readonly failure = computed<string | null>(() => this.failures());
   readonly busy = computed(() => this.requesting());
+  /** La limpieza automática de filas despublicadas está en vuelo. */
+  readonly cleaning = computed(() => this.cleaningSignal());
   readonly loading = this.resource.isLoading;
 
   constructor() {
@@ -178,6 +201,8 @@ export class ShopCartStore {
     this.publicSlug.set(publicSlug);
     this.written.set(null);
     this.droppedSlugs.set([]);
+    this.removedUnpublished.set([]);
+    this.cleaningSignal.set(false);
     this.failures.set(null);
     this.local.set(this.readStored(publicSlug));
   }
@@ -262,27 +287,48 @@ export class ShopCartStore {
     this.resource.reload();
   }
 
+  /** Descarta el aviso de despublicación una vez leído; no cambia el carrito. */
+  dismissUnpublished(): void {
+    this.removedUnpublished.set([]);
+  }
+
   /**
    * Une la lista local con la del servidor al entrar: lo que el visitante marcó antes de tener cuenta
    * no se pierde y lo que ya estaba en el servidor permanece. Si no hay nada que unir, adopta el
    * orden del servidor sin escribir.
+   *
+   * Desde F3 el servidor publica aparte los artículos que el vendedor despublicó. Esos `slug` se
+   * excluyen de la lista local y se escribe el carrito limpio; el aviso se conserva en
+   * `removedUnpublished` para que la pantalla lo explique. La escritura de limpieza es obligatoria
+   * aunque la lista local ya coincida, porque la fila inerte sigue en la tabla hasta el `PUT`.
    */
   private async merge(server: PublicCart): Promise<void> {
+    const unavailable = new Set(server.unpublished.map((entry) => entry.slug));
+    if (server.unpublished.length > 0) {
+      this.removedUnpublished.set(server.unpublished);
+    }
+
     const serverSlugs = server.items.map((item) => item.slug);
     const local = this.local();
+    const filtered = local.filter((slug) => !unavailable.has(slug));
 
-    if (local.length === 0) {
+    const union = [...new Set([...serverSlugs, ...filtered])];
+    const needsWrite =
+      server.unpublished.length > 0 ||
+      union.length !== serverSlugs.length ||
+      filtered.length !== local.length;
+
+    if (!needsWrite) {
       this.local.set(serverSlugs);
       return;
     }
 
-    const union = [...new Set([...serverSlugs, ...local])];
-    if (union.length === serverSlugs.length) {
-      this.local.set(serverSlugs);
-      return;
+    this.cleaningSignal.set(true);
+    try {
+      await this.write(union);
+    } finally {
+      this.cleaningSignal.set(false);
     }
-
-    await this.write(union);
   }
 
   /**
@@ -298,17 +344,23 @@ export class ShopCartStore {
 
     try {
       const result = await firstValueFrom(
-        this.http.put<{ readonly cart: PublicCart; readonly dropped: readonly string[] }>(
-          `${this.apiBaseUrl}/public/events/${slug}/cart`,
-          { slugs },
-        ),
+        this.http.put<{
+          readonly cart: PublicCart;
+          readonly dropped: readonly string[];
+          readonly unpublished: readonly UnpublishedCartItem[];
+        }>(`${this.apiBaseUrl}/public/events/${slug}/cart`, { slugs }),
       );
 
       this.written.set(result.cart);
 
-      // El borde descarta lo que no se puede guardar —vendido, sin precio o fuera del evento— y el
-      // aviso lo dice con las tres causas: no hay forma honesta de distinguirlas desde un `slug`.
+      // El borde distingue las tres causas que antes compartían un solo aviso: vendido/sin precio,
+      // fuera del evento y **despublicado**. El aviso de despublicación se conserva hasta que el
+      // comprador lo descarta.
       this.droppedSlugs.set(result.dropped);
+      if (result.unpublished.length > 0) {
+        this.removedUnpublished.set(result.unpublished);
+      }
+
       this.persist(result.cart.items.map((item) => item.slug));
       this.failures.set(null);
     } catch (error: unknown) {

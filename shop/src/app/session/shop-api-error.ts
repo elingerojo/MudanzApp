@@ -31,3 +31,6 @@ export const CART_EMPTY = 'cart_empty';
 export const WHATSAPP_NOT_CONFIGURED = 'whatsapp_not_configured';
 export const PRICE_MISSING = 'price_missing';
 export const LISTING_SOLD = 'listing_sold';
+/** La ficha fue retirada del catálogo (F3): la URL y el carrito ya no la ofrecen. */
+export const LISTING_UNPUBLISHED = 'listing_unpublished';
+export const LISTING_NOT_PUBLISHED = 'listing_not_published';

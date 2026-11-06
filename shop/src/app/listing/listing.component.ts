@@ -16,6 +16,7 @@ import { listingPageModel, type ListingPageModel, type PublicListing } from '@mu
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { ShopCartStore } from '../cart/shop-cart.store';
+import { LISTING_UNPUBLISHED, shopApiErrorCode } from '../session/shop-api-error';
 
 /**
  * Loader de identidad de la foto pública.
@@ -85,14 +86,29 @@ export class ListingComponent {
     return error instanceof HttpErrorResponse && error.status === 404;
   });
 
+  /**
+   * El vendedor despublicó la ficha (F3): el backend responde `410 listing_unpublished`. La URL
+   * conserva el `slug`, pero deja de estar a la vista; el comprador ve un mensaje distinto del de una
+   * venta cerrada.
+   */
+  protected readonly unpublished = computed(() => {
+    const error = this.listing.error();
+    return (
+      error instanceof HttpErrorResponse &&
+      error.status === 410 &&
+      shopApiErrorCode(error) === LISTING_UNPUBLISHED
+    );
+  });
+
   /** La cortesía de una ficha vendida venció: el backend responde `410 listing_gone`. */
   protected readonly gone = computed(() => {
     const error = this.listing.error();
-    return error instanceof HttpErrorResponse && error.status === 410;
+    return error instanceof HttpErrorResponse && error.status === 410 && !this.unpublished();
   });
 
   protected readonly failed = computed(
-    () => this.listing.status() === 'error' && !this.notFound() && !this.gone(),
+    () =>
+      this.listing.status() === 'error' && !this.notFound() && !this.unpublished() && !this.gone(),
   );
 
   /** ¿Ya está en la selección de su evento? Es estado del comprador, no del contrato. */

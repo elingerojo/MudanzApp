@@ -169,6 +169,16 @@ export const ERROR_CATALOG = {
     message: 'The listing is no longer available',
   },
   /**
+   * El vendedor despublicó la ficha (F3): la fila de `app.listing` se conserva y el `slug` no se
+   * destruye, pero la URL deja de estar a la vista con `410` y `noindex`. Es distinto de una venta
+   * cuya cortesía venció (`listing_gone`): aquí no hubo venta.
+   */
+  listing_unpublished: {
+    code: 'listing_unpublished',
+    status: 410,
+    message: 'The listing was unpublished',
+  },
+  /**
    * Un artículo sin precio no se puede pedir (ciclo 4b §35; su primer escritor es la solicitud del
    * carrito, ciclo 4e): el comprador no puede aceptar un importe que no conoce.
    */

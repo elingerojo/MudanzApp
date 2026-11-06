@@ -94,6 +94,7 @@ const ITEM: ItemSummary = {
   soldAt: null,
   photo: null,
   publishedSlug: null,
+  unpublishedAt: null,
   createdAt: '2026-10-31T00:00:00.000Z',
 };
 

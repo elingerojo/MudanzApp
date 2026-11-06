@@ -63,7 +63,7 @@ sigue **libre**. Todo corte se crea aditivo, idempotente y sin `DROP`.
 | `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `price_cents`, `created_at` |
 | `app.item_photo` | Foto de un artículo, una por posición; sus columnas describen el tamaño `large` | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
 | `app.item_photo_variant` | Objeto de cada tamaño estándar de la foto | `photo_id`, `variant`, `object_key`, `content_type`, `width_px`, `height_px`, `created_at` |
-| `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `sold_at`, `created_at` |
+| `app.listing` | Estado publicado del artículo y su URL legible | `id`, `item_id`, `slug`, `published_at`, `sold_at`, `unpublished_at`, `created_at` |
 | `app.cart` | Carrito de seleccionados de un comprador dentro de un evento | `id`, `user_id`, `event_id`, `created_at`, `updated_at` |
 | `app.cart_item` | Artículo guardado en un carrito | `cart_id`, `listing_id`, `added_at` |
 | `app.cart_request` | Solicitud del carrito por WhatsApp, hasta que el vendedor la descarta | `id`, `cart_id`, `requested_at`, `dismissed_at`, `dismissed_by`, `cancelled_at` |
@@ -108,7 +108,10 @@ Restricciones que van con el DDL:
 - `app.listing.item_id` es **único**: publicar es idempotente y republicar devuelve la misma fila y la
   misma URL. `slug` es único y su `CHECK` exige entre 3 y 140 caracteres con el patrón
   `^[a-z0-9]+(-[a-z0-9]+)*$`. El `slug` se deriva del título más seis caracteres del `itemId` y **no**
-  se reescribe al cambiar el título: una URL compartida es un hecho publicado (`plan-ciclo-3c` §3);
+  se reescribe al cambiar el título: una URL compartida es un hecho publicado (`plan-ciclo-3c` §3).
+  `unpublished_at` nulo es «a la vista»; no nulo es «retirada»: la URL responde
+  `410 listing_unpublished` y el índice no la enumera. Republicar limpia la marca y **actualiza
+  `published_at` a `now()`**, así que la ficha vuelve al tope del índice con el mismo `slug` (F3);
 - publicar exige foto **en sus tres tamaños**: `app.listing` no lo impone por DDL —la foto y sus
   variantes se suben por separado—, así que la regla vive en el borde (`listing_photo_required`, 409)
   y en su ciclo. Una foto anterior a 3c-optimizar no tiene filas de variante y no puede publicarse por
@@ -125,11 +128,12 @@ El esquema arranca con el marcador idempotente `CREATE SCHEMA IF NOT EXISTS app`
 [`backend/sql/001_init.sql`](../backend/sql/001_init.sql). Las seis tablas del corte de identidad
 viven en [`backend/sql/002_identity.sql`](../backend/sql/002_identity.sql:1), las del artículo en
 [`backend/sql/004_item.sql`](../backend/sql/004_item.sql:1), la publicación en
-[`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1) y las variantes de la foto en
-[`backend/sql/006_item_photo_variant.sql`](../backend/sql/006_item_photo_variant.sql:1), escritos con
-la forma de §9: aditivos, idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin
-transacción propia. El archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro
-archivo.
+[`backend/sql/005_listing.sql`](../backend/sql/005_listing.sql:1), las variantes de la foto en
+[`backend/sql/006_item_photo_variant.sql`](../backend/sql/006_item_photo_variant.sql:1) y el retiro
+sin borrado de F3 en
+[`backend/sql/013_listing_unpublish.sql`](../backend/sql/013_listing_unpublish.sql:1), escritos con la
+forma de §9: aditivos, idempotentes (`IF NOT EXISTS` en tablas e índices), sin `DROP` y sin transacción
+propia. El archivo aplicado no se edita (§9, regla 6); un cambio nuevo se añade con otro archivo.
 
 Restricciones que el ciclo 4 agrega, cuando su corte escriba el DDL:
 
@@ -140,7 +144,8 @@ Restricciones que el ciclo 4 agrega, cuando su corte escriba el DDL:
 - `app.item.price_cents` es **nulo** por defecto y su moneda es `app.event.currency`, nunca una columna
   propia; un precio nulo no impide publicar y deshabilita la pulsación de interés (decisión §35);
 - `app.listing.sold_at` marca `Vendido` en cualquier estado, sin monto y sin exigir precio. Borrar un
-  artículo **no** es venderlo (decisión §40);
+  artículo **no** es venderlo (decisión §40). Una ficha vendida **no** se despublica: la venta es su
+  evidencia y el borde responde `item_sold` (F3);
 - `app.event.contact_phone` es el WhatsApp **del vendedor**: opcional, de solo dígitos
   (`^[0-9]{8,15}$`) y con `CHECK` porque `wa.me` no acepta `+`, espacios ni guiones. Sin él el botón del
   carrito no se habilita (`whatsapp_not_configured`). No es un dato del visitante y no relaja la regla

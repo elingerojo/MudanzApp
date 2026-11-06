@@ -4,7 +4,7 @@
     title="Contratos y datos"
     route="app/a4-contratos"
     status="current"
-    verified="2026-11-05 · este ciclo"
+    verified="2026-11-06 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -79,9 +79,16 @@
     <p>
       Son quince tablas. Los archivos de migración van del
       <code class="font-mono text-xs">001</code> al <code class="font-mono text-xs">010</code> más
-      el <code class="font-mono text-xs">012</code>: el
-      <code class="font-mono text-xs">011</code> no existe, así que el número no es un contador de
-      ciclos.
+      el <code class="font-mono text-xs">012</code> y el <code class="font-mono text-xs">013</code>:
+      el <code class="font-mono text-xs">011</code> no existe, así que el número no es un contador
+      de ciclos.
+    </p>
+    <p>
+      <code class="font-mono text-xs">app.listing</code> conserva la fila y el
+      <code class="font-mono text-xs">slug</code> cuando el vendedor despublica:
+      <code class="font-mono text-xs">unpublished_at</code> es el hecho del retiro, y republicar lo
+      limpia y mueve <code class="font-mono text-xs">published_at</code> a
+      <code class="font-mono text-xs">now()</code>.
     </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">backend/sql/*.sql</code>;
@@ -165,8 +172,8 @@
           <tr class="border-b border-slate-100 align-top">
             <td class="py-1 pr-3">Publicación</td>
             <td class="py-1 pr-3 font-mono">
-              listing_photo_required · listing_not_published · listing_gone · item_sold ·
-              item_not_found
+              listing_photo_required · listing_not_published · listing_gone (410) ·
+              listing_unpublished (410) · item_sold · item_not_found
             </td>
           </tr>
           <tr class="border-b border-slate-100 align-top">

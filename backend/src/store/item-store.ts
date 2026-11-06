@@ -43,13 +43,15 @@ export type ItemRecord = {
 export type PhotoVariantSizes = Partial<Record<ItemPhotoVariant, PhotoSize>>;
 
 /**
- * El artículo con su foto de posición 0 —o con `photoId` y sus variantes en `null`— y el `slug` de su
- * fila en `app.listing`, que es `null` mientras no está publicado.
+ * El artículo con su foto de posición 0 —o con `photoId` y sus variantes en `null`—, el `slug` de su
+ * fila en `app.listing` —`null` mientras no está publicado— y el instante de su despublicación, `null`
+ * mientras la ficha está a la vista (F3).
  */
 export type ItemWithPhotoRecord = ItemRecord & {
   readonly photoId: string | null;
   readonly photoVariants: PhotoVariantSizes | null;
   readonly publishedSlug: string | null;
+  readonly unpublishedAt: Date | null;
 };
 
 export type PhotoRecord = {
@@ -78,7 +80,7 @@ const ITEM_COLUMNS =
   'i.width_cm AS "widthCm", i.height_cm AS "heightCm", i.depth_cm AS "depthCm", ' +
   'i.weight_kg::float8 AS "weightKg", i.price_cents AS "priceCents", ' +
   'l.sold_at AS "soldAt", i.created_at AS "createdAt", ' +
-  'l.slug AS "publishedSlug"';
+  'l.slug AS "publishedSlug", l.unpublished_at AS "unpublishedAt"';
 
 const PHOTO_JOIN = 'LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0';
 

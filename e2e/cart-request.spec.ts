@@ -54,7 +54,7 @@ function bearer(token: string): Record<string, string> {
 /** Un evento con una sesión de co-dispositivo y un artículo publicado y con precio. */
 async function eventWithPublishedArticle(
   request: APIRequestContext,
-): Promise<{ event: CreatedEvent['event']; sessionToken: string; slug: string }> {
+): Promise<{ event: CreatedEvent['event']; sessionToken: string; slug: string; itemId: string }> {
   const eventResponse = await request.post(`${BACKEND_URL}/admin/events`, {
     headers: adminHeaders,
     data: { originCity: 'Bogotá', destinationCity: 'Ciudad de México' },
@@ -108,7 +108,12 @@ async function eventWithPublishedArticle(
   );
   expect(published.status()).toBe(201);
 
-  return { event, sessionToken, slug: ((await published.json()) as PublishedListing).slug };
+  return {
+    event,
+    sessionToken,
+    slug: ((await published.json()) as PublishedListing).slug,
+    itemId: item.id,
+  };
 }
 
 /** Deja el dispositivo con la credencial que la aplicación lee al arrancar. */
@@ -131,7 +136,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     'the cart request walks both the private surface and the shop',
   );
 
-  const { event, sessionToken, slug } = await eventWithPublishedArticle(request);
+  const { event, sessionToken, slug, itemId } = await eventWithPublishedArticle(request);
 
   // 1. La cuenta que se autentica desde el evento lo reclama: el dashboard es suyo (decisión §37).
   const claimed = await request.post(`${BACKEND_URL}/auth/claim`, {
@@ -177,12 +182,23 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
       'href',
       new RegExp(`^https://wa\\.me/${PHONE}\\?text=`),
     );
+    // 4b. El vendedor despublica desde `Capturados`: la ficha sale del catálogo y el carrito del
+    // comprador la retira con un aviso que la nombra (F3).
+    await page.goto(`${FRONTEND_URL}/eventos/${event.id}/capturados`);
+    const row = page.getByTestId(`item-${itemId}`);
+    await row.getByTestId('item-unpublish').click();
+    await expect(row.getByTestId('item-status')).toHaveText('despublicado');
+
+    await shopPage.reload();
+    await expect(shopPage.getByTestId('cart-unpublished')).toContainText('Silla de la sala');
+    await expect(shopPage.getByTestId(`cart-item-${slug}`)).toHaveCount(0);
   } finally {
     await shopContext.close();
   }
 
-  // 5. El vendedor ve el renglón con el nombre de la cuenta y lo descarta; el estado queda escrito.
-  await page.reload();
+  // 5. El vendedor vuelve al panel, ve el renglón con el nombre de la cuenta y lo descarta; el estado
+  // queda escrito. La navegación es explícita: el paso 4b lo dejó en `Capturados`.
+  await page.goto(`${FRONTEND_URL}/eventos/${event.id}/dashboard`);
   await expect(page.getByTestId('dashboard-requests')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('pendiente');
 

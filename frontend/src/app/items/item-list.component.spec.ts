@@ -29,6 +29,7 @@ const PENDING: ItemSummary = {
   soldAt: null,
   photo: { id: 'photo-1', sizes: { thumb: null, medium: null, large: null } },
   publishedSlug: null,
+  unpublishedAt: null,
   createdAt: '2026-10-31T00:00:00.000Z',
 };
 
@@ -38,6 +39,14 @@ const PUBLISHED: ItemSummary = {
   title: 'Silla blanca',
   priceCents: 125_050,
   publishedSlug: 'silla-blanca-3f9a2c',
+};
+
+const UNPUBLISHED: ItemSummary = {
+  ...PUBLISHED,
+  id: 'item-4',
+  title: 'Silla retirada',
+  publishedSlug: 'silla-retirada-4a1b2c',
+  unpublishedAt: '2026-11-06T04:00:00.000Z',
 };
 
 const SOLD: ItemSummary = {
@@ -176,6 +185,59 @@ describe('ItemListComponent', () => {
     await settle(fixture);
 
     expect(statusOf(fixture, 0)).toBe('vendido');
+  });
+
+  it('paints despublicado, hides the link and offers Republicar', async () => {
+    const fixture = await load([UNPUBLISHED]);
+
+    expect(statusOf(fixture, 0)).toBe('despublicado');
+    expect(fixture.nativeElement.querySelector('[data-testid="item-listing-link"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="item-copy-link"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="item-unpublish"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="item-sold"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="item-republish"]')).not.toBeNull();
+  });
+
+  it('unpublishes a published article and reloads the list', async () => {
+    const fixture = await load([PUBLISHED]);
+
+    (
+      fixture.nativeElement.querySelector('[data-testid="item-unpublish"]') as HTMLButtonElement
+    ).click();
+    await settle(fixture);
+
+    const request = httpTesting.expectOne('/api/events/event-1/items/item-2/listing');
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    await settle(fixture);
+
+    httpTesting
+      .expectOne(ITEMS_URL)
+      .flush({ items: [{ ...PUBLISHED, unpublishedAt: '2026-11-06T04:00:00.000Z' }] });
+    await settle(fixture);
+
+    expect(statusOf(fixture, 0)).toBe('despublicado');
+  });
+
+  it('republishes an unpublished article and reloads the list', async () => {
+    const fixture = await load([UNPUBLISHED]);
+
+    (
+      fixture.nativeElement.querySelector('[data-testid="item-republish"]') as HTMLButtonElement
+    ).click();
+    await settle(fixture);
+
+    const request = httpTesting.expectOne('/api/events/event-1/items/item-4/listing');
+    expect(request.request.method).toBe('POST');
+    request.flush({ slug: UNPUBLISHED.publishedSlug, path: `/${UNPUBLISHED.publishedSlug}` });
+    await settle(fixture);
+
+    httpTesting
+      .expectOne(ITEMS_URL)
+      .flush({ items: [{ ...PUBLISHED, id: 'item-4', title: 'Silla retirada' }] });
+    await settle(fixture);
+
+    expect(statusOf(fixture, 0)).toBe('publicado');
   });
 
   it('publishes an en proceso article and reloads the list', async () => {

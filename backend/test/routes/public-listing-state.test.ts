@@ -2,16 +2,23 @@ import type { Database } from '../../src/db.js';
 import { startTestApp } from '../support/test-app.js';
 
 /**
- * La cortesía de una ficha vendida (ciclo 4b, `plan-ciclo-4b` §5 y decisión §40).
+ * La cortesía de una ficha vendida (ciclo 4b, `plan-ciclo-4b` §5 y decisión §40) y el retiro de una
+ * ficha despublicada (F3).
  *
- * El e2e no puede envejecer una venta sin escribir la base a mano, así que la regla se demuestra
- * aquí con un doble de `Database` y un reloj fijo: `200` sin `noindex` mientras está viva, `200` con
- * `noindex` dentro de los treinta días y `410` con `noindex` después.
+ * El e2e no puede envejecer una venta ni despublicar sin escribir la base a mano, así que las reglas
+ * se demuestran aquí con un doble de `Database` y un reloj fijo: `200` sin `noindex` mientras está
+ * viva, `200` con `noindex` dentro de los treinta días, `410 listing_gone` después y
+ * `410 listing_unpublished` cuando el vendedor la retiró.
  */
 const NOW = new Date('2026-11-02T12:00:00.000Z');
 const SLUG = 'mesa-de-roble-3f9a2c';
 
-function databaseWithSoldAt(soldAt: Date | null): Database {
+interface ListingStateFixture {
+  readonly soldAt?: Date | null;
+  readonly unpublishedAt?: Date | null;
+}
+
+function databaseWithState(state: ListingStateFixture): Database {
   const row = {
     slug: SLUG,
     title: 'Mesa de roble',
@@ -21,7 +28,7 @@ function databaseWithSoldAt(soldAt: Date | null): Database {
     depthCm: 60,
     weightKg: 35,
     priceCents: 125_050,
-    soldAt,
+    soldAt: state.soldAt ?? null,
     photoObjectKey: null,
     photoVariants: null,
     eventId: '11111111-1111-4111-8111-111111111111',
@@ -30,6 +37,7 @@ function databaseWithSoldAt(soldAt: Date | null): Database {
     destinationCity: 'Ciudad de México',
     currency: 'MXN',
     publishedAt: new Date('2026-10-31T12:00:00.000Z'),
+    unpublishedAt: state.unpublishedAt ?? null,
   };
 
   return {
@@ -41,16 +49,16 @@ function databaseWithSoldAt(soldAt: Date | null): Database {
   } as unknown as Database;
 }
 
-async function start(soldAt: Date | null) {
+async function start(state: ListingStateFixture) {
   return startTestApp('ok', '', {
-    database: databaseWithSoldAt(soldAt),
+    database: databaseWithState(state),
     now: () => NOW,
   });
 }
 
 describe('public listing state', () => {
   it('serves a live listing without noindex', async () => {
-    const app = await start(null);
+    const app = await start({});
     try {
       const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}`);
 
@@ -66,8 +74,33 @@ describe('public listing state', () => {
     }
   });
 
+  it('answers 410 listing_unpublished and noindex when the seller unpublished it', async () => {
+    const app = await start({ unpublishedAt: new Date('2026-11-05T12:00:00.000Z') });
+    try {
+      const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}`);
+
+      expect(response.status).toBe(410);
+      expect(response.headers.get('x-robots-tag')).toBe('noindex');
+      await expect(response.json()).resolves.toEqual({ error: 'listing_unpublished' });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('answers the unpublished page with 410 and noindex', async () => {
+    const app = await start({ unpublishedAt: new Date('2026-11-05T12:00:00.000Z') });
+    try {
+      const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}/page`);
+
+      expect(response.status).toBe(410);
+      expect(response.headers.get('x-robots-tag')).toBe('noindex');
+    } finally {
+      await app.close();
+    }
+  });
+
   it('serves a sold listing with noindex inside the courtesy window', async () => {
-    const app = await start(new Date('2026-10-20T12:00:00.000Z'));
+    const app = await start({ soldAt: new Date('2026-10-20T12:00:00.000Z') });
     try {
       const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}`);
 
@@ -82,7 +115,7 @@ describe('public listing state', () => {
   });
 
   it('keeps noindex and answers 410 after thirty days', async () => {
-    const app = await start(new Date('2026-09-30T12:00:00.000Z'));
+    const app = await start({ soldAt: new Date('2026-09-30T12:00:00.000Z') });
     try {
       const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}`);
 
@@ -95,7 +128,7 @@ describe('public listing state', () => {
   });
 
   it('serves the sold snapshot with Vendido and noindex', async () => {
-    const app = await start(new Date('2026-10-20T12:00:00.000Z'));
+    const app = await start({ soldAt: new Date('2026-10-20T12:00:00.000Z') });
     try {
       const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}/page`);
       const html = await response.text();
@@ -110,7 +143,7 @@ describe('public listing state', () => {
   });
 
   it('answers the expired page with 410 and noindex', async () => {
-    const app = await start(new Date('2026-09-30T12:00:00.000Z'));
+    const app = await start({ soldAt: new Date('2026-09-30T12:00:00.000Z') });
     try {
       const response = await fetch(`${app.baseUrl}/public/listings/${SLUG}/page`);
 

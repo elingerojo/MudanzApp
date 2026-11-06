@@ -174,6 +174,7 @@ export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
     soldAt: item.soldAt?.toISOString() ?? null,
     photo: item.photoId === null ? null : { id: item.photoId, sizes: sizesOf(item.photoVariants) },
     publishedSlug: item.publishedSlug,
+    unpublishedAt: item.unpublishedAt?.toISOString() ?? null,
     createdAt: item.createdAt.toISOString(),
   };
 }
@@ -309,12 +310,17 @@ export function toPublicEventIndex(
  * `whatsappAvailable` es un hecho del evento, no del visitante: el número en sí **no** cruza este
  * contrato, solo el enlace compuesto cuando la solicitud existe. `reference` se deriva del `id` y no se
  * guarda: es la forma legible de la misma fila.
+ *
+ * Desde F3 las filas despublicadas no entran en `items`: se publican aparte en `unpublished`, con su
+ * título, para que la pantalla explique el retiro antes de que el `PUT` las borre de la tabla.
  */
 export function toPublicCart(
   event: PublicEventRecord,
   cart: CartRow | null,
   request: OpenCartRequestRecord | null,
 ): PublicCart {
+  const rows = cart?.items ?? [];
+
   return {
     event: {
       publicSlug:
@@ -322,13 +328,18 @@ export function toPublicCart(
         deriveEventPublicSlug(event.originCity, event.destinationCity, event.id),
       currency: event.currency,
     },
-    items: (cart?.items ?? []).map((item) => ({
-      slug: item.slug,
-      title: item.title,
-      priceCents: item.priceCents,
-      soldAt: item.soldAt?.toISOString() ?? null,
-      addedAt: item.addedAt.toISOString(),
-    })),
+    items: rows
+      .filter((item) => item.unpublishedAt === null)
+      .map((item) => ({
+        slug: item.slug,
+        title: item.title,
+        priceCents: item.priceCents,
+        soldAt: item.soldAt?.toISOString() ?? null,
+        addedAt: item.addedAt.toISOString(),
+      })),
+    unpublished: rows
+      .filter((item) => item.unpublishedAt !== null)
+      .map((item) => ({ slug: item.slug, title: item.title })),
     whatsappAvailable: event.contactPhone !== null,
     request: request === null ? null : toOpenCartRequest(request, event.contactPhone),
   };

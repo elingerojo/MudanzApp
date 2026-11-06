@@ -92,6 +92,28 @@
                 >
                   {{ store.copiedId() === item.id ? 'Copiado' : 'Copiar enlace' }}
                 </button>
+
+                @if (item.soldAt === null) {
+                  <button
+                    type="button"
+                    [class]="secondaryClasses"
+                    [disabled]="store.unpublishingId() !== null"
+                    (click)="store.unpublish(item)"
+                    data-testid="item-unpublish"
+                  >
+                    {{ store.unpublishingId() === item.id ? 'Despublicando…' : 'Despublicar' }}
+                  </button>
+                }
+              } @else if (item.unpublishedAt !== null) {
+                <button
+                  type="button"
+                  [class]="secondaryClasses"
+                  [disabled]="store.publishingId() !== null"
+                  (click)="store.publish(item)"
+                  data-testid="item-republish"
+                >
+                  {{ store.publishingId() === item.id ? 'Republicando…' : 'Republicar' }}
+                </button>
               } @else {
                 <button
                   type="button"
@@ -104,7 +126,9 @@
                 </button>
               }
 
-              @if (item.publishedSlug !== null && item.soldAt === null) {
+              @if (
+                item.publishedSlug !== null && item.unpublishedAt === null && item.soldAt === null
+              ) {
                 <button
                   type="button"
                   [class]="secondaryClasses"
@@ -127,6 +151,17 @@
                   <p
                     class="max-w-64 text-right text-xs text-red-600"
                     data-testid="item-listing-error"
+                  >
+                    {{ failure.message }}
+                  </p>
+                }
+              }
+
+              @if (store.unpublishFailure(); as failure) {
+                @if (failure.itemId === item.id) {
+                  <p
+                    class="max-w-64 text-right text-xs text-red-600"
+                    data-testid="item-unpublish-error"
                   >
                     {{ failure.message }}
                   </p>
