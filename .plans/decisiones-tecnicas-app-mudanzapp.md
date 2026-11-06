@@ -1136,5 +1136,8 @@ Reglas del crecimiento:
 - **Consecuencia aceptada:** recargar la pestaña obliga a pegar la credencial otra vez, y la pantalla no
   intenta recordarla.
 - **Implementada por:** el corte del ciclo E1 (`plan-ciclo-e1-dashboard-plataforma`), **sin migración**.
+- **Prueba remota del dueño (2026-11-06):** la superficie publicada respondió como se esperaba; sin
+  hallazgos. La credencial en memoria no necesitó ningún cambio en la plataforma: `ADMIN_TOKEN` ya
+  estaba configurado y el origen del Worker de `frontend` ya estaba en la allowlist.
 - **Disparador de revisión:** una segunda persona que necesite administrar la plataforma, o la primera
   vez que la credencial tenga que vivir más que una pestaña.

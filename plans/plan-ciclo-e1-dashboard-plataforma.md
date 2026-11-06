@@ -169,9 +169,10 @@ ADMIN_TOKEN`.
   `test:web:frontend` (142/142, 10 nuevos) y `test:web:wiki` (12/12). Las aserciones de §7 se
   cumplieron una por una, incluida la que falla si la credencial aparece en `localStorage` y la que
   exige que el cursor vuelva al SQL como parámetro.
-- **Revisión `live`:** no aplica. El corte no crea una variable de entorno —`ADMIN_TOKEN` ya existía—
-  ni cambia un Worker, un dominio o una migración, así que no hay hecho remoto que verificar
-  (`07` §5).
+- **Prueba remota del dueño (2026-11-06):** el corte se probó en el despliegue y todo respondió como
+  se esperaba; sin hallazgos. No hubo que verificar una variable nueva —`ADMIN_TOKEN` ya existía— ni
+  una migración: lo comprobado es el artefacto publicado, el build del backend con la ruta y el
+  Worker de `frontend` con la pantalla.
 - **Delta del wiki:** A1 (tile dueño, `backend/src/routes/admin-router.ts`), más A0 —la ruta en el
   mapa de superficies— y E2 —la capacidad en su tabla—. E3 sin delta: el gate no cambió.
 - **Pendiente con su disparador:**
