@@ -145,7 +145,7 @@ test('the device optimizes a heavy photo into three sizes and the original never
   // 1. La sesión entra por el enlace de invitación, como lo hace un co-dispositivo.
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
+  await expect(page).toHaveURL(/\/captura$/);
 
   const source = await generateHeavyPhoto(page);
 

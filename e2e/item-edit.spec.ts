@@ -137,7 +137,7 @@ test('a co-device corrects the sheet, sets the price and declares the sale', asy
     (token) => localStorage.setItem('mudanzapp.session', token),
     own.session.sessionToken,
   );
-  await page.goto(`${FRONTEND_URL}/eventos/${own.event.id}/capturados`);
+  await page.goto(`${FRONTEND_URL}/capturados`);
   await expect(page.getByTestId('item-title')).toHaveText('Silla de madera');
 
   // 1. La ficha se corrige y el precio entra desde `Capturados`.
@@ -147,7 +147,7 @@ test('a co-device corrects the sheet, sets the price and declares the sale', asy
   await page.getByTestId('item-edit-price').fill('1250.50');
   await page.getByTestId('item-edit-save').click();
 
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}/capturados$`));
+  await expect(page).toHaveURL(/\/capturados$/);
   await expect(page.getByTestId('item-title')).toHaveText('Silla de madera pulida');
   await expect(page.getByTestId('item-price')).toHaveText('$1,250.50 MXN');
 

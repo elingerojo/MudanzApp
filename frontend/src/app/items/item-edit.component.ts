@@ -60,14 +60,14 @@ export class ItemEditComponent {
   private readonly router = inject(Router);
   protected readonly store = inject(EventItemsStore);
 
-  protected readonly eventId = this.route.snapshot.paramMap.get('eventId') ?? '';
   protected readonly itemId = this.route.snapshot.paramMap.get('itemId') ?? '';
 
-  private readonly resource = httpResource<{ readonly item: ItemSummary }>(() =>
-    this.itemId.length === 0
+  private readonly resource = httpResource<{ readonly item: ItemSummary }>(() => {
+    const eventId = this.store.eventId();
+    return this.itemId.length === 0 || eventId.length === 0
       ? undefined
-      : `${this.apiBaseUrl}/events/${this.eventId}/items/${this.itemId}`,
-  );
+      : `${this.apiBaseUrl}/events/${eventId}/items/${this.itemId}`;
+  });
 
   protected readonly loading = this.resource.isLoading;
 
@@ -143,19 +143,24 @@ export class ItemEditComponent {
       return;
     }
 
+    const eventId = this.store.eventId();
+    if (eventId.length === 0) {
+      return;
+    }
+
     this.saving.set(true);
     this.error.set(null);
 
     try {
       await firstValueFrom(
         this.http.patch<UpdatedItem>(
-          `${this.apiBaseUrl}/events/${this.eventId}/items/${this.itemId}`,
+          `${this.apiBaseUrl}/events/${eventId}/items/${this.itemId}`,
           body,
         ),
       );
 
       this.store.reload();
-      await this.router.navigate(['/eventos', this.eventId, 'capturados']);
+      await this.router.navigate(['/capturados']);
     } catch (error: unknown) {
       this.error.set(
         apiErrorCode(error) === ITEM_NOT_FOUND

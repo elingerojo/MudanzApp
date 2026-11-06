@@ -1,7 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import type {
   CartRequestSummary,
   IdentityUser,
@@ -113,13 +114,16 @@ describe('DashboardComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         EventItemsStore,
         { provide: API_BASE_URL, useValue: '/api' },
         { provide: SHOP_BASE_URL, useValue: 'http://shop.test' },
-        { provide: SessionStore, useValue: { eventById: () => EVENT } },
         {
-          provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: convertToParamMap({ eventId: 'event-1' }) } },
+          provide: SessionStore,
+          useValue: {
+            activeEventId: signal('event-1'),
+            eventById: () => EVENT,
+          },
         },
       ],
     }).compileComponents();
@@ -159,6 +163,7 @@ describe('DashboardComponent', () => {
     fixture.detectChanges();
 
     await tick();
+    fixture.detectChanges();
 
     for (const request of httpTesting.match((candidate) => candidate.url === ITEMS_URL)) {
       request.flush({ items });
@@ -169,6 +174,15 @@ describe('DashboardComponent', () => {
       (candidate) => candidate.url === CONTACT_URL || candidate.url === REQUESTS_URL,
     )) {
       request.flush(request.request.url === CONTACT_URL ? { contactPhone } : { requests });
+    }
+
+    await tick();
+    fixture.detectChanges();
+
+    // El recurso compartido de artículos puede arrancar después del primer render: se drena también
+    // esa lectura para que la verificación del final no dependa del orden de los efectos.
+    for (const request of httpTesting.match((candidate) => candidate.url === ITEMS_URL)) {
+      request.flush({ items });
     }
 
     await tick();

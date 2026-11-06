@@ -1,0 +1,21 @@
+<header class="space-y-1">
+  <h1 class="text-xl font-semibold text-slate-900" data-testid="event-title">{{ title() }}</h1>
+  <p class="text-sm text-slate-600">
+    Documenta cada artículo con una foto y compártelo cuando esté listo.
+  </p>
+
+  <!-- El enlace del evento existe desde que se crea: el índice nace vacío y sigue siendo un enlace
+       válido (decisión §36). -->
+  @if (publicUrl(); as link) {
+    <p class="text-sm text-slate-700" data-testid="event-public-link">
+      Enlace del evento:
+      <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{ link }}</a>
+    </p>
+  }
+
+  @if (sessionInvalid()) {
+    <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700" data-testid="event-session-invalid">
+      La sesión de este dispositivo ya no es válida. Canjea una invitación nueva desde el inicio.
+    </p>
+  }
+</header>

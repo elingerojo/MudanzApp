@@ -147,7 +147,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
   const account = (await claimed.json()) as IssuedSession;
 
   await seedSession(page, account.sessionToken);
-  await page.goto(`${FRONTEND_URL}/eventos/${event.id}/dashboard`);
+  await page.goto(`${FRONTEND_URL}/dashboard`);
 
   // 2. El número es del evento y lo fija quien lo administra, aquí y no en la Cuenta del marco.
   await expect(page.getByTestId('dashboard-contact-empty')).toBeVisible();
@@ -184,7 +184,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     );
     // 4b. El vendedor despublica desde `Capturados`: la ficha sale del catálogo y el carrito del
     // comprador la retira con un aviso que la nombra (F3).
-    await page.goto(`${FRONTEND_URL}/eventos/${event.id}/capturados`);
+    await page.goto(`${FRONTEND_URL}/capturados`);
     const row = page.getByTestId(`item-${itemId}`);
     await row.getByTestId('item-unpublish').click();
     await expect(row.getByTestId('item-status')).toHaveText('despublicado');
@@ -198,7 +198,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
 
   // 5. El vendedor vuelve al panel, ve el renglón con el nombre de la cuenta y lo descarta; el estado
   // queda escrito. La navegación es explícita: el paso 4b lo dejó en `Capturados`.
-  await page.goto(`${FRONTEND_URL}/eventos/${event.id}/dashboard`);
+  await page.goto(`${FRONTEND_URL}/dashboard`);
   await expect(page.getByTestId('dashboard-requests')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('pendiente');
 

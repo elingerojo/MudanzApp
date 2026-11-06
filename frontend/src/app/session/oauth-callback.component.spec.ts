@@ -115,7 +115,7 @@ describe('OAuthCallbackComponent', () => {
     await fixture.whenStable();
 
     expect(establish).toHaveBeenCalledWith(ISSUED);
-    expect(navigate).toHaveBeenCalledWith(['/eventos', 'event-1'], { replaceUrl: true });
+    expect(navigate).toHaveBeenCalledWith(['/captura'], { replaceUrl: true });
   });
 
   it('vuelve a entrar cuando el propósito es signin, sin pedir invitación', async () => {
@@ -131,7 +131,7 @@ describe('OAuthCallbackComponent', () => {
     await fixture.whenStable();
 
     expect(establish).toHaveBeenCalledWith(ISSUED);
-    expect(navigate).toHaveBeenCalledWith(['/eventos', 'event-1'], { replaceUrl: true });
+    expect(navigate).toHaveBeenCalledWith(['/captura'], { replaceUrl: true });
   });
 
   it('explica que la cuenta no tiene evento cuando el regreso no encuentra membresía', async () => {

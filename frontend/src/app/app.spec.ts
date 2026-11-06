@@ -1,13 +1,15 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { brand } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from './api-base-url.token';
 import { App } from './app';
+import { SessionStore } from './session/session.store';
 
-describe('App', () => {
+describe('App without session', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
@@ -35,5 +37,67 @@ describe('App', () => {
     TestBed.createComponent(App);
 
     expect(document.title).toBe(brand.publicName);
+  });
+
+  it('does not draw the private bar without a session', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="shell-nav"]')).toBeNull();
+  });
+});
+
+describe('App with session', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [
+        provideRouter([]),
+        { provide: SessionStore, useValue: { hasSession: signal(true) } },
+      ],
+    }).compileComponents();
+  });
+
+  /** Monta la shell con la URL que el router tendría, sin navegar. */
+  function render(url: string) {
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'url', 'get').mockReturnValue(url);
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  function navItem(fixture: { nativeElement: unknown }, testId: string): HTMLElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="${testId}"]`);
+  }
+
+  it('draws the three fixed destinations of the bar', () => {
+    const fixture = render('/captura');
+
+    expect(navItem(fixture, 'shell-nav')).not.toBeNull();
+    expect(navItem(fixture, 'shell-nav-capture')).not.toBeNull();
+    expect(navItem(fixture, 'shell-nav-captured')).not.toBeNull();
+    expect(navItem(fixture, 'shell-nav-account')).not.toBeNull();
+  });
+
+  it('marks Captura as the active section', () => {
+    const fixture = render('/captura');
+
+    expect(navItem(fixture, 'shell-nav-capture')?.getAttribute('aria-current')).toBe('page');
+    expect(navItem(fixture, 'shell-nav-captured')?.getAttribute('aria-current')).toBeNull();
+  });
+
+  it('keeps Capturados marked while an article is being edited', () => {
+    const fixture = render('/articulos/item-1');
+
+    expect(navItem(fixture, 'shell-nav-captured')?.getAttribute('aria-current')).toBe('page');
+    expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBeNull();
+  });
+
+  it('marks Cuenta while the dashboard detail is open', () => {
+    const fixture = render('/dashboard');
+
+    expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBe('page');
   });
 });

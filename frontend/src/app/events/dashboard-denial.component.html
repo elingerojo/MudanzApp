@@ -1,0 +1,18 @@
+@if (reason(); as denied) {
+  <p class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" data-testid="event-dashboard-denied">
+    @switch (denied) {
+      @case ('forbidden') {
+        El borde dice que esta cuenta no administra el evento: puede que nadie lo haya reclamado
+        todavía o que lo administre otra cuenta. Vuelve a «Capturados» o vincula la cuenta que lo
+        administra.
+      }
+      @case ('not_found') {
+        Este evento no aparece entre los de tu sesión. Vuelve a «Capturados».
+      }
+      @default {
+        No se pudo leer el panel y el evento no cambió. Reintenta; si vuelve a pasar, revisa la
+        consola del servidor.
+      }
+    }
+  </p>
+}

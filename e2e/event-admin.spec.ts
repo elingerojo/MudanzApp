@@ -137,10 +137,10 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
   const secondDevice = await redeemCoDevice(request, event.id, 'Teléfono viejo');
   const pendingInvitation = await createInvitationLink(request, event.id);
 
-  // 1. El rey abre la pestaña y el panel publica lo que el borde decidió.
+  // 1. El rey abre la Cuenta y entra al panel desde su enlace.
   await seedSession(page, king.sessionToken);
-  await page.goto(`${FRONTEND_URL}/eventos/${event.id}`);
-  await page.getByTestId('event-tab-dashboard').click();
+  await page.goto(`${FRONTEND_URL}/cuenta`);
+  await page.getByTestId('cuenta-dashboard-link').click();
 
   await expect(page.getByTestId('dashboard-panel')).toBeVisible();
   await expect(page.getByTestId('dashboard-administrator')).toContainText(FAKE_DISPLAY_NAME);
@@ -210,13 +210,11 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
   try {
     const coDevice = await context.newPage();
     await seedSession(coDevice, survivorToken);
-    await coDevice.goto(`${FRONTEND_URL}/eventos/${event.id}/dashboard`);
+    await coDevice.goto(`${FRONTEND_URL}/dashboard`);
 
     // La URL lleva la familia del fallo, no solo el aviso: un `500` no puede leerse como un rechazo
     // de autorización (diagnóstico del borde, 2026-11-04).
-    await expect(coDevice).toHaveURL(
-      /\/eventos\/[0-9a-f-]+\/capturados\?denied=dashboard&reason=forbidden$/,
-    );
+    await expect(coDevice).toHaveURL(/\/capturados\?denied=dashboard&reason=forbidden$/);
     await expect(coDevice.getByTestId('event-dashboard-denied')).toContainText(
       'esta cuenta no administra el evento',
     );
@@ -270,8 +268,8 @@ test('the event administrator retires a mistaken capture and the public page sto
 
   // 2. El rey abre el panel, ve la captura y la elimina con dos toques.
   await seedSession(page, king.sessionToken);
-  await page.goto(`${FRONTEND_URL}/eventos/${event.id}`);
-  await page.getByTestId('event-tab-dashboard').click();
+  await page.goto(`${FRONTEND_URL}/cuenta`);
+  await page.getByTestId('cuenta-dashboard-link').click();
 
   const row = page.getByTestId(`dashboard-item-row-${item.id}`);
   await expect(row).toBeVisible();
@@ -286,6 +284,6 @@ test('the event administrator retires a mistaken capture and the public page sto
   expect(after.status()).toBe(404);
   await expect(after.json()).resolves.toEqual({ error: 'not_found' });
 
-  await page.getByTestId('event-tab-captured').click();
+  await page.getByTestId('shell-nav-captured').click();
   await expect(page.getByTestId('items-empty')).toBeVisible();
 });

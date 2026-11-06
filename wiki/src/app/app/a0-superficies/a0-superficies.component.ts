@@ -19,6 +19,8 @@ import { TileHeader } from '../../ui/tile-header/tile-header';
 export class A0SuperficiesComponent {
   protected readonly areas = [
     'frontend/src/app/app.routes.ts',
+    'frontend/src/app/app.ts',
+    'frontend/src/app/session/cuenta.component.ts',
     'shop/src/app/app.routes.ts',
     'wiki/src/app/app.routes.ts',
     '*/src/app/app.config.ts',
@@ -27,5 +29,5 @@ export class A0SuperficiesComponent {
     '*/wrangler.jsonc',
   ];
 
-  protected readonly decisions = ['§20', '§22', '§30'];
+  protected readonly decisions = ['§20', '§22', '§30', '§37'];
 }

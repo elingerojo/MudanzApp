@@ -68,7 +68,7 @@ export class OAuthCallbackComponent {
       this.session.establish(issued);
 
       const eventId = issued.event?.id ?? null;
-      await this.router.navigate(eventId === null ? ['/'] : ['/eventos', eventId], {
+      await this.router.navigate(eventId === null ? ['/'] : ['/captura'], {
         replaceUrl: true,
       });
     } catch (failure: unknown) {

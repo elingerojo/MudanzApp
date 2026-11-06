@@ -70,20 +70,20 @@ test('a co-device links an account from the account card and keeps its event', a
     (token) => localStorage.setItem('mudanzapp.session', token),
     own.session.sessionToken,
   );
-  await page.goto(`${FRONTEND_URL}/eventos/${own.event.id}`);
+  await page.goto(`${FRONTEND_URL}/captura`);
   await expect(page.getByTestId('event-title')).toBeVisible();
 
-  // 1. La Cuenta ofrece vincular: el dispositivo no tiene sujeto.
-  await page.getByTestId('shell-account').click();
+  // 1. La Cuenta es un destino de la barra y ofrece vincular: el dispositivo no tiene sujeto.
+  await page.getByTestId('shell-nav-account').click();
   await expect(page.getByTestId('shell-account-link')).toBeVisible();
 
-  // 2. Al pulsar, el flujo sale y vuelve; el reclamo deja la sesión de cuenta y la pantalla en el evento.
+  // 2. Al pulsar, el flujo sale y vuelve; el reclamo deja la sesión de cuenta y la pantalla en captura.
   await page.getByTestId('shell-account-link').click();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
+  await expect(page).toHaveURL(/\/captura$/);
 
   // 3. La Cuenta ya muestra la cuenta vinculada y la acción desaparece.
-  await page.getByTestId('shell-account').click();
-  await expect(page.getByTestId('shell-account-menu')).toContainText(FAKE_DISPLAY_NAME);
+  await page.getByTestId('shell-nav-account').click();
+  await expect(page.getByTestId('cuenta-identity')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('shell-account-link')).toHaveCount(0);
 
   // 4. La credencial del dispositivo es otra y el backend la reconoce como sesión de cuenta del evento.

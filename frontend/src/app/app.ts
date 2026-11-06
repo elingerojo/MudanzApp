@@ -1,15 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { brand } from '@mudanzapp/shared';
+import { filter, map } from 'rxjs';
 
-import { AccountLinkComponent } from './session/account-link.component';
-import { InviteDeviceComponent } from './session/invite-device.component';
 import { SessionStore } from './session/session.store';
-import { uiButtonClasses } from './ui/ui-button/ui-button';
 
 /** Una entrada de la navegación principal. */
 interface Destination {
+  readonly id: 'captura' | 'capturados' | 'cuenta';
   readonly path: string;
   readonly label: string;
   readonly testId: string;
@@ -18,25 +18,66 @@ interface Destination {
 }
 
 /**
- * Marco de la aplicación: cabecera persistente, navegación y contenedor del `router-outlet`.
+ * La barra es una lista **fija** de tres destinos raíz (corte D8). No se deriva de la sesión ni del
+ * número de eventos: agregar una sección es agregar una entrada aquí y su ruta en `app.routes.ts`.
+ */
+const DESTINATIONS: readonly Destination[] = [
+  {
+    id: 'captura',
+    path: '/captura',
+    label: 'Captura',
+    testId: 'shell-nav-capture',
+    icon: '📷',
+  },
+  {
+    id: 'capturados',
+    path: '/capturados',
+    label: 'Capturados',
+    testId: 'shell-nav-captured',
+    icon: '📦',
+  },
+  {
+    id: 'cuenta',
+    path: '/cuenta',
+    label: 'Cuenta',
+    testId: 'shell-nav-account',
+    icon: '👤',
+  },
+];
+
+/**
+ * Qué destino de la barra corresponde a una URL. Las pantallas de detalle no son destinos, pero
+ * conservan marcada la sección de la que salieron: `articulos/:itemId` es de Capturados y
+ * `dashboard` es de Cuenta.
+ */
+function sectionOf(url: string): Destination['id'] | null {
+  const path = url.split('?')[0]?.split('#')[0] ?? '';
+
+  if (path === '/captura') {
+    return 'captura';
+  }
+
+  if (path === '/capturados' || path.startsWith('/articulos')) {
+    return 'capturados';
+  }
+
+  if (path === '/cuenta' || path.startsWith('/dashboard')) {
+    return 'cuenta';
+  }
+
+  return null;
+}
+
+/**
+ * Marco de la aplicación: cabecera persistente, barra inferior fija y contenedor del `router-outlet`.
  *
- * Vive en el componente raíz —siempre montado— y no en una pantalla, para que navegar no desmonte
- * la navegación ni el estado que refleja. La barra se deriva de las secciones que **existen**: un
- * destino nace con su capacidad, y mientras haya uno solo no se dibuja (no hay nada entre lo que
- * navegar). Agregar una sección es agregar un destino aquí y su ruta en `app.routes.ts`.
- *
- * La cabecera se simplifica sin sesión: un dispositivo sin credencial solo puede canjear, y el
- * inicio ya ofrece ese camino.
+ * Vive en el componente raíz —siempre montado— y no en una pantalla, para que navegar no desmonte la
+ * navegación ni el estado que refleja. La barra aparece con sesión y no en las pantallas públicas sin
+ * credencial.
  */
 @Component({
   selector: 'app-root',
-  imports: [
-    AccountLinkComponent,
-    InviteDeviceComponent,
-    RouterLink,
-    RouterLinkActive,
-    RouterOutlet,
-  ],
+  imports: [RouterLink, RouterOutlet],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -45,36 +86,24 @@ export class App {
 
   private readonly title = inject(Title);
   private readonly session = inject(SessionStore);
+  private readonly router = inject(Router);
 
   protected readonly hasSession = this.session.hasSession;
-  protected readonly user = this.session.user;
-  protected readonly signOutClasses = uiButtonClasses('danger');
+  protected readonly destinations = DESTINATIONS;
+  protected readonly showNavigation = this.hasSession;
 
-  protected readonly destinations = computed<readonly Destination[]>(() => {
-    const [event] = this.session.events();
-    if (event === undefined) {
-      return [];
-    }
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map(() => this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
 
-    return [
-      {
-        path: `/eventos/${event.id}`,
-        label: 'Artículos',
-        icon: '📦',
-        testId: 'shell-event-link',
-      },
-    ];
-  });
-
-  /** Con un solo destino la barra no aporta: se omite hasta que exista una segunda sección. */
-  protected readonly showNavigation = computed(() => this.destinations().length > 1);
+  protected readonly activeSection = computed(() => sectionOf(this.currentUrl()));
 
   constructor() {
     // La marca vive en `shared/src/brand.json`; el título del documento se deriva de ahí.
     this.title.setTitle(brand.publicName);
-  }
-
-  protected signOut(): void {
-    this.session.clear();
   }
 }

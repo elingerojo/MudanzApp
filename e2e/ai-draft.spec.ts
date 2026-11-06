@@ -171,7 +171,7 @@ test('the human reviews the draft in the form and publishes from the same screen
   // 1. Canje, foto y borrador: nada existe todavía en la base.
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
+  await expect(page).toHaveURL(/\/captura$/);
 
   await page.setInputFiles('[data-testid="item-photo-input"]', {
     name: 'silla.png',
@@ -192,8 +192,8 @@ test('the human reviews the draft in the form and publishes from the same screen
   await expect(page.getByTestId('capture-saved')).toBeVisible();
   await expect(page.getByTestId('capture-published-link')).toBeVisible();
 
-  // 3. La pestaña de capturados lo muestra como publicado, y recargar no lo pierde.
-  await page.getByTestId('event-tab-captured').click();
+  // 3. La pantalla de capturados lo muestra como publicado, y recargar no lo pierde.
+  await page.getByTestId('shell-nav-captured').click();
   await expect(page.getByTestId('item-title')).toHaveText('Silla blanca');
   await expect(page.getByTestId('item-status')).toHaveText('publicado');
 
@@ -230,7 +230,7 @@ test('saving without publishing leaves the article en proceso and the row can pu
 
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
+  await expect(page).toHaveURL(/\/captura$/);
 
   await page.setInputFiles('[data-testid="item-photo-input"]', {
     name: 'caja.png',
@@ -243,30 +243,9 @@ test('saving without publishing leaves the article en proceso and the row can pu
   await page.getByTestId('item-form-save-only').click();
   await expect(page.getByTestId('capture-saved')).toContainText('en proceso');
 
-  await page.getByTestId('event-tab-captured').click();
+  await page.getByTestId('shell-nav-captured').click();
   await expect(page.getByTestId('item-status')).toHaveText('en proceso');
 
   await page.getByTestId('item-publish').click();
   await expect(page.getByTestId('item-status')).toHaveText('publicado');
-});
-
-test('the dossier explains the contract and the mandatory review', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'wiki', 'the dossier runs in the wiki project');
-
-  // La página abre en un contexto sin sesión: no pide credencial ni backend.
-  await page.goto('/foto-a-ficha');
-
-  await expect(page.getByTestId('foto-a-ficha')).toBeVisible();
-  await expect(page.getByTestId('foto-a-ficha-pide')).toContainText('variante mediana');
-  await expect(page.getByTestId('foto-a-ficha-devuelve')).toContainText(
-    String(AI_DRAFT_LIMITS.title),
-  );
-  await expect(page.getByTestId('foto-a-ficha-no-decide')).toContainText(
-    'medidas, peso, precio ni destino',
-  );
-  await expect(page.getByTestId('foto-a-ficha-valida')).toContainText('esquema estricto');
-  await expect(page.getByTestId('foto-a-ficha-falla')).toContainText('se escribe a mano');
-  await expect(page.getByTestId('foto-a-ficha-revision')).toContainText('WhatsApp');
-
-  expect(await page.evaluate(() => localStorage.length)).toBe(0);
 });

@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import type { ItemSummary } from '@mudanzapp/shared';
@@ -59,13 +60,16 @@ describe('ItemEditComponent', () => {
         { provide: SHOP_BASE_URL, useValue: 'http://shop.test' },
         {
           provide: SessionStore,
-          useValue: { eventById: () => ({ currency: 'MXN' }) },
+          useValue: {
+            activeEventId: signal('event-1'),
+            eventById: () => ({ currency: 'MXN' }),
+          },
         },
         {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              paramMap: convertToParamMap({ eventId: 'event-1', itemId: 'item-1' }),
+              paramMap: convertToParamMap({ itemId: 'item-1' }),
             },
           },
         },
@@ -153,7 +157,7 @@ describe('ItemEditComponent', () => {
       reload.flush({ items: [] });
     }
     await tick();
-    expect(navigate).toHaveBeenCalledWith(['/eventos', 'event-1', 'capturados']);
+    expect(navigate).toHaveBeenCalledWith(['/capturados']);
   });
 
   it('rejects an invalid price without sending the PATCH', async () => {

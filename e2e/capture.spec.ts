@@ -375,10 +375,10 @@ test('a co-device opens the link and captures the first article from the browser
   await expect(page.getByTestId('redeem-token')).toHaveValue(own.invitation.token);
   await page.getByTestId('redeem-submit').click();
 
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}$`));
-  // Desde 3d la captura y la lista son pestañas distintas: el evento abre en `Captura`.
-  await expect(page.getByTestId('event-tab-capture')).toBeVisible();
-  await expect(page.getByTestId('event-tab-captured')).toContainText('Capturados (0)');
+  await expect(page).toHaveURL(/\/captura$/);
+  // Desde D8 la barra inferior es la navegación y el canje abre `Captura`.
+  await expect(page.getByTestId('shell-nav-capture')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('shell-nav-captured')).toBeVisible();
 
   const stored = await page.evaluate(() => localStorage.getItem('mudanzapp.session'));
   expect(stored).not.toBeNull();
@@ -424,5 +424,5 @@ test('a co-device opens the link and captures the first article from the browser
   await page.reload();
   await expect(page.getByTestId('item-title')).toHaveText('Mesa de comedor');
   await expect(page.getByTestId('item-photo')).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${own.event.id}/capturados$`));
+  await expect(page).toHaveURL(/\/capturados$/);
 });

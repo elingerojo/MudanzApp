@@ -48,14 +48,14 @@ test('a co-device gets in from the account card of the frame', async ({
     'the account card belongs to the private surface',
   );
 
-  const { event, invitation } = await eventWithInvitation(request);
+  const { invitation } = await eventWithInvitation(request);
 
   // 1. El primer dispositivo entra con el enlace del administrador y abre la Cuenta del marco.
   await page.goto(`/invitacion?token=${encodeURIComponent(invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(new RegExp(`/eventos/${event.id}$`));
+  await expect(page).toHaveURL(/\/captura$/);
 
-  await page.getByTestId('shell-account').click();
+  await page.getByTestId('shell-nav-account').click();
   await expect(page.getByTestId('shell-invite-card')).toBeVisible();
 
   // 2. El card emite la invitación con el evento de la sesión y compone el enlace del marco.
@@ -82,8 +82,8 @@ test('a co-device gets in from the account card of the frame', async ({
     await expect(secondPage.getByTestId('redeem-token')).toHaveValue(/.+/);
     await secondPage.getByTestId('redeem-submit').click();
 
-    await expect(secondPage).toHaveURL(new RegExp(`/eventos/${event.id}$`));
-    await expect(secondPage.getByTestId('event-tab-capture')).toBeVisible();
+    await expect(secondPage).toHaveURL(/\/captura$/);
+    await expect(secondPage.getByTestId('shell-nav-capture')).toBeVisible();
 
     const stored = await secondPage.evaluate(() => localStorage.getItem('mudanzapp.session'));
     expect(stored).not.toBeNull();

@@ -1,0 +1,54 @@
+<section class="space-y-4">
+  <app-ui-card title="Cuenta">
+    <div class="space-y-3">
+      <p class="text-sm text-slate-700" data-testid="cuenta-identity">
+        @if (user(); as account) {
+          {{ account.displayName }}
+        } @else {
+          Dispositivo sin cuenta vinculada
+        }
+      </p>
+
+      <!-- Ciclo 4c-1: el dispositivo sin sujeto puede vincular una cuenta y reclamar el evento. -->
+      <app-account-link />
+
+      <app-invite-device data-testid="shell-invite-card" />
+
+      @if (publicUrl(); as link) {
+        <p class="text-sm text-slate-700" data-testid="cuenta-event-link">
+          Enlace del evento:
+          <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{ link }}</a>
+        </p>
+      }
+
+      <div class="space-y-2 border-t border-slate-200 pt-3">
+        <!-- Siempre visible: esconderlo exigiría que el cliente supiera quién administra antes de
+             pedirlo y el rechazo dejaría de ser la prueba de la frontera (decisión §37). -->
+        <a
+          routerLink="/dashboard"
+          class="block rounded px-2 py-1 text-sm text-slate-700 underline"
+          data-testid="cuenta-dashboard-link"
+        >
+          Administrar el evento
+        </a>
+
+        <a
+          routerLink="/invitacion"
+          class="block rounded px-2 py-1 text-sm text-slate-700 underline"
+          data-testid="cuenta-redeem-link"
+        >
+          Canjear otra invitación
+        </a>
+
+        <button
+          type="button"
+          [class]="signOutClasses"
+          data-testid="cuenta-signout"
+          (click)="signOut()"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </app-ui-card>
+</section>

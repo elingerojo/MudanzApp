@@ -79,6 +79,7 @@ Vocabulario de acceso:
 | 5 | La regla 4/11/21 convierte la cuenta en red de seguridad sin frenar el inicio | `frontend` |
 | 6 | La lista de empaque y la de cotización sustituyen la estimación burda | `frontend` y `wiki` |
 | D4 | Las secciones perezosas se precargan después de la primera navegación, así el primer clic dentro de una superficie no espera el chunk de su sección | `frontend`, `shop` y `wiki` |
+| D8 | Una barra inferior única con `Captura`, `Capturados` y `Cuenta` lleva la navegación privada sin que el evento sea su contenedor | `frontend` |
 
 - D4 no es un ciclo de producto: es un corte de rendimiento declarado desde la base 10 de
   [`estructura-ui`](../plans/estructura-ui-navegacion-mudanzapp.md:99) §2. Autoriza solo la
@@ -138,6 +139,7 @@ Reglas que ordenan la secuencia:
 | `settle-sale` | En alcance del ciclo 4b (cerrado) | El vendedor marca `Vendido` en cualquier estado publicado, con `sold_at` y sin monto registrado; el índice deja de ofrecerlo y la ficha conserva `200` con `noindex` durante treinta días y después responde `410` (decisión §40); revisado `live` por el dueño el 2026-11-02 |
 | `platform-admin` | En alcance del corte E1 | Superficie de plataforma en `frontend` (`/admin/plataforma`) sobre las rutas de `ADMIN_TOKEN`: `GET /admin/events` paginado por cursor —con la fecha de creación y quién administra, nulo mientras nadie reclama—, `POST /admin/events` y `POST /admin/events/:eventId/invitations`. La credencial se escribe en la pantalla y vive **solo en memoria** de esa pestaña: recargar la pierde y ninguna plantilla la enlaza (decisión §46). No hay sesión de plataforma, ni rol nuevo, ni cambio de esquema |
 | `route-preloading` | En alcance del corte D4 | Cada superficie precarga sus secciones perezosas después de la primera navegación: el primer clic dentro de una superficie no espera el chunk de su sección. No cambia rutas, roles, contratos ni datos; solo la estrategia de carga de Angular |
+| `shell-nav` | En alcance del corte D8 | La superficie privada tiene una barra inferior fija con `Captura`, `Capturados` y `Cuenta` como destinos de nivel raíz. El evento se resuelve de la sesión, las pantallas de detalle quedan fuera de la barra y las URLs `/eventos/:eventId/...` se conservan como redirecciones. Sin backend, sin contrato nuevo y sin migración |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |
 | `packing`, `quote-brief`, `receive-check` | Tentativa, ciclo 6 | Empaque, lista para cotizar y verificación en destino |
 | `decide-destination` | Propuesta, sin ciclo | Los cinco destinos y la clase A B C |

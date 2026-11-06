@@ -1,12 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
 import type { EventContact } from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../../api-base-url.token';
 import { FORBIDDEN, VALIDATION_FAILED, apiErrorCode } from '../../session/api-error';
 import { uiButtonClasses } from '../../ui/ui-button/ui-button';
+import { EventItemsStore } from '../event-items.store';
 
 /** Frase de un fallo al guardar, según el código del borde y nunca según su mensaje. */
 function writeMessage(code: string | null): string {
@@ -39,7 +39,8 @@ function writeMessage(code: string | null): string {
 export class EventContactComponent {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
-  private readonly eventId = inject(ActivatedRoute).snapshot.paramMap.get('eventId') ?? '';
+  /** El evento activo de la sesión: desde D8 no viaja en la URL. */
+  private readonly eventId = inject(EventItemsStore).eventId;
 
   /** Lo que el borde tiene guardado; `null` es «sin configurar». */
   protected readonly saved = signal<string | null>(null);
@@ -61,7 +62,7 @@ export class EventContactComponent {
   private async load(): Promise<void> {
     try {
       const contact = await firstValueFrom(
-        this.http.get<EventContact>(`${this.apiBaseUrl}/events/${this.eventId}/contact`),
+        this.http.get<EventContact>(`${this.apiBaseUrl}/events/${this.eventId()}/contact`),
       );
       this.saved.set(contact.contactPhone);
       this.input.set(contact.contactPhone ?? '');
@@ -100,7 +101,7 @@ export class EventContactComponent {
 
     try {
       const contact = await firstValueFrom(
-        this.http.patch<EventContact>(`${this.apiBaseUrl}/events/${this.eventId}/contact`, {
+        this.http.patch<EventContact>(`${this.apiBaseUrl}/events/${this.eventId()}/contact`, {
           contactPhone,
         }),
       );

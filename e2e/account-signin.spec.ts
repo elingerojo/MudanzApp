@@ -76,12 +76,12 @@ test('a device with no credential comes back with its account and reaches its ev
 
   // 2. Se entra por la cuenta, sin canjear nada.
   await page.getByTestId('home-account-signin').click();
-  await expect(page).toHaveURL(/\/eventos\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/captura$/);
 
   // 3. El dispositivo queda con sesión de cuenta, así que la Cuenta muestra el nombre y ya no ofrece
   //    vincular: el regreso no es un reclamo.
-  await page.getByTestId('shell-account').click();
-  await expect(page.getByTestId('shell-account-menu')).toContainText(FAKE_DISPLAY_NAME);
+  await page.getByTestId('shell-nav-account').click();
+  await expect(page.getByTestId('cuenta-identity')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('shell-account-link')).toHaveCount(0);
 
   // 4. La credencial es de cuenta y alcanza el evento que se acaba de vincular.

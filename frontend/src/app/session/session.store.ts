@@ -53,6 +53,23 @@ export class SessionStore {
   readonly user = computed<IdentityUser | null>(() => this.identity()?.user ?? null);
   readonly events = computed<readonly EventSummary[]>(() => this.identity()?.events ?? []);
 
+  /**
+   * El evento que la superficie privada trata como activo (corte D8).
+   *
+   * `listEventsForUser` ordena por `created_at` ascendente, así que el primero es el más antiguo. La
+   * superficie usa la **membresía más reciente**, que es la mudanza en curso; el selector explícito
+   * de una cuenta con varias membresías es D2 y reemplazará esta regla sin cambiar las rutas.
+   */
+  readonly activeEvent = computed<EventSummary | null>(() => this.events().at(-1) ?? null);
+  readonly activeEventId = computed(() => this.activeEvent()?.id ?? null);
+
+  /**
+   * Estado de la lectura de identidad. La credencial se restaura de forma síncrona, pero el evento
+   * activo llega de una lectura de red: la guarda del dashboard espera a que esta señal deje de
+   * cargar antes de decidir.
+   */
+  readonly identityStatus = this.session.status;
+
   /** La sesión existe pero el backend no la reconoce: el enlace es el camino de vuelta. */
   readonly identityFailed = computed(() => this.session.status() === 'error');
   readonly identityLoading = computed(() => this.session.isLoading());

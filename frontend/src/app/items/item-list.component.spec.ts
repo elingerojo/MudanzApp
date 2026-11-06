@@ -1,7 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import type { ItemSummary } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../api-base-url.token';
@@ -72,16 +73,18 @@ describe('ItemListComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         EventItemsStore,
         { provide: API_BASE_URL, useValue: '/api' },
         { provide: SHOP_BASE_URL, useValue: 'http://shop.test' },
         {
           provide: SessionStore,
-          useValue: { eventById: () => ({ currency: 'MXN' }) },
-        },
-        {
-          provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: convertToParamMap({ eventId: 'event-1' }) } },
+          useValue: {
+            activeEvent: signal(null),
+            activeEventId: signal('event-1'),
+            identityFailed: signal(false),
+            eventById: () => ({ currency: 'MXN' }),
+          },
         },
       ],
     }).compileComponents();

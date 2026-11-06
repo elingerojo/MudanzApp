@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   formatPriceCents,
   type CartRequestSummary,
@@ -20,12 +27,12 @@ import { DashboardStore } from './dashboard.store';
 import { EventContactComponent } from './event-contact.component';
 
 /**
- * Pestaña `Dashboard` del marco del evento (ciclos 4c-2 y 4c-3, decisión §37).
+ * Pantalla `Dashboard` del event-administrator (ciclos 4c-2 y 4c-3, decisión §37; corte D8).
  *
  * Muestra el hecho que el borde autorizó: quién administra, el enlace público, el contador de capturas,
  * los co-dispositivos con su acceso y los enlaces que el evento emitió. Los contadores **no** se piden
  * aquí: salen del mismo recurso de artículos que pinta `Capturados`, así que publicar recarga una sola
- * vez y las dos pestañas ven el mismo número.
+ * vez y las dos pantallas ven el mismo número.
  *
  * Desde 4c-4 la sección `Capturas` ofrece `Eliminar` con confirmación en dos toques. Eliminar es
  * irreversible y distinto de `Despublicar` (F3): destruye la captura, su enlace y su presencia en las
@@ -54,13 +61,19 @@ export class DashboardComponent {
   /** Las solicitudes de carrito del evento (ciclo 4e), con su propia lectura. */
   protected readonly requests = inject(CartRequestsStore);
 
-  /** El recurso de artículos lo posee el marco del evento: de ahí sale el contador. */
+  /** El recurso de artículos es de la aplicación: de ahí sale el contador. */
   protected readonly items = inject(EventItemsStore);
 
+  /** Evento activo de la sesión; la guarda ya esperó a que la identidad resolviera. */
   private readonly eventId = this.items.eventId;
 
   constructor() {
-    this.requests.load(this.eventId);
+    effect(() => {
+      const eventId = this.eventId();
+      if (eventId.length > 0) {
+        this.requests.load(eventId);
+      }
+    });
   }
 
   protected readonly dangerClasses = uiButtonClasses('danger');
@@ -68,7 +81,7 @@ export class DashboardComponent {
   /** Solicitud cuyo botón `Descartar` ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingDismissId = signal<string | null>(null);
 
-  protected readonly event = computed(() => this.session.eventById(this.eventId));
+  protected readonly event = computed(() => this.session.eventById(this.eventId()));
 
   protected readonly publicUrl = computed(() => {
     const event = this.event();
@@ -121,7 +134,7 @@ export class DashboardComponent {
   protected confirmRevoke(device: SessionSummary): void {
     if (this.confirmingRevokeId() === device.id) {
       this.confirmingRevokeId.set(null);
-      void this.store.revoke(this.eventId, device);
+      void this.store.revoke(this.eventId(), device);
       return;
     }
 
@@ -174,7 +187,7 @@ export class DashboardComponent {
   protected confirmCancel(invitation: InvitationSummary): void {
     if (this.confirmingCancelId() === invitation.id) {
       this.confirmingCancelId.set(null);
-      void this.store.cancel(this.eventId, invitation);
+      void this.store.cancel(this.eventId(), invitation);
       return;
     }
 
@@ -197,7 +210,7 @@ export class DashboardComponent {
   }
 
   private async remove(item: ItemSummary): Promise<void> {
-    if (await this.store.remove(this.eventId, item)) {
+    if (await this.store.remove(this.eventId(), item)) {
       this.items.reload();
     }
   }

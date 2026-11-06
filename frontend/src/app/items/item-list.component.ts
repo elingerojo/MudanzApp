@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { RouterLink } from '@angular/router';
 import type { ItemSummary } from '@mudanzapp/shared';
 
+import { DashboardDenialComponent } from '../events/dashboard-denial.component';
+import { EventContextComponent } from '../events/event-context.component';
 import { EventItemsStore } from '../events/event-items.store';
 import { uiButtonClasses } from '../ui/ui-button/ui-button';
 import { UiCardComponent } from '../ui/ui-card/ui-card';
@@ -25,7 +27,13 @@ import { itemStatusClasses, itemStatusLabel } from './item-status';
  */
 @Component({
   selector: 'app-item-list',
-  imports: [ItemPhotoComponent, RouterLink, UiCardComponent],
+  imports: [
+    DashboardDenialComponent,
+    EventContextComponent,
+    ItemPhotoComponent,
+    RouterLink,
+    UiCardComponent,
+  ],
   templateUrl: './item-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

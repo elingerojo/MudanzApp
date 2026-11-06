@@ -8,7 +8,8 @@ import { expect, test } from '@playwright/test';
  * `error` o un `not-configured` (`07` §2). El valor observado queda como evidencia del ciclo.
  */
 test('the shell resolves process and database as ok', async ({ page }) => {
-  await page.goto('/');
+  // En `wiki` el humo del arranque vive en `/estado`; su `/` es el índice del registro.
+  await page.goto(test.info().project.name === 'wiki' ? '/estado' : '/');
 
   const processState = page.getByTestId('status-process');
   const databaseState = page.getByTestId('status-database');

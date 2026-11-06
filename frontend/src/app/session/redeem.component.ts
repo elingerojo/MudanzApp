@@ -81,7 +81,7 @@ export class RedeemComponent {
 
       this.session.establish(issued);
       const eventId = issued.event?.id ?? null;
-      await this.router.navigate(eventId === null ? ['/'] : ['/eventos', eventId]);
+      await this.router.navigate(eventId === null ? ['/'] : ['/captura']);
     } catch (error: unknown) {
       this.error.set(
         apiErrorCode(error) === INVITATION_INVALID

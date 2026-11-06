@@ -80,4 +80,11 @@ describe('SessionStore', () => {
     expect(store.eventById('event-1')).toBeNull();
     expect(store.events()).toEqual([]);
   });
+
+  it('has no active event until the identity resolves', () => {
+    store.establish(issuedSession('fresh-token'));
+
+    expect(store.activeEvent()).toBeNull();
+    expect(store.activeEventId()).toBeNull();
+  });
 });
