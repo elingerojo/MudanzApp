@@ -11,6 +11,9 @@ con la nota explicativa del criterio de excepción razonable.
 
 Reglas:
 - Al iniciar cualquier tarea, leer `.plans/` y `.guidelines/` antes de proponer o escribir código.
+- El orden del ciclo —idea, declaración, plan, corte, evidencia, wiki, commit— vive en
+  `plans/workflow-ciclos.md`; una idea que aún no está en el backlog entra por `plans/inbox.md`.
+  Este archivo fija la obligación; ese fija el orden, y si discrepan manda este.
 - El alcance es una hipótesis hasta que la revisión del ciclo lo valide: implementa el corte más
   pequeño que permita aprender, no la cobertura completa.
 - Prohibido implementar funcionalidad o garantía no listada en esas fuentes. Si falta un hecho, el
