@@ -281,12 +281,12 @@ npm run db:migrate:branch:test
 
 ### Identidad del ciclo 1
 
-| Ruta                                                                                                            | Respuesta                                                                    |
-| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `POST /auth/redeem`                                                                                             | `201` con la sesión `app`; `410 invitation_invalid` si el enlace no sirve    |
-| `POST /auth/sessions`                                                                                           | `201` con una sesión nueva; `401 account_not_linked` sin invitación canjeada |
-| `GET /auth/session` · `GET /events` · `GET /events/:id`                                                         | Lectura por sesión; `401`/`404` estables; un evento ajeno responde `404`     |
-| `POST /admin/events` · `POST /admin/events/:id/invitations` · `GET .../sessions` · `DELETE /admin/sessions/:id` | Administración con `ADMIN_TOKEN` (`401 admin_unauthorized`)                  |
+| Ruta                                                                                                                                  | Respuesta                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `POST /auth/redeem`                                                                                                                   | `201` con la sesión `app`; `410 invitation_invalid` si el enlace no sirve                  |
+| `POST /auth/sessions`                                                                                                                 | `201` con una sesión nueva; `401 account_not_linked` sin invitación canjeada               |
+| `GET /auth/session` · `GET /events` · `GET /events/:id`                                                                               | Lectura por sesión; `401`/`404` estables; un evento ajeno responde `404`                   |
+| `GET /admin/events` · `POST /admin/events` · `POST /admin/events/:id/invitations` · `GET .../sessions` · `DELETE /admin/sessions/:id` | Administración con `ADMIN_TOKEN` (`401 admin_unauthorized`); la lista se pagina por cursor |
 
 - Los tokens de invitación y de sesión son opacos, los emite el servidor y la base guarda solo su
   hash SHA-256; no hay cookies ni JWT. La sesión viaja en `Authorization: Bearer`.

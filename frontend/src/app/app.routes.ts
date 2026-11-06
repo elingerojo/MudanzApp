@@ -59,5 +59,14 @@ export const routes: Routes = [
       },
     ],
   },
+  // Administración de plataforma (ciclo E1, decisión §46). No lleva guarda de sesión: la puerta es
+  // `ADMIN_TOKEN`, que se escribe en la pantalla y vive solo en la memoria de esa pestaña.
+  {
+    path: 'admin/plataforma',
+    loadComponent: () =>
+      import('./platform-admin/platform-admin.component').then(
+        (module) => module.PlatformAdminComponent,
+      ),
+  },
   { path: '**', redirectTo: '' },
 ];

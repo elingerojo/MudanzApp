@@ -96,4 +96,16 @@
   </app-ui-card>
 
   <app-status />
+
+  <!-- La puerta de plataforma (ciclo E1). Es discreta porque no es del producto: existe para que el
+       administrador no tenga que memorizar una URL ni componer un `curl`. -->
+  <footer class="text-center">
+    <a
+      routerLink="/admin/plataforma"
+      class="text-xs text-slate-500 underline"
+      data-testid="home-platform-admin"
+    >
+      Administración de plataforma
+    </a>
+  </footer>
 </section>

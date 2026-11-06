@@ -4,7 +4,7 @@
     title="Administración"
     route="app/a1-administracion"
     status="current"
-    verified="2026-11-05 · este ciclo"
+    verified="2026-11-06 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -39,6 +39,12 @@
         </thead>
         <tbody>
           <tr class="border-b border-slate-100">
+            <td class="py-1 pr-3 font-mono">GET /admin/events</td>
+            <td class="py-1 pr-3">
+              Lista todos los eventos por cursor, con su fecha de creación y quién los administra
+            </td>
+          </tr>
+          <tr class="border-b border-slate-100">
             <td class="py-1 pr-3 font-mono">POST /admin/events</td>
             <td class="py-1 pr-3">Crea el evento y devuelve su resumen</td>
           </tr>
@@ -57,9 +63,26 @@
         </tbody>
       </table>
     </div>
+    <p>
+      La plataforma tiene su pantalla desde el corte E1:
+      <code class="font-mono text-xs">/admin/plataforma</code> en
+      <code class="font-mono text-xs">frontend</code>. Allí se escribe la credencial —vive
+      <strong>solo en la memoria de esa pestaña</strong>, no en ningún almacenamiento del navegador—
+      y desde ahí se listan los eventos, se crea uno y se emite su enlace, que se muestra una sola
+      vez. La lista se pagina por cursor: el cliente repite la llave y no la interpreta, así que un
+      alta entre dos páginas no desplaza lo ya leído. Un evento sin administrador aparece como tal,
+      con nombre nulo, y no se inventa uno.
+    </p>
+    <p>
+      La puerta de esta pantalla es la credencial, no una sesión: no hay rol de plataforma ni sesión
+      nueva, y por eso el interceptor de sesión deja intacta una petición que ya trae su propio
+      <code class="font-mono text-xs">Authorization</code>.
+    </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">backend/src/routes/admin-router.ts</code>;
-      <code class="font-mono">README.md</code> §8.
+      <code class="font-mono">frontend/src/app/platform-admin/</code>;
+      <code class="font-mono">shared/src/admin.ts</code>;
+      <code class="font-mono">README.md</code> §8; <code class="font-mono">decisiones</code> §46.
     </p>
   </section>
 

@@ -5,6 +5,19 @@
  * necesita. `zod` vive en `dependencies` y se usa en la frontera del backend; los esquemas del
  * corte de identidad del ciclo 1 se exportan aquí y son la fuente única de su forma.
  */
+export {
+  ADMIN_EVENTS_DEFAULT_LIMIT,
+  ADMIN_EVENTS_MAX_LIMIT,
+  adminEventsQuerySchema,
+  decodeAdminEventCursor,
+  encodeAdminEventCursor,
+} from './admin.js';
+export type {
+  AdminEventCursor,
+  AdminEventPage,
+  AdminEventSummary,
+  AdminEventsQuery,
+} from './admin.js';
 export { AI_DRAFT_LIMITS, aiDraftSchema } from './ai.js';
 export type { AiDraft, AiDraftResult } from './ai.js';
 export {

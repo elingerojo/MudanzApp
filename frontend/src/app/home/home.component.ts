@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { brand } from '@mudanzapp/shared';
 
 import { OAUTH_FLOW } from '../session/oauth-flow';
@@ -20,7 +21,7 @@ import { UiCardComponent } from '../ui/ui-card/ui-card';
  */
 @Component({
   selector: 'app-home',
-  imports: [StatusComponent, UiButtonComponent, UiCardComponent],
+  imports: [RouterLink, StatusComponent, UiButtonComponent, UiCardComponent],
   templateUrl: './home.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

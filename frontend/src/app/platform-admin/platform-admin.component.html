@@ -1,0 +1,188 @@
+<app-ui-card title="Administración de plataforma">
+  @if (!store.signedIn()) {
+    <div class="space-y-3" data-testid="platform-admin-gate">
+      <p class="text-sm text-slate-700">
+        Esta pantalla opera con la credencial de plataforma, no con la sesión de un dispositivo.
+        Sirve para ver todos los eventos, crear uno y emitir su enlace.
+      </p>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium text-slate-900" for="platform-admin-token">
+          Credencial
+        </label>
+        <input
+          id="platform-admin-token"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          [value]="token()"
+          (input)="setToken($event)"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
+          data-testid="platform-admin-token"
+        />
+        <p class="text-xs text-slate-500" data-testid="platform-admin-memory-note">
+          La credencial vive solo en esta pestaña: recargar la pierde y la pantalla no la recuerda.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        [class]="primaryClasses"
+        [disabled]="store.loading()"
+        (click)="signIn()"
+        data-testid="platform-admin-signin"
+      >
+        {{ store.loading() ? 'Comprobando…' : 'Entrar' }}
+      </button>
+
+      @if (store.failure(); as failure) {
+        <p class="text-sm text-red-600" data-testid="platform-admin-error">{{ failure }}</p>
+      }
+    </div>
+  } @else {
+    <div class="space-y-4" data-testid="platform-admin-panel">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-slate-700">
+          Todos los eventos de la plataforma, del más reciente al más antiguo.
+        </p>
+
+        <button
+          type="button"
+          [class]="dangerClasses"
+          (click)="signOut()"
+          data-testid="platform-admin-signout"
+        >
+          Salir
+        </button>
+      </div>
+
+      @if (store.events().length === 0) {
+        @if (!store.loading()) {
+          <p class="text-sm text-slate-600" data-testid="platform-admin-empty">
+            Todavía no hay eventos en la plataforma.
+          </p>
+        }
+      } @else {
+        <ul class="divide-y divide-slate-200">
+          @for (event of store.events(); track event.id) {
+            <li
+              class="flex flex-wrap items-center gap-3 py-3"
+              [attr.data-testid]="'platform-admin-event-' + event.id"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-slate-900">
+                  {{ event.originCity }} → {{ event.destinationCity }}
+                </p>
+                <p class="text-xs text-slate-600">
+                  {{ event.publicSlug }} · {{ day(event.createdAt) }} ·
+                  {{ administratorLabel(event) }}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                [class]="primaryClasses"
+                [disabled]="store.busy()"
+                (click)="issue(event)"
+                [attr.data-testid]="'platform-admin-invite-' + event.id"
+              >
+                Emitir enlace
+              </button>
+            </li>
+          }
+        </ul>
+
+        @if (store.nextCursor() !== null) {
+          <button
+            type="button"
+            [class]="primaryClasses"
+            [disabled]="store.loading()"
+            (click)="loadMore()"
+            data-testid="platform-admin-more"
+          >
+            {{ store.loading() ? 'Cargando…' : 'Ver más' }}
+          </button>
+        }
+      }
+
+      @if (issued(); as issuedLink) {
+        <div
+          class="space-y-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900"
+          data-testid="platform-admin-invitation"
+        >
+          <p>
+            Enlace {{ issuedLink.invitation.label }} de {{ issuedLink.event.originCity }} →
+            {{ issuedLink.event.destinationCity }} · vence
+            {{ day(issuedLink.invitation.expiresAt) }} · {{ issuedLink.invitation.maxUses }} canjes.
+          </p>
+          <input
+            type="text"
+            readonly
+            [value]="invitationUrl(issuedLink.invitation)"
+            class="w-full rounded border border-emerald-200 bg-white px-2 py-1 font-mono text-xs break-all text-slate-700"
+            data-testid="platform-admin-invitation-url"
+          />
+          <p class="text-xs text-emerald-800">
+            Se muestra una sola vez: el borde solo guarda su hash. Cópialo ahora.
+          </p>
+        </div>
+      }
+
+      <form
+        class="space-y-3 border-t border-slate-200 pt-3"
+        (submit)="submitCreate($event)"
+        data-testid="platform-admin-create-form"
+      >
+        <h2 class="text-sm font-semibold text-slate-900">Nuevo evento</h2>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="space-y-1">
+            <label class="block text-sm font-medium text-slate-900" for="platform-admin-origin">
+              Origen
+            </label>
+            <input
+              id="platform-admin-origin"
+              type="text"
+              autocomplete="off"
+              [value]="originCity()"
+              (input)="setOriginCity($event)"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              data-testid="platform-admin-origin"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label
+              class="block text-sm font-medium text-slate-900"
+              for="platform-admin-destination"
+            >
+              Destino
+            </label>
+            <input
+              id="platform-admin-destination"
+              type="text"
+              autocomplete="off"
+              [value]="destinationCity()"
+              (input)="setDestinationCity($event)"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              data-testid="platform-admin-destination"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          [class]="primaryClasses"
+          [disabled]="store.busy() || !canCreate()"
+          data-testid="platform-admin-create"
+        >
+          {{ store.busy() ? 'Creando…' : 'Crear evento' }}
+        </button>
+      </form>
+
+      @if (store.failure(); as failure) {
+        <p class="text-sm text-red-600" data-testid="platform-admin-error">{{ failure }}</p>
+      }
+    </div>
+  }
+</app-ui-card>

@@ -5,6 +5,7 @@ import {
   indexVersion,
   listingVersion,
   whatsappRequestUrl,
+  type AdminEventSummary,
   type CartRequestSummary,
   type EventCardEntry,
   type EventRole,
@@ -28,6 +29,7 @@ import type {
   EventInvitationRecord,
   EventRecord,
   EventSessionRecord,
+  PlatformEventRecord,
   UserRecord,
 } from '../store/identity-store.js';
 import type { ItemWithPhotoRecord, PhotoVariantRecord } from '../store/item-store.js';
@@ -63,6 +65,27 @@ export function toEventSummary(
     currency: event.currency,
     state: event.state,
     role: event.role,
+  };
+}
+
+/**
+ * El evento en la lista de plataforma (ciclo E1). Publica la fecha de creación —es la llave de la
+ * página siguiente— y el nombre de quien lo administra, nulo mientras nadie lo reclama.
+ *
+ * `publicSlug` se deriva cuando la fila es anterior al ciclo 4a, igual que en `toEventSummary`: un
+ * evento sin identificador persistido no deja el enlace vacío.
+ */
+export function toAdminEventSummary(event: PlatformEventRecord): AdminEventSummary {
+  return {
+    id: event.id,
+    publicSlug:
+      event.publicSlug ?? deriveEventPublicSlug(event.originCity, event.destinationCity, event.id),
+    originCity: event.originCity,
+    destinationCity: event.destinationCity,
+    currency: event.currency,
+    state: event.state,
+    createdAt: event.createdAt.toISOString(),
+    administratorName: event.administratorName,
   };
 }
 

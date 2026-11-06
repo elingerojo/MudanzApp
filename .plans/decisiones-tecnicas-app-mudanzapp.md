@@ -1115,3 +1115,26 @@ Reglas del crecimiento:
   bajo `captures/` que ningún `DELETE` explique. También: una segunda ronda de diagnóstico a ciegas por
   el mensaje genérico de la subida fallida, que hoy no distingue el bloqueo del navegador del rechazo
   del almacén.
+
+## 46. La credencial de plataforma vive en memoria, no en el disco (2026-11-06)
+
+- **Decisión:** la superficie de plataforma del corte E1 vive en `frontend`, en `/admin/plataforma`, y
+  la credencial se **escribe en esa pantalla**: viaja como `Authorization: Bearer` y se guarda solo en
+  una señal en memoria. No toca `localStorage`, no se enlaza en ninguna plantilla y una recarga la
+  pierde a propósito. El interceptor de sesión no la sustituye: una petición que ya trae
+  `Authorization` pasa intacta.
+- **Motivo:** `ADMIN_TOKEN` es una credencial de plataforma, no una sesión de nadie. Un navegador no
+  puede sostenerla como una sesión de usuario sin abrir un modelo de identidad que este corte no
+  necesita; con la memoria de la pestaña, el alcance del riesgo es el de un `curl` y no se añade un
+  rol, una tabla ni un esquema.
+- **Alternativa descartada — sesión de plataforma con OAuth:** el proveedor de identidad del producto
+  es de cuentas y eventos, no de plataforma; habría exigido un sujeto administrador nuevo, un alcance
+  de sesión nuevo y su doble en `fake`.
+- **Alternativa descartada — backend-for-frontend en el Worker de `frontend`:** guarda el secreto en el
+  borde y arregla el problema del disco, pero añade una ruta de proxy con su propio contrato, un
+  secreto de despliegue nuevo y un paso manual de `Man-3.4` para un hecho que todavía no lo pide.
+- **Consecuencia aceptada:** recargar la pestaña obliga a pegar la credencial otra vez, y la pantalla no
+  intenta recordarla.
+- **Implementada por:** el corte del ciclo E1 (`plan-ciclo-e1-dashboard-plataforma`), **sin migración**.
+- **Disparador de revisión:** una segunda persona que necesite administrar la plataforma, o la primera
+  vez que la credencial tenga que vivir más que una pestaña.

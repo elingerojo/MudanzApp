@@ -18,5 +18,11 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
 
+  // Una petición que ya trae su propio `Authorization` no es de la sesión: la credencial de
+  // plataforma viaja así y sustituirla por el token del dispositivo la haría inútil (decisión §46).
+  if (request.headers.has('Authorization')) {
+    return next(request);
+  }
+
   return next(request.clone({ setHeaders: { Authorization: `Bearer ${token}` } }));
 };

@@ -472,6 +472,56 @@ export async function findEventForUser(
 }
 
 /**
+ * Un evento tal como lo lee la administración de plataforma (ciclo E1).
+ *
+ * `createdAt` es la primera mitad del cursor y `administratorName` es `null` mientras nadie reclama
+ * el evento: la lectura publica el hecho, no lo inventa.
+ */
+export type PlatformEventRecord = EventRecord & {
+  readonly createdAt: Date;
+  readonly administratorName: string | null;
+};
+
+/**
+ * Página de eventos para `ADMIN_TOKEN`, ordenada de la más reciente a la más antigua.
+ *
+ * La paginación es por llave y no por `OFFSET`: el cursor es el último renglón publicado, así que una
+ * alta entre dos páginas no desplaza lo que el lector ya vio. El `LEFT JOIN` trae el nombre del
+ * administrador reclamado sin convertir la ausencia en un error.
+ *
+ * `limit` llega **ya incrementado** por la ruta cuando quiere saber si hay página siguiente; esta
+ * función devuelve lo que la base entregue y no recorta.
+ */
+export async function listEventsForPlatform(
+  database: Queryable,
+  input: {
+    readonly limit: number;
+    readonly before: { readonly createdAt: Date; readonly id: string } | null;
+  },
+): Promise<PlatformEventRecord[]> {
+  const { rows } = await database.query<PlatformEventRecord>(
+    `SELECT e.id,
+            e.public_slug AS "publicSlug",
+            e.admin_user_id AS "adminUserId",
+            e.origin_city AS "originCity",
+            e.destination_city AS "destinationCity",
+            e.currency,
+            e.state,
+            e.created_at AS "createdAt",
+            u.display_name AS "administratorName"
+       FROM app.event e
+       LEFT JOIN app."user" u ON u.id = e.admin_user_id
+      WHERE $1::timestamptz IS NULL
+         OR (e.created_at, e.id) < ($1::timestamptz, $2::uuid)
+      ORDER BY e.created_at DESC, e.id DESC
+      LIMIT $3`,
+    [input.before?.createdAt ?? null, input.before?.id ?? null, input.limit],
+  );
+
+  return rows;
+}
+
+/**
  * Inserta una invitación con su etiqueta. Es la escritura, no la política: la palabra la elige
  * `issueInvitation`, que es quien conoce el anillo y la transacción.
  *

@@ -23,7 +23,9 @@ export class A1AdministracionComponent {
     'backend/src/routes/events-router.ts',
     'backend/src/routes/items-router.ts',
     'frontend/src/app/events/dashboard/',
+    'frontend/src/app/platform-admin/',
+    'shared/src/admin.ts',
   ];
 
-  protected readonly decisions = ['§37', '§40', '§42', '§44'];
+  protected readonly decisions = ['§37', '§40', '§42', '§44', '§46'];
 }

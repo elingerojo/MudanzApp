@@ -56,6 +56,18 @@ describe('authInterceptor', () => {
     request.flush({ items: [] });
   });
 
+  it('leaves a request that already carries its own Authorization untouched', () => {
+    store.establish(issuedSession('device-token'));
+
+    http
+      .get('/api/admin/events', { headers: { Authorization: 'Bearer platform-token' } })
+      .subscribe();
+
+    const request = httpTesting.expectOne('/api/admin/events');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer platform-token');
+    request.flush({ events: [], nextCursor: null });
+  });
+
   it('never attaches the credential to another origin', () => {
     store.establish(issuedSession('device-token'));
 

@@ -23,6 +23,12 @@ export function apiErrorCode(error: unknown): string | null {
 
 /** Códigos que este corte distingue en la interfaz, con nombre propio. */
 export const INVITATION_INVALID = 'invitation_invalid';
+/**
+ * La credencial de plataforma (ciclo E1, decisión §46): no es una sesión, así que sus dos fallos
+ * tienen frases propias —no se confunde con «tu sesión no sirve» ni con un fallo de red.
+ */
+export const ADMIN_UNAUTHORIZED = 'admin_unauthorized';
+export const ADMIN_NOT_CONFIGURED = 'admin_not_configured';
 export const PHOTO_INVALID = 'photo_invalid';
 export const ITEM_NOT_FOUND = 'item_not_found';
 /** Un artículo vendido no se borra: la venta es su evidencia (ciclo 4c-4, decisión §40). */

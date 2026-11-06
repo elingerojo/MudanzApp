@@ -1,4 +1,11 @@
-import { createEventSchema, type CreatedInvitation } from '@mudanzapp/shared';
+import {
+  adminEventsQuerySchema,
+  createEventSchema,
+  decodeAdminEventCursor,
+  encodeAdminEventCursor,
+  type AdminEventPage,
+  type CreatedInvitation,
+} from '@mudanzapp/shared';
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 
@@ -9,13 +16,14 @@ import {
   ensureAdminUser,
   findEventById,
   issueInvitation,
+  listEventsForPlatform,
   listEventSessions,
   revokeSession,
 } from '../store/identity-store.js';
 import { bearerToken, constantTimeEquals, createOpaqueToken, hashToken } from '../tokens.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
-import { toEventSummary, toSessionSummary } from './presenters.js';
+import { toAdminEventSummary, toEventSummary, toSessionSummary } from './presenters.js';
 
 const eventParamsSchema = z.object({ eventId: z.uuid() });
 const sessionParamsSchema = z.object({ sessionId: z.uuid() });
@@ -63,6 +71,41 @@ export function createAdminRouter(deps: IdentityDeps): Router {
       });
 
       response.status(201).json({ event: toEventSummary({ ...event, role: 'owner' }) });
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * La lista que la pantalla de plataforma necesita para no depender de `curl` (ciclo E1).
+   *
+   * Es una lectura por llave: el cursor es el último renglón publicado y se pide una fila de más para
+   * saber si hay página siguiente. Un cursor ilegible no se ignora; falla con `validation_failed`,
+   * igual que un `limit` fuera de rango.
+   */
+  router.get('/events', (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { limit, cursor } = parseOrThrow(adminEventsQuerySchema, request.query);
+
+      const before = cursor === undefined ? null : decodeAdminEventCursor(cursor);
+      if (cursor !== undefined && before === null) {
+        throw new AppError('validation_failed');
+      }
+
+      const rows = await listEventsForPlatform(deps.database, {
+        limit: limit + 1,
+        before: before === null ? null : { createdAt: new Date(before.createdAt), id: before.id },
+      });
+
+      const page = rows.slice(0, limit);
+      const last = page.at(-1) ?? null;
+      const nextCursor =
+        rows.length > limit && last !== null
+          ? encodeAdminEventCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+          : null;
+
+      const payload: AdminEventPage = { events: page.map(toAdminEventSummary), nextCursor };
+      response.json(payload);
     };
 
     void handle().catch(next);
