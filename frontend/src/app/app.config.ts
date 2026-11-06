@@ -1,7 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import type { ApplicationConfig } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { PreloadAllModules, provideRouter, withPreloading } from '@angular/router';
 
 import { environment } from '../environments/environment';
 import { API_BASE_URL } from './api-base-url.token';
@@ -14,7 +14,8 @@ import { SHOP_BASE_URL } from './shop-base-url.token';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // D4: tras la primera navegación, el router descarga los chunks de las secciones perezosas.
+    provideRouter(routes, withPreloading(PreloadAllModules)),
     // El interceptor es el único que adjunta la credencial, y solo a las peticiones de la API.
     provideHttpClient(withInterceptors([authInterceptor])),
     // La sesión se restaura desde el disco antes de que el router active una ruta con guard; si no,

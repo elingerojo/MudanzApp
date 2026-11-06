@@ -78,7 +78,11 @@ Vocabulario de acceso:
 | 4 | El enlace del evento abre un índice público, su event-administrator administra la ficha y el comprador señala lo que quiere sin ceder datos personales | `frontend` y `shop` |
 | 5 | La regla 4/11/21 convierte la cuenta en red de seguridad sin frenar el inicio | `frontend` |
 | 6 | La lista de empaque y la de cotización sustituyen la estimación burda | `frontend` y `wiki` |
+| D4 | Las secciones perezosas se precargan después de la primera navegación, así el primer clic dentro de una superficie no espera el chunk de su sección | `frontend`, `shop` y `wiki` |
 
+- D4 no es un ciclo de producto: es un corte de rendimiento declarado desde la base 10 de
+  [`estructura-ui`](../plans/estructura-ui-navegacion-mudanzapp.md:99) §2. Autoriza solo la
+  estrategia de precarga; no cambia rutas, roles, contratos ni datos.
 - El ciclo 3 se descompone en 3a–3d. El orden, lo que cada corte compra y su costo viven en
   [`plans/plan-ciclo-3a-captura-articulo.md`](../plans/plan-ciclo-3a-captura-articulo.md:1) §13.
 
@@ -133,6 +137,7 @@ Reglas que ordenan la secuencia:
 | `cart-request` | En alcance del ciclo 4e (cerrado con revisión `live` del dueño el 2026-11-05) | Carrito de **seleccionados** por comprador y evento, con `PUT` que reemplaza entero; guardar no exige cuenta y pedir sí. `Pídelos por WhatsApp` compone el enlace con el número que el vendedor fija en el **dashboard**; sin número el botón no se habilita. La solicitud congela título y precio del momento y el vendedor la ve y la descarta desde su panel. Un artículo vendido o sin precio no se guarda ni se pide: la ficha lo dice antes y el carrito lo marca. Sin bloqueo, sin vencimiento y sin exclusividad; ningún estado del artículo cambia (decisión §44, que supera a §38 y revisa a §39). La revisión `live` confirmó el número desde el dashboard, la selección sin cuenta, el regreso al carrito, el enlace de WhatsApp y el descarte en el panel; el hallazgo de la misma revisión —un artículo sin precio descartado en silencio— quedó corregido en `4384056` |
 | `settle-sale` | En alcance del ciclo 4b (cerrado) | El vendedor marca `Vendido` en cualquier estado publicado, con `sold_at` y sin monto registrado; el índice deja de ofrecerlo y la ficha conserva `200` con `noindex` durante treinta días y después responde `410` (decisión §40); revisado `live` por el dueño el 2026-11-02 |
 | `platform-admin` | En alcance del corte E1 | Superficie de plataforma en `frontend` (`/admin/plataforma`) sobre las rutas de `ADMIN_TOKEN`: `GET /admin/events` paginado por cursor —con la fecha de creación y quién administra, nulo mientras nadie reclama—, `POST /admin/events` y `POST /admin/events/:eventId/invitations`. La credencial se escribe en la pantalla y vive **solo en memoria** de esa pestaña: recargar la pierde y ninguna plantilla la enlaza (decisión §46). No hay sesión de plataforma, ni rol nuevo, ni cambio de esquema |
+| `route-preloading` | En alcance del corte D4 | Cada superficie precarga sus secciones perezosas después de la primera navegación: el primer clic dentro de una superficie no espera el chunk de su sección. No cambia rutas, roles, contratos ni datos; solo la estrategia de carga de Angular |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |
 | `packing`, `quote-brief`, `receive-check` | Tentativa, ciclo 6 | Empaque, lista para cotizar y verificación en destino |
 | `decide-destination` | Propuesta, sin ciclo | Los cinco destinos y la clase A B C |

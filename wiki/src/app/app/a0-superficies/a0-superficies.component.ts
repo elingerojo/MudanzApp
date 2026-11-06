@@ -21,6 +21,7 @@ export class A0SuperficiesComponent {
     'frontend/src/app/app.routes.ts',
     'shop/src/app/app.routes.ts',
     'wiki/src/app/app.routes.ts',
+    '*/src/app/app.config.ts',
     'shared/src/identity.ts',
     'e2e/support/harness.ts',
     '*/wrangler.jsonc',

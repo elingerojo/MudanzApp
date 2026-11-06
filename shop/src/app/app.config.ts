@@ -1,7 +1,7 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import type { ApplicationConfig } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { PreloadAllModules, provideRouter, withPreloading } from '@angular/router';
 
 import { environment } from '../environments/environment';
 import { API_BASE_URL } from './api-base-url.token';
@@ -13,7 +13,8 @@ import { ShopSessionStore } from './session/shop-session.store';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // D4: tras la primera navegación, el router descarga los chunks de las secciones perezosas.
+    provideRouter(routes, withPreloading(PreloadAllModules)),
     // El interceptor es el único que adjunta la credencial de tienda, y solo a la API propia.
     provideHttpClient(withInterceptors([shopAuthInterceptor])),
     // La sesión se restaura desde el disco antes de que el router active una ruta.

@@ -135,6 +135,21 @@
   </section>
 
   <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Carga de las secciones</h3>
+    <p>
+      Cada superficie declara sus rutas perezosas con
+      <code class="font-mono text-xs">loadComponent</code> y activa
+      <code class="font-mono text-xs">withPreloading(PreloadAllModules)</code>: la primera
+      navegación carga solo lo que necesita y, después, el router descarga en segundo plano los
+      chunks de las demás secciones. El primer clic dentro de una superficie no espera esa descarga.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">*/src/app/app.config.ts</code>; ciclo D4 y la base 10 de
+      <code class="font-mono">estructura-ui</code> §2.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
     <h3 class="text-base font-semibold text-slate-900">Puertos de desarrollo</h3>
     <div class="overflow-x-auto">
       <table class="w-full border-collapse text-xs">
