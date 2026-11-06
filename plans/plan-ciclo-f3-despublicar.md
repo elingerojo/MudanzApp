@@ -98,6 +98,10 @@ distinga «despublicado» de «en proceso».
   - ficha a la vista: enlace, copiar y `Despublicar` (sin confirmación: es reversible);
   - ficha retirada: estado `despublicado`, sin enlace ni venta, botón `Republicar`;
   - una ficha vendida no ofrece `Despublicar` ni `Marcar vendido` de nuevo.
+- `frontend` → Dashboard `Capturas`: `Eliminar` sigue siendo un acto aparte, solo del administrador,
+  con confirmación en dos toques y copy que declara que destruye la captura, el enlace y su presencia
+  en las selecciones; remite a `Despublicar` para el retiro reversible. El borrado no promete aviso
+  al carrito: la cascada de `app.cart_item` lo impide sin un tombstone o una instantánea nuevos.
 - `shop` → `/:slug`: `410 listing_unpublished` muestra «Este artículo ya no está publicado»; no se
   confunde con la venta cerrada.
 - `shop` → `/carrito/:publicSlug`: el aviso `cart-unpublished` nombra el artículo retirado y se puede

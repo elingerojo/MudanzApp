@@ -240,6 +240,11 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'dashboard-item-row-item-1')?.textContent).toContain('Mesa de roble');
     expect(query(fixture, 'dashboard-item-delete')).not.toBeNull();
     expect(query(fixture, 'dashboard-item-sold')).toBeNull();
+
+    // Eliminar no se confunde con Despublicar: la copia declara el borrado irreversible y remite a
+    // la otra pestaña para retirar sin destruir.
+    expect(query(fixture, 'dashboard-captures')?.textContent).toContain('no se puede deshacer');
+    expect(query(fixture, 'dashboard-captures')?.textContent).toContain('Despublicar');
   });
 
   it('keeps a sold capture and says why it cannot be deleted', async () => {
@@ -260,6 +265,9 @@ describe('DashboardComponent', () => {
     query(fixture, 'dashboard-item-delete')?.click();
     fixture.detectChanges();
     expect(query(fixture, 'dashboard-item-delete-confirm')).not.toBeNull();
+    expect(query(fixture, 'dashboard-item-delete-confirm')?.textContent).toContain(
+      'Confirmar borrado',
+    );
 
     query(fixture, 'dashboard-item-delete-confirm')?.click();
     httpTesting.expectOne(ITEM_DELETE_URL).flush(null, { status: 204, statusText: 'No Content' });

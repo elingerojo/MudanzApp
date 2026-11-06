@@ -256,13 +256,15 @@
         }
       </section>
 
-      <!-- Capturas: el rey retira una captura equivocada (4c-4). Un vendido se conserva como evidencia
-           de la venta y la pantalla lo dice en vez de ofrecer un botón que el borde rechazaría. -->
+      <!-- Capturas: el rey retira una captura equivocada (4c-4). Eliminar es irreversible y distinto de
+           `Despublicar` (F3); un vendido se conserva como evidencia y la pantalla lo dice en vez de
+           ofrecer un botón que el borde rechazaría. -->
       <section class="space-y-2" data-testid="dashboard-captures">
         <h2 class="text-sm font-semibold text-slate-900">Capturas</h2>
         <p class="text-xs text-slate-600">
-          Eliminar una captura la retira del catálogo. Un artículo vendido no se borra: es la
-          evidencia de la venta.
+          Eliminar borra la captura, su enlace y su presencia en las selecciones de los compradores;
+          no se puede deshacer. Para ocultarla sin destruirla, usa <strong>Despublicar</strong> en
+          <strong>Capturados</strong>. Un artículo vendido no se borra: es la evidencia de la venta.
         </p>
 
         @if (items.items().length === 0) {
@@ -317,7 +319,7 @@
                       confirmingDeleteId() === item.id
                         ? store.deletingId() === item.id
                           ? 'Eliminando…'
-                          : 'Confirmar'
+                          : 'Confirmar borrado'
                         : 'Eliminar'
                     }}
                   </button>

@@ -27,7 +27,9 @@ import { EventContactComponent } from './event-contact.component';
  * aquí: salen del mismo recurso de artículos que pinta `Capturados`, así que publicar recarga una sola
  * vez y las dos pestañas ven el mismo número.
  *
- * Desde 4c-4 la sección `Capturas` ofrece `Eliminar` con confirmación en dos toques. Un artículo vendido
+ * Desde 4c-4 la sección `Capturas` ofrece `Eliminar` con confirmación en dos toques. Eliminar es
+ * irreversible y distinto de `Despublicar` (F3): destruye la captura, su enlace y su presencia en las
+ * selecciones de los compradores, mientras que despublicar la oculta y la conserva. Un artículo vendido
  * no se borra: el borde responde `item_sold` y la pantalla lo explica, porque la venta es la evidencia
  * (§40).
  *
