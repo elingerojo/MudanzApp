@@ -1,5 +1,6 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { cartTotal } from '@mudanzapp/shared';
 import type {
   CartItem,
   IssuedCartRequest,
@@ -131,8 +132,22 @@ export class ShopCartStore {
   /**
    * El importe agregado que el borde publica (ciclo B1): `0` con la selección vacía y `null` si algún
    * artículo perdió el precio. Sin carrito del servidor —el espejo local— no hay precios que sumar.
+   *
+   * Durante un despliegue no atómico el borde anterior a B1 todavía no publica `totalCents`; en ese
+   * caso se deriva de la misma lista con `cartTotal`, que es la regla única del cálculo. Nunca se
+   * pinta un `NaN`: un precio ausente se lee como «Precio a consultar».
    */
-  readonly totalCents = computed(() => this.cart()?.totalCents ?? null);
+  readonly totalCents = computed(() => {
+    const cart = this.cart();
+    if (cart === null) {
+      return null;
+    }
+
+    const published: unknown = cart.totalCents;
+    return typeof published === 'number' && Number.isFinite(published)
+      ? published
+      : cartTotal(cart.items);
+  });
 
   /** Es lo que habilita `Pídelos por WhatsApp`: el número del vendedor existe. */
   readonly whatsappAvailable = computed(() => this.cart()?.whatsappAvailable ?? false);

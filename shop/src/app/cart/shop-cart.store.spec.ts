@@ -145,6 +145,18 @@ describe('ShopCartStore', () => {
     expect(store.totalCents()).toBe(215_000);
   });
 
+  it('derives the total from the items when the border predates the field', async () => {
+    store.open(PUBLIC_SLUG);
+    await signIn();
+
+    // Un despliegue no atómico: el borde viejo no publica `totalCents` y la pantalla no pinta NaN.
+    const stale = { ...CART, totalCents: undefined } as unknown as PublicCart;
+    httpTesting.expectOne(CART_URL).flush({ cart: stale });
+    await tick();
+
+    expect(store.totalCents()).toBe(125_000);
+  });
+
   it('says an article without price blocks the request instead of failing in the border', async () => {
     store.open(PUBLIC_SLUG);
     await signIn();

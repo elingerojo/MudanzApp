@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import {
+  cartTotal,
   formatPriceCents,
   type CartRequestSummary,
   type InvitationSummary,
@@ -353,10 +354,22 @@ export class DashboardComponent {
       .join(' · ');
   }
 
-  /** El importe congelado que la solicitud guardó al pedir (ciclo B1). */
+  /**
+   * El importe congelado que la solicitud guardó al pedir (ciclo B1).
+   *
+   * Durante un despliegue no atómico el borde anterior a B1 todavía no publica `totalCents`. En vez
+   * de pintar `NaN`, la suma se deriva de la misma instantánea con `cartTotal`, la regla única del
+   * cálculo; cuando el borde nuevo responde, manda el valor publicado.
+   */
   protected requestTotalLabel(request: CartRequestSummary): string {
     const currency = this.event()?.currency ?? 'MXN';
-    return `Total ${formatPriceCents(request.totalCents, currency)}`;
+    const published: unknown = request.totalCents;
+    const total =
+      typeof published === 'number' && Number.isFinite(published)
+        ? published
+        : cartTotal(request.items);
+
+    return `Total ${formatPriceCents(total, currency)}`;
   }
 
   /** Descartar es el acto del vendedor y se confirma en dos toques, como los demás del panel. */

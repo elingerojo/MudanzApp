@@ -467,6 +467,16 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'dashboard-request-dismiss')).not.toBeNull();
   });
 
+  it('derives the total from the snapshot when the border predates the field', async () => {
+    // Un despliegue no atómico: el borde viejo no publica `totalCents` y el panel no pinta NaN.
+    const stale = { ...CART_REQUEST, totalCents: undefined } as unknown as CartRequestSummary;
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [stale]);
+
+    openTab(fixture, 'solicitudes');
+
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
+  });
+
   it('dismisses a request in two touches and reloads the list', async () => {
     const fixture = await render([], ADMINISTRATOR, [], [ITEM], [CART_REQUEST]);
 
