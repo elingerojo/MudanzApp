@@ -135,7 +135,8 @@
                 }
 
                 <span
-                  class="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900"
+                  class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+                  [class]="requestItemStateClasses(item)"
                   [attr.data-testid]="'cart-request-item-state-' + item.state"
                 >
                   {{ requestItemStateLabel(item) }}

@@ -172,6 +172,17 @@ export class ShopCartComponent {
     }
   }
 
+  /** La pastilla del registro: el mismo color por estado que usa el panel del vendedor. */
+  protected requestItemStateClasses(item: CartRequestItem): string {
+    if (item.state === 'current') {
+      return 'bg-emerald-100 text-emerald-900';
+    }
+
+    return item.state === 'price_changed'
+      ? 'bg-amber-100 text-amber-900'
+      : 'bg-slate-200 text-slate-700';
+  }
+
   /** Entrar desde el carrito vuelve al carrito, no a `/cuenta` (extensión de 4d). */
   protected async signIn(): Promise<void> {
     if (this.connecting()) {
