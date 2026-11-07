@@ -80,6 +80,7 @@ Vocabulario de acceso:
 | 6 | La lista de empaque y la de cotización sustituyen la estimación burda | `frontend` y `wiki` |
 | D4 | Las secciones perezosas se precargan después de la primera navegación, así el primer clic dentro de una superficie no espera el chunk de su sección | `frontend`, `shop` y `wiki` |
 | D8 | Una barra inferior única con `Captura`, `Capturados` y `Cuenta` lleva la navegación privada sin que el evento sea su contenedor | `frontend` |
+| D9 | Un co-dispositivo entiende qué sesión tiene este dispositivo —cuenta o no, y su rol en la mudanza— y encuentra en `/cuenta` todas las acciones de su sesión | `frontend` |
 
 - D4 no es un ciclo de producto: es un corte de rendimiento declarado desde la base 10 de
   [`estructura-ui`](../plans/estructura-ui-navegacion-mudanzapp.md:99) §2. Autoriza solo la
@@ -140,6 +141,7 @@ Reglas que ordenan la secuencia:
 | `platform-admin` | En alcance del corte E1 | Superficie de plataforma en `frontend` (`/admin/plataforma`) sobre las rutas de `ADMIN_TOKEN`: `GET /admin/events` paginado por cursor —con la fecha de creación y quién administra, nulo mientras nadie reclama—, `POST /admin/events` y `POST /admin/events/:eventId/invitations`. La credencial se escribe en la pantalla y vive **solo en memoria** de esa pestaña: recargar la pierde y ninguna plantilla la enlaza (decisión §46). No hay sesión de plataforma, ni rol nuevo, ni cambio de esquema |
 | `route-preloading` | En alcance del corte D4 | Cada superficie precarga sus secciones perezosas después de la primera navegación: el primer clic dentro de una superficie no espera el chunk de su sección. No cambia rutas, roles, contratos ni datos; solo la estrategia de carga de Angular |
 | `shell-nav` | En alcance del corte D8 (cerrado con revisión `live` del dueño el 2026-11-06) | La superficie privada tiene una barra inferior fija con `Captura`, `Capturados` y `Cuenta` como destinos de nivel raíz. El evento se resuelve de la sesión, las pantallas de detalle quedan fuera de la barra y las URLs `/eventos/:eventId/...` se conservan como redirecciones. Sin backend, sin contrato nuevo y sin migración. La revisión `live` en remoto confirmó la barra, los tres destinos, la Cuenta mínima con el acceso al dashboard y el aterrizaje en `/captura` al canjear o volver del proveedor |
+| `cuenta-ruta` | En alcance del corte D9 | `/cuenta` publica la identidad y el estado del dispositivo —cuenta vinculada o no, y el rol de la membresía activa—, el trayecto y el enlace público del evento, la vinculación de cuenta, la invitación a otro dispositivo, el canje de otra invitación y el cierre de sesión. La carga de la identidad y la sesión inválida tienen su propio estado. Sin backend, sin contrato nuevo y sin migración; el `deviceLabel` de la sesión no se publica |
 | `account-upgrade` | Tentativa, ciclo 5 | Regla 4/11/21 como función pura |
 | `packing`, `quote-brief`, `receive-check` | Tentativa, ciclo 6 | Empaque, lista para cotizar y verificación en destino |
 | `decide-destination` | Propuesta, sin ciclo | Los cinco destinos y la clase A B C |

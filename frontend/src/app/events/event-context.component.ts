@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { SessionStore } from '../session/session.store';
 import { SHOP_BASE_URL } from '../shop-base-url.token';
 import { eventPublicUrl } from './event-public-url';
+import { eventTitle } from './event-title';
 
 /**
  * Contexto del evento activo para las pantallas raíz (corte D8).
@@ -25,7 +26,7 @@ export class EventContextComponent {
 
   protected readonly title = computed(() => {
     const event = this.event();
-    return event === null ? 'Evento' : `${event.originCity} → ${event.destinationCity}`;
+    return event === null ? 'Evento' : eventTitle(event);
   });
 
   protected readonly publicUrl = computed(() => {

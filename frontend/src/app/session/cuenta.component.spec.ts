@@ -12,8 +12,8 @@ import { OAUTH_FLOW } from './oauth-flow';
 import { SessionStore } from './session.store';
 
 /**
- * La pantalla `Cuenta` del corte D8: el destino raíz que reemplaza al popover. Publica la identidad,
- * el enlace del evento, el acceso al dashboard y el cierre de sesión; el detalle completo es D9.
+ * La pantalla `Cuenta` (cortes D8 y D9): publica la identidad y el estado del dispositivo, el
+ * trayecto y el enlace del evento, el acceso al dashboard y el cierre de sesión.
  */
 const EVENT: EventSummary = {
   id: 'event-1',
@@ -25,16 +25,24 @@ const EVENT: EventSummary = {
   role: 'member',
 };
 
+const OWNER_EVENT: EventSummary = { ...EVENT, role: 'owner' };
+
 const USER: IdentityUser = { id: 'user-1', displayName: 'Ana', isAdmin: false };
 
 describe('CuentaComponent', () => {
   const user = signal<IdentityUser | null>(null);
   const events = signal<readonly EventSummary[]>([EVENT]);
+  const activeEvent = signal<EventSummary | null>(EVENT);
+  const identityLoading = signal(false);
+  const identityFailed = signal(false);
   const clear = vi.fn();
 
   beforeEach(async () => {
     clear.mockReset();
     user.set(null);
+    activeEvent.set(EVENT);
+    identityLoading.set(false);
+    identityFailed.set(false);
 
     await TestBed.configureTestingModule({
       imports: [CuentaComponent],
@@ -51,7 +59,7 @@ describe('CuentaComponent', () => {
         { provide: OAUTH_FLOW, useValue: { begin: vi.fn() } },
         {
           provide: SessionStore,
-          useValue: { user, events, activeEvent: signal(EVENT), clear },
+          useValue: { user, events, activeEvent, identityLoading, identityFailed, clear },
         },
       ],
     }).compileComponents();
@@ -67,15 +75,29 @@ describe('CuentaComponent', () => {
     return (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="${testId}"]`);
   }
 
-  it('publishes the account name and the event link', () => {
+  it('publishes the account, its device state and the event route and link', () => {
     user.set(USER);
 
     const fixture = render();
 
     expect(query(fixture, 'cuenta-identity')?.textContent).toContain('Ana');
+    expect(query(fixture, 'cuenta-device')?.textContent).toContain('Sesión de cuenta');
+    expect(query(fixture, 'cuenta-device-role')?.textContent).toContain('co-dispositivo');
+    expect(query(fixture, 'cuenta-event-title')?.textContent).toContain(
+      'Bogotá → Ciudad de México',
+    );
     expect(query(fixture, 'cuenta-event-link')?.textContent).toContain(
       'http://shop.test/evento/bogota-ciudad-de-mexico-3f9a2c',
     );
+  });
+
+  it('names the owner role from the membership of the active event', () => {
+    user.set(USER);
+    activeEvent.set(OWNER_EVENT);
+
+    const fixture = render();
+
+    expect(query(fixture, 'cuenta-device-role')?.textContent).toContain('administra este evento');
   });
 
   it('says the device has no account and still offers the dashboard', () => {
@@ -84,8 +106,28 @@ describe('CuentaComponent', () => {
     expect(query(fixture, 'cuenta-identity')?.textContent).toContain(
       'Dispositivo sin cuenta vinculada',
     );
+    expect(query(fixture, 'cuenta-device')?.textContent).toContain('Sesión de dispositivo');
+    expect(query(fixture, 'cuenta-device-role')?.textContent).toContain('sin cuenta vinculada');
     expect(query(fixture, 'cuenta-dashboard-link')).not.toBeNull();
     expect(query(fixture, 'shell-invite-card')).not.toBeNull();
+  });
+
+  it('waits while the identity is not resolved instead of claiming an empty device', () => {
+    identityLoading.set(true);
+
+    const fixture = render();
+
+    expect(query(fixture, 'cuenta-loading')).not.toBeNull();
+  });
+
+  it('points back at the invitation when the session is no longer valid', () => {
+    identityFailed.set(true);
+
+    const fixture = render();
+
+    expect(query(fixture, 'cuenta-session-invalid')?.textContent).toContain(
+      'Canjea una invitación nueva',
+    );
   });
 
   it('clears the session and returns home on sign out', () => {

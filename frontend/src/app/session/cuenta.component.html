@@ -1,7 +1,21 @@
 <section class="space-y-4">
-  <app-ui-card title="Cuenta">
-    <div class="space-y-3">
-      <p class="text-sm text-slate-700" data-testid="cuenta-identity">
+  <h1 class="text-xl font-semibold text-slate-900" data-testid="cuenta-title">Cuenta</h1>
+
+  @if (loading()) {
+    <p class="text-sm text-slate-600" data-testid="cuenta-loading">Cargando la sesión…</p>
+  }
+
+  @if (sessionInvalid()) {
+    <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700" data-testid="cuenta-session-invalid">
+      La sesión de este dispositivo ya no es válida.
+      <a routerLink="/invitacion" class="underline">Canjea una invitación nueva</a> para volver a
+      entrar.
+    </p>
+  }
+
+  <app-ui-card title="Identidad y dispositivo">
+    <div class="space-y-2">
+      <p class="text-sm font-medium text-slate-900" data-testid="cuenta-identity">
         @if (user(); as account) {
           {{ account.displayName }}
         } @else {
@@ -9,21 +23,38 @@
         }
       </p>
 
+      <p class="text-xs tracking-wide text-slate-500 uppercase" data-testid="cuenta-device">
+        {{ deviceKind() }}
+      </p>
+
+      <p class="text-sm text-slate-700" data-testid="cuenta-device-role">{{ deviceDetail() }}</p>
+
       <!-- Ciclo 4c-1: el dispositivo sin sujeto puede vincular una cuenta y reclamar el evento. -->
       <app-account-link />
+    </div>
+  </app-ui-card>
 
-      <app-invite-device data-testid="shell-invite-card" />
-
-      @if (publicUrl(); as link) {
-        <p class="text-sm text-slate-700" data-testid="cuenta-event-link">
-          Enlace del evento:
-          <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{ link }}</a>
+  @if (eventLabel(); as label) {
+    <app-ui-card title="La mudanza">
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-slate-900" data-testid="cuenta-event-title">
+          {{ label }}
         </p>
-      }
 
-      <div class="space-y-2 border-t border-slate-200 pt-3">
+        <!-- El enlace del evento existe desde que se crea: el índice nace vacío y sigue siendo un
+             enlace válido (decisión §36). -->
+        @if (publicUrl(); as link) {
+          <p class="text-sm text-slate-700" data-testid="cuenta-event-link">
+            Enlace del evento:
+            <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{
+              link
+            }}</a>
+          </p>
+        }
+
         <!-- Siempre visible: esconderlo exigiría que el cliente supiera quién administra antes de
-             pedirlo y el rechazo dejaría de ser la prueba de la frontera (decisión §37). -->
+             pedirlo y el rechazo dejaría de ser la prueba de la frontera (decisión §37). D10 moverá
+             la administración dentro de esta pantalla. -->
         <a
           routerLink="/dashboard"
           class="block rounded px-2 py-1 text-sm text-slate-700 underline"
@@ -31,24 +62,30 @@
         >
           Administrar el evento
         </a>
-
-        <a
-          routerLink="/invitacion"
-          class="block rounded px-2 py-1 text-sm text-slate-700 underline"
-          data-testid="cuenta-redeem-link"
-        >
-          Canjear otra invitación
-        </a>
-
-        <button
-          type="button"
-          [class]="signOutClasses"
-          data-testid="cuenta-signout"
-          (click)="signOut()"
-        >
-          Cerrar sesión
-        </button>
       </div>
+    </app-ui-card>
+  }
+
+  <app-invite-device data-testid="shell-invite-card" />
+
+  <app-ui-card title="Sesión">
+    <div class="space-y-2 border-slate-200">
+      <a
+        routerLink="/invitacion"
+        class="block rounded px-2 py-1 text-sm text-slate-700 underline"
+        data-testid="cuenta-redeem-link"
+      >
+        Canjear otra invitación
+      </a>
+
+      <button
+        type="button"
+        [class]="signOutClasses"
+        data-testid="cuenta-signout"
+        (click)="signOut()"
+      >
+        Cerrar sesión
+      </button>
     </div>
   </app-ui-card>
 </section>
