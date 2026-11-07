@@ -128,6 +128,12 @@ export class ShopCartStore {
   readonly items = computed<readonly CartItem[]>(() => this.cart()?.items ?? []);
   readonly currency = computed(() => this.cart()?.event.currency ?? 'MXN');
 
+  /**
+   * El importe agregado que el borde publica (ciclo B1): `0` con la selección vacía y `null` si algún
+   * artículo perdió el precio. Sin carrito del servidor —el espejo local— no hay precios que sumar.
+   */
+  readonly totalCents = computed(() => this.cart()?.totalCents ?? null);
+
   /** Es lo que habilita `Pídelos por WhatsApp`: el número del vendedor existe. */
   readonly whatsappAvailable = computed(() => this.cart()?.whatsappAvailable ?? false);
   readonly openRequest = computed(() => this.cart()?.request ?? null);

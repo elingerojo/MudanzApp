@@ -353,6 +353,12 @@ export class DashboardComponent {
       .join(' · ');
   }
 
+  /** El importe congelado que la solicitud guardó al pedir (ciclo B1). */
+  protected requestTotalLabel(request: CartRequestSummary): string {
+    const currency = this.event()?.currency ?? 'MXN';
+    return `Total ${formatPriceCents(request.totalCents, currency)}`;
+  }
+
   /** Descartar es el acto del vendedor y se confirma en dos toques, como los demás del panel. */
   protected confirmDismiss(request: CartRequestSummary): void {
     if (this.confirmingDismissId() === request.id) {

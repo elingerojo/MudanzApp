@@ -130,10 +130,38 @@ describe('public cart', () => {
           event: { publicSlug: CART_PUBLIC_SLUG, currency: 'MXN' },
           items: [],
           unpublished: [],
+          totalCents: 0,
           whatsappAvailable: false,
           request: null,
         },
       });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('publishes no total when an article in the cart lost its price', async () => {
+    const { app } = await start({
+      sessions: [BUYER],
+      listings: [UNPRICED],
+      cartItems: [UNPRICED.listingId],
+    });
+
+    try {
+      const response = await fetch(`${app.baseUrl}${cartUrl()}`, {
+        headers: bearer(BUYER.token),
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        readonly cart: {
+          readonly items: readonly { readonly slug: string }[];
+          readonly totalCents: number | null;
+        };
+      };
+
+      expect(payload.cart.items.map((item) => item.slug)).toEqual([UNPRICED.slug]);
+      expect(payload.cart.totalCents).toBeNull();
     } finally {
       await app.close();
     }
@@ -154,12 +182,16 @@ describe('public cart', () => {
 
       expect(response.status).toBe(200);
       const payload = (await response.json()) as {
-        readonly cart: { readonly items: readonly { readonly slug: string }[] };
+        readonly cart: {
+          readonly items: readonly { readonly slug: string }[];
+          readonly totalCents: number | null;
+        };
         readonly dropped: readonly string[];
         readonly unpublished: readonly { readonly slug: string; readonly title: string }[];
       };
 
       expect(payload.cart.items.map((item) => item.slug)).toEqual([AVAILABLE.slug]);
+      expect(payload.cart.totalCents).toBe(AVAILABLE.priceCents);
       expect(payload.dropped).toEqual([SOLD.slug, UNPRICED.slug]);
       expect(payload.unpublished).toEqual([]);
       expect(harness.state.items).toEqual([AVAILABLE.listingId]);
@@ -486,6 +518,7 @@ describe('event cart requests', () => {
           readonly reference: string;
           readonly buyerName: string;
           readonly itemCount: number;
+          readonly totalCents: number;
           readonly items: readonly { readonly title: string; readonly priceCents: number }[];
         }[];
       };
@@ -494,6 +527,7 @@ describe('event cart requests', () => {
       expect(payload.requests[0]?.buyerName).toBe('Ana');
       expect(payload.requests[0]?.reference).toHaveLength(8);
       expect(payload.requests[0]?.itemCount).toBe(1);
+      expect(payload.requests[0]?.totalCents).toBe(125_000);
       expect(payload.requests[0]?.items[0]).toEqual({ title: 'Silla', priceCents: 125_000 });
     } finally {
       await app.close();

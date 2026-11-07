@@ -51,6 +51,14 @@ export class ShopCartComponent {
     return formatPriceCents(item.priceCents, this.cart.currency());
   }
 
+  /**
+   * El importe agregado de la selección (ciclo B1). Si algún artículo perdió el precio, la misma regla
+   * de formato publica «Precio a consultar»: el total no inventa un cero.
+   */
+  protected totalLabel(): string {
+    return formatPriceCents(this.cart.totalCents(), this.cart.currency());
+  }
+
   protected countLabel(): string {
     const count = this.cart.count();
     return count === 1 ? '1 artículo' : `${String(count)} artículos`;

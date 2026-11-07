@@ -1,6 +1,7 @@
 import {
   cartRequestMessage,
   cartRequestReference,
+  cartTotal,
   deriveEventPublicSlug,
   indexVersion,
   listingVersion,
@@ -320,6 +321,15 @@ export function toPublicCart(
   request: OpenCartRequestRecord | null,
 ): PublicCart {
   const rows = cart?.items ?? [];
+  const items = rows
+    .filter((item) => item.unpublishedAt === null)
+    .map((item) => ({
+      slug: item.slug,
+      title: item.title,
+      priceCents: item.priceCents,
+      soldAt: item.soldAt?.toISOString() ?? null,
+      addedAt: item.addedAt.toISOString(),
+    }));
 
   return {
     event: {
@@ -328,18 +338,13 @@ export function toPublicCart(
         deriveEventPublicSlug(event.originCity, event.destinationCity, event.id),
       currency: event.currency,
     },
-    items: rows
-      .filter((item) => item.unpublishedAt === null)
-      .map((item) => ({
-        slug: item.slug,
-        title: item.title,
-        priceCents: item.priceCents,
-        soldAt: item.soldAt?.toISOString() ?? null,
-        addedAt: item.addedAt.toISOString(),
-      })),
+    items,
     unpublished: rows
       .filter((item) => item.unpublishedAt !== null)
       .map((item) => ({ slug: item.slug, title: item.title })),
+    // B1: el importe se deriva de los artículos visibles; no se guarda ni se inventa un cero cuando
+    // alguno perdió el precio.
+    totalCents: cartTotal(items),
     whatsappAvailable: event.contactPhone !== null,
     request: request === null ? null : toOpenCartRequest(request, event.contactPhone),
   };
@@ -377,6 +382,9 @@ export function toCartRequestSummary(record: CartRequestRecord): CartRequestSumm
     buyerName: record.buyerName,
     itemCount: record.items.length,
     items: record.items.map((item) => ({ title: item.title, priceCents: item.priceCents })),
+    // B1: la instantánea guarda `price_cents_snapshot NOT NULL`, así que la suma siempre existe. El
+    // `?? 0` solo satisface el tipo de `cartTotal`; no hay un caso real de precio nulo aquí.
+    totalCents: cartTotal(record.items) ?? 0,
     requestedAt: record.requestedAt.toISOString(),
     dismissedAt: record.dismissedAt?.toISOString() ?? null,
     cancelledAt: record.cancelledAt?.toISOString() ?? null,

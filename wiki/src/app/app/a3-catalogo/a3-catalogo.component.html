@@ -4,7 +4,7 @@
     title="Catálogo público"
     route="app/a3-catalogo"
     status="current"
-    verified="2026-11-06 · este ciclo"
+    verified="2026-11-07 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -186,6 +186,12 @@
       <li>
         Sin número de WhatsApp del vendedor, el botón de pedido no se habilita: el teléfono es del
         vendedor y se guarda como dígitos, porque el enlace de mensajería no acepta otro formato.
+      </li>
+      <li>
+        El carrito publica su <strong>importe agregado</strong>: la suma de los precios visibles,
+        nula si algún artículo perdió el precio. La solicitud congela el importe del momento de
+        pedir y el panel lo lee con la instantánea; el mensaje de WhatsApp sigue llevando solo la
+        referencia.
       </li>
       <li>
         El mensaje lleva <strong>solo</strong> la referencia de la solicitud, derivada de su

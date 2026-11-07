@@ -201,6 +201,8 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     await shopPage.getByTestId('cart-signin').click();
     await expect(shopPage).toHaveURL(new RegExp(`/carrito/${event.publicSlug}$`));
     await expect(shopPage.getByTestId(`cart-item-${slug}`)).toBeVisible();
+    // B1: el importe agregado se deriva del precio que la ficha ya publicaba.
+    await expect(shopPage.getByTestId('cart-total')).toContainText('$1,250.00 MXN');
 
     const ask = shopPage.getByTestId('cart-whatsapp-request');
     await expect(ask).toBeEnabled();

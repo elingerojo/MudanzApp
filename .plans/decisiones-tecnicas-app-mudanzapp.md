@@ -1064,8 +1064,14 @@ Reglas del crecimiento:
   `Pídelos por WhatsApp` con su motivo, en vez de dejar que el borde responda `price_missing` o
   `listing_sold` sin decir cuál. Es la corrección de la revisión `live` del 2026-11-05, que encontró un
   guardado descartado en silencio.
-- **Sin total:** el mensaje es la referencia y el importe agregado no tiene consumidor todavía. Queda
-  como hecho pendiente con disparador en `resumen-funcional` §6.
+- **Sin total en 4e:** el mensaje es la referencia y el importe agregado no tenía consumidor todavía;
+  quedó como hecho pendiente con disparador en `resumen-funcional` §6. **Actualización del corte B1
+  (2026-11-07):** el importe entra como **dato derivado**, no guardado. La función pura `cartTotal`
+  suma los precios de los artículos visibles y el borde lo publica en `GET`/`PUT
+  /public/events/:publicSlug/cart`; la solicitud lo congela al pedir y el panel lo lee con la
+  instantánea. `totalCents` es nulo cuando algún artículo perdió el precio, porque un total incompleto
+  no es un total. El mensaje de WhatsApp sigue llevando **solo** la referencia: el dueño no lo ha
+  cambiado.
 - **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración
   `010`; **4f queda absorbido**.
 - **Revisión `live` del dueño, 2026-11-05:** el número se fija desde el dashboard del evento; el visitante

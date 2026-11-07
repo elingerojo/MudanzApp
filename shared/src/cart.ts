@@ -154,6 +154,30 @@ export interface CartItem {
 }
 
 /**
+ * El importe agregado de una selección, en centavos.
+ *
+ * Suma `priceCents` de los artículos **visibles** del carrito. Es una función pura —no lee reloj, no
+ * consulta la base y no conoce la moneda—: el texto lo compone `formatPriceCents` con la moneda del
+ * evento, la misma regla que usa el precio por artículo.
+ *
+ * La selección vacía suma `0`. Devuelve `null` si algún artículo perdió el precio: un total incompleto
+ * no es un total, y la fila que lo causó ya explica el hecho en la pantalla.
+ */
+export function cartTotal(items: readonly Pick<CartItem, 'priceCents'>[]): number | null {
+  let total = 0;
+
+  for (const item of items) {
+    if (item.priceCents === null) {
+      return null;
+    }
+
+    total += item.priceCents;
+  }
+
+  return Number.isSafeInteger(total) ? total : null;
+}
+
+/**
  * La solicitud abierta, tal como el comprador la necesita para volver a encontrarla después de
  * recargar: su referencia y **el enlace** que ya usó. No publica `cart_id` ni el comprador: es su
  * propia lectura.
@@ -184,6 +208,11 @@ export interface PublicCart {
   };
   readonly items: readonly CartItem[];
   readonly unpublished: readonly UnpublishedCartItem[];
+  /**
+   * La suma de `items`, derivada y no guardada (ciclo B1). Es `0` con la selección vacía y `null` si
+   * algún artículo perdió el precio; un total incompleto no se publica como cero.
+   */
+  readonly totalCents: number | null;
   /** `app.event.contact_phone IS NOT NULL`: es lo que habilita `Pídelos por WhatsApp`. */
   readonly whatsappAvailable: boolean;
   readonly request: OpenCartRequest | null;
@@ -230,6 +259,11 @@ export interface CartRequestSummary {
   readonly buyerName: string;
   readonly itemCount: number;
   readonly items: readonly CartRequestItem[];
+  /**
+   * El importe congelado del momento de pedir: la suma de `items`, que ya no cambian. Siempre es un
+   * número porque la instantánea guarda un precio no nulo por artículo (ciclo B1).
+   */
+  readonly totalCents: number;
   readonly requestedAt: string;
   readonly dismissedAt: string | null;
   readonly cancelledAt: string | null;

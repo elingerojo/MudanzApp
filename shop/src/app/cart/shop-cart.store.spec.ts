@@ -31,6 +31,7 @@ const CART: PublicCart = {
     },
   ],
   unpublished: [],
+  totalCents: 125_000,
   whatsappAvailable: true,
   request: null,
 };
@@ -47,6 +48,7 @@ const CART_WITH_BOTH: PublicCart = {
       addedAt: '2026-11-04T18:05:00.000Z',
     },
   ],
+  totalCents: 215_000,
 };
 
 const REQUESTED: PublicCart = {
@@ -140,6 +142,7 @@ describe('ShopCartStore', () => {
     expect(store.items().map((item) => item.slug)).toEqual(['silla', 'mesa']);
     expect(store.has('mesa')).toBe(true);
     expect(store.whatsappAvailable()).toBe(true);
+    expect(store.totalCents()).toBe(215_000);
   });
 
   it('says an article without price blocks the request instead of failing in the border', async () => {
@@ -149,6 +152,7 @@ describe('ShopCartStore', () => {
     httpTesting.expectOne(CART_URL).flush({
       cart: {
         ...CART,
+        totalCents: null,
         items: [
           {
             slug: 'silla',

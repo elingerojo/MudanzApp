@@ -69,6 +69,14 @@
         </li>
       }
     </ul>
+
+    <p
+      class="flex items-baseline justify-between border-t border-slate-200 pt-3"
+      data-testid="cart-total"
+    >
+      <span class="text-sm font-medium text-slate-900">Total</span>
+      <span class="text-base font-semibold text-slate-900">{{ totalLabel() }}</span>
+    </p>
   }
 
   @if (cart.unpublished().length > 0) {

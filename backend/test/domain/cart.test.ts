@@ -3,6 +3,7 @@ import {
   cartPutSchema,
   cartRequestMessage,
   cartRequestReference,
+  cartTotal,
   eventContactSchema,
   normalizeWhatsappNumber,
   parseContactPhone,
@@ -50,6 +51,18 @@ describe('cartRequestReference', () => {
 
   it('keeps the contract length', () => {
     expect(cartRequestReference('1-2-3-4-5-6-7-8-9')).toHaveLength(CART_LIMITS.reference);
+  });
+});
+
+describe('cartTotal', () => {
+  it('sums the visible prices in cents and reads an empty selection as zero', () => {
+    expect(cartTotal([])).toBe(0);
+    expect(cartTotal([{ priceCents: 125_000 }, { priceCents: 90_000 }])).toBe(215_000);
+  });
+
+  it('publishes no total when one article lost its price', () => {
+    expect(cartTotal([{ priceCents: 125_000 }, { priceCents: null }])).toBeNull();
+    expect(cartTotal([{ priceCents: null }])).toBeNull();
   });
 });
 

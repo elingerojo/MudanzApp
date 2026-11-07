@@ -80,6 +80,7 @@ const CART_REQUEST: CartRequestSummary = {
   buyerName: 'Compradora',
   itemCount: 1,
   items: [{ title: 'Mesa de roble', priceCents: 125_000 }],
+  totalCents: 125_000,
   requestedAt: '2026-11-04T18:00:00.000Z',
   dismissedAt: null,
   cancelledAt: null,
@@ -461,6 +462,7 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('Compradora');
     expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('Mesa de roble');
     expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('$1,250.00 MXN');
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
     expect(query(fixture, 'dashboard-request-state')?.textContent).toContain('pendiente');
     expect(query(fixture, 'dashboard-request-dismiss')).not.toBeNull();
   });

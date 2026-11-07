@@ -45,6 +45,7 @@ export {
   cartPutSchema,
   cartRequestMessage,
   cartRequestReference,
+  cartTotal,
   eventContactSchema,
   normalizeWhatsappNumber,
   parseContactPhone,

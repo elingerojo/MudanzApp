@@ -36,9 +36,11 @@ implante.
   guardada—.
 - `/carrito/:publicSlug` — `ShopCartComponent`: carrito de **seleccionados** del evento (ciclo 4e). Es
   por evento, así que la ruta lleva su `publicSlug` y va antes de `:slug`. Sin sesión anuncia lo que hay
-  guardado en el navegador y ofrece `Entrar`; con sesión lista los artículos con su precio y ofrece
-  `Pídelos por WhatsApp`, que compone el enlace `wa.me` con el número configurado por el vendedor en su
-  dashboard. Sin número, el botón queda deshabilitado con su motivo. **Sin total** (decisión §44).
+  guardado en el navegador y ofrece `Entrar`; con sesión lista los artículos con su precio, muestra el
+  **importe agregado** de la selección y ofrece `Pídelos por WhatsApp`, que compone el enlace `wa.me`
+  con el número configurado por el vendedor en su dashboard. Sin número, el botón queda deshabilitado
+  con su motivo. El total es derivado —no hay columna nueva— y la solicitud congela el importe del
+  momento de pedir; el mensaje de WhatsApp sigue llevando solo la referencia (ciclo B1, decisión §44).
 - `**` — redirección a `/`: fallback de la SPA.
 
 Reglas del mapa:

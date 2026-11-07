@@ -24,6 +24,7 @@ const REQUEST: CartRequestSummary = {
     { title: 'Silla', priceCents: 125_000 },
     { title: 'Mesa', priceCents: 90_000 },
   ],
+  totalCents: 215_000,
   requestedAt: '2026-11-04T18:00:00.000Z',
   dismissedAt: null,
   cancelledAt: null,
