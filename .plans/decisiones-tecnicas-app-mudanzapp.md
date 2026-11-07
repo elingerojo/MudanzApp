@@ -1071,7 +1071,11 @@ Reglas del crecimiento:
   /public/events/:publicSlug/cart`; la solicitud lo congela al pedir y el panel lo lee con la
   instantánea. `totalCents` es nulo cuando algún artículo perdió el precio, porque un total incompleto
   no es un total. El mensaje de WhatsApp sigue llevando **solo** la referencia: el dueño no lo ha
-  cambiado.
+  cambiado. **Actualización del corte B8 (2026-11-07):** la solicitud **no** se reescribe. El borde
+  deriva al leer el estado de cada artículo —`current`, `unpublished`, `sold`, `deleted` o
+  `price_changed`— con `LEFT JOIN app.listing`/`app.item`, publica `hasChanges` y el panel del
+  vendedor muestra el aviso y la causa por artículo. Sin migración: `listing_id` ya sobrevive a la
+  despublicación y queda nulo al borrar. El carrito, el comprador y el mensaje de WhatsApp no cambian.
 - **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración
   `010`; **4f queda absorbido**.
 - **Revisión `live` del dueño, 2026-11-05:** el número se fija desde el dashboard del evento; el visitante

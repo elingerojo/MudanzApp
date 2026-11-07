@@ -370,6 +370,59 @@ export class DashboardComponent {
     return `Total ${formatPriceCents(published, currency)}`;
   }
 
+  /**
+   * B8: un estado conocido distinto de `current` es el único que marca la solicitud. Un borde anterior
+   * a B8 no publica `state` ni `hasChanges`, y `undefined` **no** es un cambio: el panel no debe pintar
+   * un aviso falso durante un despliegue no atómico.
+   */
+  private isChangedState(state: string): boolean {
+    return (
+      state === 'unpublished' ||
+      state === 'sold' ||
+      state === 'deleted' ||
+      state === 'price_changed'
+    );
+  }
+
+  /** Hay aviso si el borde lo publica o si algún `state` conocido lo confirma. */
+  protected requestHasChanges(request: CartRequestSummary): boolean {
+    if (request.hasChanges === true) {
+      return true;
+    }
+
+    return request.items.some((item) => this.isChangedState(item.state));
+  }
+
+  /** Los artículos de la instantánea que ya no coinciden con el catálogo, con su causa. */
+  protected changedRequestItems(
+    request: CartRequestSummary,
+  ): readonly { readonly title: string; readonly label: string }[] {
+    return request.items
+      .filter((item) => this.isChangedState(item.state))
+      .map((item) => ({ title: item.title, label: this.requestItemStateLabel(item) }));
+  }
+
+  /** La causa de un artículo cambiado; `price_changed` publica el precio de hoy, no el congelado. */
+  protected requestItemStateLabel(item: CartRequestSummary['items'][number]): string {
+    switch (item.state) {
+      case 'unpublished':
+        return 'Despublicado después de la solicitud';
+      case 'sold':
+        return 'Vendido después de la solicitud';
+      case 'deleted':
+        return 'Eliminado después de la solicitud';
+      case 'price_changed': {
+        const currency = this.event()?.currency ?? 'MXN';
+        const current = item.currentPriceCents;
+        return typeof current === 'number' && Number.isFinite(current)
+          ? `Precio actual: ${formatPriceCents(current, currency)}`
+          : 'Sin precio actualmente';
+      }
+      default:
+        return '';
+    }
+  }
+
   /** Descartar es el acto del vendedor y se confirma en dos toques, como los demás del panel. */
   protected confirmDismiss(request: CartRequestSummary): void {
     if (this.confirmingDismissId() === request.id) {

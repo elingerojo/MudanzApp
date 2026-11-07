@@ -305,6 +305,9 @@ export async function listCartRequestsForEvent(
   database: Queryable,
   eventId: string,
 ): Promise<readonly CartRequestRecord[]> {
+  // B8: la instantánea se queda intacta y el estado actual se **deriva** aquí, al leer. El orden del
+  // `CASE` es explícito: un artículo borrado no puede leerse como despublicado, y uno que tuvo los dos
+  // actos conserva el primero que lo retiró del catálogo.
   const { rows } = await database.query<CartRequestRecord>(
     `SELECT r.id,
             u.display_name AS "buyerName",
@@ -317,11 +320,23 @@ export async function listCartRequestsForEvent(
        JOIN app."user" u ON u.id = c.user_id
        LEFT JOIN LATERAL (
          SELECT json_agg(
-                  json_build_object('title', item.title_snapshot,
-                                    'priceCents', item.price_cents_snapshot)
+                  json_build_object(
+                    'title', item.title_snapshot,
+                    'priceCents', item.price_cents_snapshot,
+                    'state', CASE
+                      WHEN item.listing_id IS NULL THEN 'deleted'
+                      WHEN listing.unpublished_at IS NOT NULL THEN 'unpublished'
+                      WHEN listing.sold_at IS NOT NULL THEN 'sold'
+                      WHEN i.price_cents IS DISTINCT FROM item.price_cents_snapshot THEN 'price_changed'
+                      ELSE 'current'
+                    END,
+                    'currentPriceCents', i.price_cents
+                  )
                   ORDER BY item.position
                 ) AS list
            FROM app.cart_request_item item
+           LEFT JOIN app.listing listing ON listing.id = item.listing_id
+           LEFT JOIN app.item i ON i.id = listing.item_id
           WHERE item.request_id = r.id
        ) snapshot ON true
       WHERE c.event_id = $1

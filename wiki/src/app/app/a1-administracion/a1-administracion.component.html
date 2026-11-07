@@ -4,7 +4,7 @@
     title="Administración"
     route="app/a1-administracion"
     status="current"
-    verified="350fa8d · 2026-11-07"
+    verified="2026-11-07 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -228,6 +228,15 @@
         del carrito ni el sujeto de la sesión del comprador. El descarte conserva el primer instante
         y su autor, así que reintentar no reescribe la evidencia. Una solicitud de otro evento, o
         una que el comprador canceló, responde <code class="font-mono text-xs">not_found</code>.
+        <strong>Desde B8</strong> la solicitud conserva su instantánea y el borde deriva, al leer,
+        el estado actual de cada artículo —<code class="font-mono text-xs">current</code>,
+        <code class="font-mono text-xs">unpublished</code>,
+        <code class="font-mono text-xs">sold</code>,
+        <code class="font-mono text-xs">deleted</code> o
+        <code class="font-mono text-xs">price_changed</code>— y publica
+        <code class="font-mono text-xs">hasChanges</code>. El renglón muestra el aviso de que es una
+        foto del pasado y la causa por artículo, sin reescribir la solicitud ni tocar el carrito o
+        el mensaje de WhatsApp.
       </li>
       <li>
         La lectura de solicitudes se sirve con

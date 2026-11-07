@@ -220,6 +220,29 @@
                         >
                           {{ requestTotalLabel(request) }}
                         </p>
+
+                        @if (requestHasChanges(request)) {
+                          <p
+                            class="mt-1 text-xs text-amber-800"
+                            data-testid="dashboard-request-stale"
+                          >
+                            Esta solicitud conserva lo que se pidió. Los artículos marcados ya no
+                            coinciden con el catálogo actual.
+                          </p>
+
+                          @if (changedRequestItems(request); as changed) {
+                            @if (changed.length > 0) {
+                              <ul
+                                class="mt-1 list-disc pl-5 text-xs text-amber-800"
+                                data-testid="dashboard-request-changes"
+                              >
+                                @for (change of changed; track $index) {
+                                  <li>{{ change.title }} — {{ change.label }}</li>
+                                }
+                              </ul>
+                            }
+                          }
+                        }
                       </div>
 
                       <span

@@ -229,6 +229,14 @@ hace falta inventar entradas para pantallas que no existen.
 > vive en memoria mientras dura la visita (persistirla es una decisión propia), la Cuenta enlaza al
 > selector y la barra marca `Cuenta` en `/eventos`. El detalle vive en
 > [`plan-ciclo-d2-selector-evento`](plan-ciclo-d2-selector-evento.md:1).
+>
+> **Nota (corte B8, 2026-11-07):** el renglón de `Solicitudes` conserva su instantánea y su total.
+> Cuando algún artículo ya no coincide con el catálogo —despublicado, vendido, eliminado o precio
+> cambiado—, añade un aviso de que la solicitud es una foto del pasado y una lista con la causa de
+> cada artículo cambiado. El aviso es texto, la lista es una `<ul>` y el nombre del artículo viaja en
+> el texto de cada `<li>`; el estado de la solicitud y `Descartar` no cambian. Sin backend nuevo ni
+> migración: el borde deriva el estado al leer. El detalle vive en
+> [`plan-ciclo-b8-request-staleness`](plan-ciclo-b8-request-staleness.md:1).
 
 ```mermaid
 flowchart TD

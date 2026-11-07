@@ -236,6 +236,13 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
   await expect(page.getByTestId('dashboard-requests')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('pendiente');
 
+  // B8: el vendedor despublicó después de la solicitud. El renglón conserva la instantánea y marca
+  // el artículo que ya no coincide con el catálogo, con su causa.
+  await expect(page.getByTestId('dashboard-request-stale')).toBeVisible();
+  await expect(page.getByTestId('dashboard-request-changes')).toContainText(
+    'Silla de la sala — Despublicado después de la solicitud',
+  );
+
   await page.getByTestId('dashboard-request-dismiss').click();
   await page.getByTestId('dashboard-request-dismiss-confirm').click();
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('atendida');

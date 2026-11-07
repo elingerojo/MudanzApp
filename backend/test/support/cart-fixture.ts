@@ -46,6 +46,14 @@ export interface CartListingFixture {
   readonly unpublishedAt?: Date | null;
 }
 
+/** Un artículo de la instantánea: conserva el `listing_id` para que el doble derive el estado (B8). */
+export interface CartRequestSnapshotItem {
+  /** `null` simula el artículo borrado: el `ON DELETE SET NULL` deja la columna sin valor. */
+  readonly listingId: string | null;
+  readonly title: string;
+  readonly priceCents: number;
+}
+
 /** Una solicitud tal como el doble la guarda y la devuelve. */
 export interface CartRequestState {
   readonly id: string;
@@ -55,7 +63,7 @@ export interface CartRequestState {
   dismissedAt: Date | null;
   dismissedBy: string | null;
   cancelledAt: Date | null;
-  readonly items: readonly { readonly title: string; readonly priceCents: number }[];
+  readonly items: readonly CartRequestSnapshotItem[];
 }
 
 export interface CartFixture {
@@ -66,6 +74,11 @@ export interface CartFixture {
   readonly cartItems?: readonly string[];
   /** La solicitud que ya está abierta al empezar el caso. */
   readonly openRequest?: boolean;
+  /**
+   * La instantánea de la solicitud abierta. Sin esto se usa el primer `listing` de la fixture, que es
+   * un artículo vigente; los casos de B8 pasan aquí su propio artículo y su precio de entonces.
+   */
+  readonly requestItems?: readonly CartRequestSnapshotItem[];
   /** El nombre que la cuenta del comprador publica en el panel. */
   readonly buyerName?: string;
   /** El administrador reclamado del evento; `null` deja el evento sin reclamar. */
@@ -104,7 +117,20 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
   const buyerName = fixture.buyerName ?? 'Ana';
   const listings = fixture.listings ?? [];
 
+  const firstListing = listings[0];
   if (fixture.openRequest === true) {
+    const snapshot: readonly CartRequestSnapshotItem[] =
+      fixture.requestItems ??
+      (firstListing === undefined
+        ? [{ listingId: null, title: 'Silla', priceCents: 125_000 }]
+        : [
+            {
+              listingId: firstListing.listingId,
+              title: firstListing.title,
+              priceCents: firstListing.priceCents ?? 125_000,
+            },
+          ]);
+
     requests.push({
       id: OPEN_REQUEST_ID,
       eventId: CART_EVENT_ID,
@@ -113,9 +139,64 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
       dismissedAt: null,
       dismissedBy: null,
       cancelledAt: null,
-      items: [{ title: 'Silla', priceCents: 125_000 }],
+      items: snapshot,
     });
   }
+
+  /**
+   * B8: el doble deriva el estado que el SQL real calcula con el `CASE`. Su orden es el del contrato:
+   * borrado, despublicado, vendido, precio cambiado y, si nada de eso, vigente.
+   */
+  const deriveSnapshot = (item: CartRequestSnapshotItem) => {
+    const listing =
+      item.listingId === null
+        ? undefined
+        : listings.find((entry) => entry.listingId === item.listingId);
+
+    if (listing === undefined) {
+      return {
+        title: item.title,
+        priceCents: item.priceCents,
+        state: 'deleted' as const,
+        currentPriceCents: null,
+      };
+    }
+
+    const currentPriceCents = listing.priceCents;
+    if ((listing.unpublishedAt ?? null) !== null) {
+      return {
+        title: item.title,
+        priceCents: item.priceCents,
+        state: 'unpublished' as const,
+        currentPriceCents,
+      };
+    }
+
+    if (listing.soldAt !== null) {
+      return {
+        title: item.title,
+        priceCents: item.priceCents,
+        state: 'sold' as const,
+        currentPriceCents,
+      };
+    }
+
+    if (listing.priceCents !== item.priceCents) {
+      return {
+        title: item.title,
+        priceCents: item.priceCents,
+        state: 'price_changed' as const,
+        currentPriceCents,
+      };
+    }
+
+    return {
+      title: item.title,
+      priceCents: item.priceCents,
+      state: 'current' as const,
+      currentPriceCents,
+    };
+  };
 
   const openOf = (eventId: string): CartRequestState | undefined =>
     requests.find(
@@ -259,12 +340,14 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
 
       // ---- Solicitud -----------------------------------------------------------------------
       if (text.includes('INSERT INTO app.cart_request_item')) {
+        const listingIds = (values?.[1] as readonly string[] | undefined) ?? [];
         const titles = (values?.[2] as readonly string[] | undefined) ?? [];
         const prices = (values?.[3] as readonly number[] | undefined) ?? [];
         const target = requests[requests.length - 1];
         if (target !== undefined) {
           Object.assign(target, {
             items: titles.map((title, index) => ({
+              listingId: listingIds[index] ?? null,
               title,
               priceCents: prices[index] ?? 0,
             })),
@@ -325,7 +408,7 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
               requestedAt: request.requestedAt,
               dismissedAt: request.dismissedAt,
               cancelledAt: request.cancelledAt,
-              items: request.items,
+              items: request.items.map(deriveSnapshot),
             })),
         );
       }

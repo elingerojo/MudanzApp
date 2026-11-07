@@ -21,9 +21,20 @@ const REQUEST: CartRequestSummary = {
   buyerName: 'Compradora',
   itemCount: 2,
   items: [
-    { title: 'Silla', priceCents: 125_000 },
-    { title: 'Mesa', priceCents: 90_000 },
+    {
+      title: 'Silla',
+      priceCents: 125_000,
+      state: 'current',
+      currentPriceCents: 125_000,
+    },
+    {
+      title: 'Mesa',
+      priceCents: 90_000,
+      state: 'unpublished',
+      currentPriceCents: 90_000,
+    },
   ],
+  hasChanges: true,
   totalCents: 215_000,
   requestedAt: '2026-11-04T18:00:00.000Z',
   dismissedAt: null,

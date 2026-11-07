@@ -374,14 +374,25 @@ export function toOpenCartRequest(
 /**
  * Una solicitud del dashboard (ciclo 4e). Publica la instantánea del momento de pedir —no el carrito
  * de hoy— y el nombre de la cuenta; ni el `cart_id` ni el sujeto de la sesión cruzan el contrato.
+ *
+ * B8: `state` y `currentPriceCents` vienen de la lectura; `hasChanges` es la única agregación y se
+ * deriva aquí, de los mismos `items`, en vez de repetirla en el SQL.
  */
 export function toCartRequestSummary(record: CartRequestRecord): CartRequestSummary {
+  const items = record.items.map((item) => ({
+    title: item.title,
+    priceCents: item.priceCents,
+    state: item.state,
+    currentPriceCents: item.currentPriceCents,
+  }));
+
   return {
     id: record.id,
     reference: cartRequestReference(record.id),
     buyerName: record.buyerName,
-    itemCount: record.items.length,
-    items: record.items.map((item) => ({ title: item.title, priceCents: item.priceCents })),
+    itemCount: items.length,
+    items,
+    hasChanges: items.some((item) => item.state !== 'current'),
     // B1: la instantánea guarda `price_cents_snapshot NOT NULL`, así que la suma siempre existe. El
     // `?? 0` solo satisface el tipo de `cartTotal`; no hay un caso real de precio nulo aquí.
     totalCents: cartTotal(record.items) ?? 0,

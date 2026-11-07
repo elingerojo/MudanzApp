@@ -57,6 +57,15 @@ const UNPUBLISHED: CartListingFixture = {
   unpublishedAt: NOW,
 };
 
+/** Un artículo vigente cuyo precio cambió después de la solicitud (B8). */
+const REPRICED: CartListingFixture = {
+  listingId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+  slug: 'sofa-mno345',
+  title: 'Sofá',
+  priceCents: 99_000,
+  soldAt: null,
+};
+
 const BUYER = {
   token: 'buyer-token',
   userId: 'user-buyer',
@@ -504,6 +513,22 @@ describe('event cart requests', () => {
     contactPhone: PHONE,
   };
 
+  type PanelPayload = {
+    readonly requests: readonly {
+      readonly reference: string;
+      readonly buyerName: string;
+      readonly itemCount: number;
+      readonly totalCents: number;
+      readonly hasChanges: boolean;
+      readonly items: readonly {
+        readonly title: string;
+        readonly priceCents: number;
+        readonly state: string;
+        readonly currentPriceCents: number | null;
+      }[];
+    }[];
+  };
+
   it('shows the request with the buyer name and the snapshot of what was asked', async () => {
     const { app } = await start(fixture);
 
@@ -513,22 +538,65 @@ describe('event cart requests', () => {
       });
 
       expect(response.status).toBe(200);
-      const payload = (await response.json()) as {
-        readonly requests: readonly {
-          readonly reference: string;
-          readonly buyerName: string;
-          readonly itemCount: number;
-          readonly totalCents: number;
-          readonly items: readonly { readonly title: string; readonly priceCents: number }[];
-        }[];
-      };
+      const payload = (await response.json()) as PanelPayload;
 
       expect(payload.requests).toHaveLength(1);
       expect(payload.requests[0]?.buyerName).toBe('Ana');
       expect(payload.requests[0]?.reference).toHaveLength(8);
       expect(payload.requests[0]?.itemCount).toBe(1);
       expect(payload.requests[0]?.totalCents).toBe(125_000);
-      expect(payload.requests[0]?.items[0]).toEqual({ title: 'Silla', priceCents: 125_000 });
+      // B8: un artículo vigente no marca la solicitud como desactualizada.
+      expect(payload.requests[0]?.hasChanges).toBe(false);
+      expect(payload.requests[0]?.items[0]).toEqual({
+        title: 'Silla',
+        priceCents: 125_000,
+        state: 'current',
+        currentPriceCents: 125_000,
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('marks each item whose current catalog state differs from the snapshot', async () => {
+    const { app } = await start({
+      ...fixture,
+      listings: [AVAILABLE, UNPUBLISHED, SOLD, REPRICED],
+      requestItems: [
+        {
+          listingId: AVAILABLE.listingId,
+          title: AVAILABLE.title,
+          priceCents: AVAILABLE.priceCents ?? 0,
+        },
+        { listingId: UNPUBLISHED.listingId, title: UNPUBLISHED.title, priceCents: 45_000 },
+        { listingId: SOLD.listingId, title: SOLD.title, priceCents: 90_000 },
+        { listingId: REPRICED.listingId, title: REPRICED.title, priceCents: 125_000 },
+        { listingId: null, title: 'Cama', priceCents: 50_000 },
+      ],
+    });
+
+    try {
+      const response = await fetch(`${app.baseUrl}/events/${CART_EVENT_ID}/cart-requests`, {
+        headers: bearer(KING.token),
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as PanelPayload;
+      const request = payload.requests[0];
+      const items = request?.items ?? [];
+
+      expect(items.map((item) => [item.title, item.state])).toEqual([
+        ['Silla', 'current'],
+        ['Ropero', 'unpublished'],
+        ['Mesa', 'sold'],
+        ['Sofá', 'price_changed'],
+        ['Cama', 'deleted'],
+      ]);
+      // El precio de la instantánea no se toca; el actual se publica aparte.
+      expect(items[3]?.priceCents).toBe(125_000);
+      expect(items[3]?.currentPriceCents).toBe(99_000);
+      expect(items[4]?.currentPriceCents).toBeNull();
+      expect(request?.hasChanges).toBe(true);
     } finally {
       await app.close();
     }

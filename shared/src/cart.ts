@@ -240,10 +240,31 @@ export interface IssuedCartRequest {
   readonly request: OpenCartRequest;
 }
 
-/** Un artículo de la instantánea de la solicitud: lo que el comprador pidió, con su precio de entonces. */
+/**
+ * El estado de un artículo de la solicitud frente al catálogo de hoy (ciclo B8, `request-staleness`).
+ *
+ * La solicitud es una instantánea y **no se reescribe**: este estado se deriva al leer.
+ * - `deleted` — el artículo o su publicación ya no existen (`listing_id` quedó nulo).
+ * - `unpublished` — el vendedor lo despublicó después de la solicitud.
+ * - `sold` — se vendió después de la solicitud.
+ * - `price_changed` — el precio actual difiere de la instantánea.
+ * - `current` — nada cambió.
+ */
+export type CartRequestItemState = 'current' | 'unpublished' | 'sold' | 'deleted' | 'price_changed';
+
+/**
+ * Un artículo de la instantánea de la solicitud: lo que el comprador pidió, con su precio de entonces,
+ * y el estado que el catálogo de hoy le da (ciclo B8). `title` y `priceCents` no cambian nunca; el
+ * estado y `currentPriceCents` son la lectura de hoy.
+ *
+ * `currentPriceCents` es `null` cuando el artículo ya no existe o el vendedor vació el precio; la
+ * pantalla lo usa solo en `price_changed`.
+ */
 export interface CartRequestItem {
   readonly title: string;
   readonly priceCents: number;
+  readonly state: CartRequestItemState;
+  readonly currentPriceCents: number | null;
 }
 
 /**
@@ -259,6 +280,11 @@ export interface CartRequestSummary {
   readonly buyerName: string;
   readonly itemCount: number;
   readonly items: readonly CartRequestItem[];
+  /**
+   * `true` si algún artículo de la instantánea ya no coincide con el catálogo actual (ciclo B8). Lo
+   * deriva el presenter de `items`; no viaja como una segunda regla en el SQL.
+   */
+  readonly hasChanges: boolean;
   /**
    * El importe congelado del momento de pedir: la suma de `items`, que ya no cambian. Siempre es un
    * número porque la instantánea guarda un precio no nulo por artículo (ciclo B1).

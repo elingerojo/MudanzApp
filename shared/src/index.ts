@@ -55,6 +55,7 @@ export type {
   CartItem,
   CartPutRequest,
   CartRequestItem,
+  CartRequestItemState,
   CartRequestSummary,
   CartWriteResult,
   ContactPhoneParse,

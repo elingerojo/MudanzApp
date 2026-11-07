@@ -80,7 +80,15 @@ const CART_REQUEST: CartRequestSummary = {
   reference: 'ab12cd34',
   buyerName: 'Compradora',
   itemCount: 1,
-  items: [{ title: 'Mesa de roble', priceCents: 125_000 }],
+  items: [
+    {
+      title: 'Mesa de roble',
+      priceCents: 125_000,
+      state: 'current',
+      currentPriceCents: 125_000,
+    },
+  ],
+  hasChanges: false,
   totalCents: 125_000,
   requestedAt: '2026-11-04T18:00:00.000Z',
   dismissedAt: null,
@@ -466,6 +474,77 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
     expect(query(fixture, 'dashboard-request-state')?.textContent).toContain('pendiente');
     expect(query(fixture, 'dashboard-request-dismiss')).not.toBeNull();
+    // Sin cambios, el renglón se lee como hoy: ni aviso ni lista.
+    expect(query(fixture, 'dashboard-request-stale')).toBeNull();
+    expect(query(fixture, 'dashboard-request-changes')).toBeNull();
+  });
+
+  it('warns that the request is a snapshot and names each changed item', async () => {
+    const changed: CartRequestSummary = {
+      ...CART_REQUEST,
+      itemCount: 6,
+      hasChanges: true,
+      items: [
+        {
+          title: 'Silla',
+          priceCents: 125_000,
+          state: 'current',
+          currentPriceCents: 125_000,
+        },
+        {
+          title: 'Mesa',
+          priceCents: 90_000,
+          state: 'unpublished',
+          currentPriceCents: 90_000,
+        },
+        { title: 'Ropero', priceCents: 45_000, state: 'sold', currentPriceCents: 45_000 },
+        { title: 'Cama', priceCents: 30_000, state: 'deleted', currentPriceCents: null },
+        {
+          title: 'Sofá',
+          priceCents: 125_000,
+          state: 'price_changed',
+          currentPriceCents: 99_000,
+        },
+        {
+          title: 'Estante',
+          priceCents: 60_000,
+          state: 'price_changed',
+          currentPriceCents: null,
+        },
+      ],
+    };
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [changed]);
+
+    openTab(fixture, 'solicitudes');
+
+    expect(query(fixture, 'dashboard-request-stale')?.textContent).toContain(
+      'conserva lo que se pidió',
+    );
+
+    const changes = query(fixture, 'dashboard-request-changes');
+    expect(changes?.textContent).toContain('Mesa — Despublicado después de la solicitud');
+    expect(changes?.textContent).toContain('Ropero — Vendido después de la solicitud');
+    expect(changes?.textContent).toContain('Cama — Eliminado después de la solicitud');
+    expect(changes?.textContent).toContain('Sofá — Precio actual: $990.00 MXN');
+    expect(changes?.textContent).toContain('Estante — Sin precio actualmente');
+    // Solo los que cambiaron: la instantánea completa sigue en su línea.
+    expect(changes?.textContent).not.toContain('Silla');
+  });
+
+  it('does not read an absent state or hasChanges as a change', async () => {
+    // Un borde anterior a B8 no publica los campos: el panel no inventa un aviso ni pinta `NaN`.
+    const stale = {
+      ...CART_REQUEST,
+      hasChanges: undefined,
+      items: [{ title: 'Mesa de roble', priceCents: 125_000 }],
+    } as unknown as CartRequestSummary;
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [stale]);
+
+    openTab(fixture, 'solicitudes');
+
+    expect(query(fixture, 'dashboard-request-stale')).toBeNull();
+    expect(query(fixture, 'dashboard-request-changes')).toBeNull();
+    expect(text(fixture)).not.toContain('NaN');
   });
 
   it('shows the total as unavailable when the border predates the field', async () => {
