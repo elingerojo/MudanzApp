@@ -266,6 +266,23 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     'Silla de la sala — Despublicado después de la solicitud',
   );
 
+  // B10: el vendedor expande el registro y relee la instantánea, el estado y el importe vigente; lo
+  // despublicado no suma.
+  await page.getByTestId('dashboard-request-record').locator('summary').click();
+  await expect(page.getByTestId('dashboard-request-record')).toContainText(
+    'Registro de Artículos solicitados',
+  );
+  await expect(page.getByTestId('dashboard-request-record-item-state-unpublished')).toHaveText(
+    'Despublicado',
+  );
+  await expect(page.getByTestId('dashboard-request-record-item-snapshot')).toContainText(
+    'Pidió: $1,250.00 MXN',
+  );
+  await expect(page.getByTestId('dashboard-request-record-item-amount')).toContainText(
+    'Importe vigente: $0.00 MXN',
+  );
+  await expect(page.getByTestId('dashboard-request-record-total')).toContainText('$0.00 MXN');
+
   await page.getByTestId('dashboard-request-dismiss').click();
   await page.getByTestId('dashboard-request-dismiss-confirm').click();
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('atendida');

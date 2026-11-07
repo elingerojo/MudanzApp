@@ -477,6 +477,76 @@ describe('DashboardComponent', () => {
     // Sin cambios, el renglón se lee como hoy: ni aviso ni lista.
     expect(query(fixture, 'dashboard-request-stale')).toBeNull();
     expect(query(fixture, 'dashboard-request-changes')).toBeNull();
+
+    // B10: el registro nace colapsado y su resumen publica la leyenda, el conteo y el importe vigente.
+    const record = query(fixture, 'dashboard-request-record');
+    expect(record?.tagName.toLowerCase()).toBe('details');
+    expect((record as HTMLDetailsElement | null)?.open).toBe(false);
+    expect(record?.textContent).toContain('Registro de Artículos solicitados');
+    expect(record?.textContent).toContain('1 artículo');
+    expect(query(fixture, 'dashboard-request-record-total')?.textContent).toContain(
+      '$1,250.00 MXN',
+    );
+    expect(query(fixture, 'dashboard-request-record-price-notice')).toBeNull();
+    // El importe congelado de B1 sigue en su propio renglón y no se sustituye por el vigente.
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
+  });
+
+  it('expands the seller record with the snapshot, the state and the current amount', async () => {
+    const record: CartRequestSummary = {
+      ...CART_REQUEST,
+      itemCount: 5,
+      hasChanges: true,
+      items: [
+        { title: 'Silla', priceCents: 125_000, state: 'current', currentPriceCents: 125_000 },
+        { title: 'Mesa', priceCents: 90_000, state: 'unpublished', currentPriceCents: 90_000 },
+        { title: 'Cama', priceCents: 30_000, state: 'deleted', currentPriceCents: null },
+        { title: 'Sofá', priceCents: 125_000, state: 'price_changed', currentPriceCents: 99_000 },
+        { title: 'Estante', priceCents: 60_000, state: 'price_changed', currentPriceCents: null },
+      ],
+    };
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [record]);
+
+    openTab(fixture, 'solicitudes');
+
+    // La nota de precio se lee en el resumen, antes de expandir, y es texto.
+    expect(query(fixture, 'dashboard-request-record-price-notice')?.textContent).toContain(
+      'Atención, al menos uno de los artículos cambió de precio.',
+    );
+
+    const card = query(fixture, 'dashboard-request-record') as HTMLDetailsElement | null;
+    expect(card?.open).toBe(false);
+    if (card !== null) {
+      card.open = true;
+    }
+    fixture.detectChanges();
+
+    const rows = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '[data-testid="dashboard-request-record-item"]',
+    );
+    expect(rows).toHaveLength(5);
+    expect(rows[0]?.textContent).toContain('Silla');
+    expect(rows[0]?.textContent).toContain('Pidió: $1,250.00 MXN');
+    expect(rows[0]?.textContent).toContain('Importe vigente: $1,250.00 MXN');
+    expect(query(fixture, 'dashboard-request-record-item-state-current')?.textContent).toContain(
+      'Vigente',
+    );
+    // Lo despublicado y lo eliminado no suman.
+    expect(rows[1]?.textContent).toContain('Despublicado');
+    expect(rows[1]?.textContent).toContain('Importe vigente: $0.00 MXN');
+    expect(rows[2]?.textContent).toContain('Eliminado');
+    expect(rows[2]?.textContent).toContain('Importe vigente: $0.00 MXN');
+    // Un precio cambiado suma el de hoy y conserva la instantánea como «Pidió».
+    expect(rows[3]?.textContent).toContain('Precio cambiado');
+    expect(rows[3]?.textContent).toContain('Pidió: $1,250.00 MXN');
+    expect(rows[3]?.textContent).toContain('Importe vigente: $990.00 MXN');
+    // Un precio vacío no se puede comprar y se explica.
+    expect(rows[4]?.textContent).toContain('Sin precio actualmente');
+    expect(rows[4]?.textContent).toContain('Importe vigente: $0.00 MXN');
+    // Importe vigente: 1250 + 0 + 0 + 990 + 0.
+    expect(query(fixture, 'dashboard-request-record-total')?.textContent).toContain(
+      '$2,240.00 MXN',
+    );
   });
 
   it('warns that the request is a snapshot and names each changed item', async () => {
@@ -544,6 +614,8 @@ describe('DashboardComponent', () => {
 
     expect(query(fixture, 'dashboard-request-stale')).toBeNull();
     expect(query(fixture, 'dashboard-request-changes')).toBeNull();
+    // Sin estados conocidos no hay registro: el panel conserva el renglón de 4e.
+    expect(query(fixture, 'dashboard-request-record')).toBeNull();
     expect(text(fixture)).not.toContain('NaN');
   });
 

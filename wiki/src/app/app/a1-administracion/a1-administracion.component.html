@@ -236,7 +236,14 @@
         <code class="font-mono text-xs">price_changed</code>— y publica
         <code class="font-mono text-xs">hasChanges</code>. El renglón muestra el aviso de que es una
         foto del pasado y la causa por artículo, sin reescribir la solicitud ni tocar el carrito o
-        el mensaje de WhatsApp.
+        el mensaje de WhatsApp. <strong>Desde B10</strong> cada solicitud se relee como un registro
+        en un card colapsable <em>Registro de Artículos solicitados</em>: su resumen publica el
+        número de artículos, el <strong>importe vigente</strong> —los despublicados, vendidos o
+        eliminados suman cero y un precio cambiado suma el de hoy— y la nota «Atención, al menos uno
+        de los artículos cambió de precio.» cuando alguno cambió; su detalle publica el título, el
+        precio de la instantánea, el importe vigente y la pastilla de estado de cada artículo. El
+        importe <strong>congelado</strong> de la solicitud y el mensaje de WhatsApp no cambian: son
+        dos importes con nombre propio.
       </li>
       <li>
         La lectura de solicitudes se sirve con

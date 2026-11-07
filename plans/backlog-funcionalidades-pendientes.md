@@ -18,7 +18,9 @@
 > (`event-selector`) cerrada en `1cf135d` y revisada `live` en remoto el 2026-11-07; D11
 > (`pestanas-panel-evento`) cerrada en `350fa8d` y revisada `live` en remoto el 2026-11-07; B9
 > (`request-record`) cerrada en `c899f42` y revisada `live` por el dueño en remoto el 2026-11-07, con
-> el alcance corregido —solo la solicitud abierta—; workflow de ciclos en vigor.
+> el alcance corregido —solo la solicitud abierta—; B10 (`seller-request-record`) cerrada en `c569513`
+> el 2026-11-07 como contraparte del panel, con la misma derivación de B8/B9; la hoja
+> `backlog-vendedor-solicitud` se retiró; workflow de ciclos en vigor.
 
 ## 0. Reglas de uso
 
@@ -45,18 +47,18 @@
 
 ## 1. Mapa rápido
 
-| Bloque | Qué agrupa                                               | Filas | Estado                                     |
-| ------ | -------------------------------------------------------- | ----- | ------------------------------------------ |
-| A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                               |
-| B      | **Remanentes de 4f** y de la decisión §44                | 9     | B1, B8 y B9 cerradas; resto con disparador |
-| C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                            |
-| D      | Escala, rendimiento y UX                                 | 11    | `D2`, `D8`, `D9`, `D10` y `D11` cerradas   |
-| E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio         |
-| F      | Publicación, URL y venta                                 | 7     | Disparadores                               |
-| G      | Cuenta e identidad                                       | 5     | Disparadores                               |
-| H      | `wiki`, superficies y dossier                            | 3     | Deuda declarada                            |
-| T      | Tooling y arnés de pruebas                               | 4     | Habilita a los demás                       |
-| X      | Fuera de alcance o descartado con disparador             | 10    | **No recomendado** sin cambio de alcance   |
+| Bloque | Qué agrupa                                               | Filas | Estado                                          |
+| ------ | -------------------------------------------------------- | ----- | ----------------------------------------------- |
+| A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                                    |
+| B      | **Remanentes de 4f** y de la decisión §44                | 10    | B1, B8, B9 y B10 cerradas; resto con disparador |
+| C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                                 |
+| D      | Escala, rendimiento y UX                                 | 11    | `D2`, `D8`, `D9`, `D10` y `D11` cerradas        |
+| E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio              |
+| F      | Publicación, URL y venta                                 | 7     | Disparadores                                    |
+| G      | Cuenta e identidad                                       | 5     | Disparadores                                    |
+| H      | `wiki`, superficies y dossier                            | 3     | Deuda declarada                                 |
+| T      | Tooling y arnés de pruebas                               | 4     | Habilita a los demás                            |
+| X      | Fuera de alcance o descartado con disparador             | 10    | **No recomendado** sin cambio de alcance        |
 
 ---
 
@@ -90,6 +92,8 @@ Lo que §39 reservaba para 4f y la revisión `live` de 4e dejaron como hecho pen
 | **B7** | Monto al cerrar una venta                  | `settle-sale` cerró **sin** registrar importe; el monto sigue como hecho pendiente de dueño                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Decisión del dueño primero; después `app.listing.sold_price_cents` (o un asiento) y el campo en `Marcar vendido`. Sin la decisión el ciclo no se abre                                                                                                                                                                                                                                            | M     | [`resumen-funcional`](../.plans/resumen-funcional-app-mudanzapp.md:167) §6                                                                                                                               |
 | **B8** | `request-staleness`                        | `cerrada 8c22f0d 2026-11-07` — La solicitud conserva su instantánea, pero el panel del vendedor marca cada artículo que ya no coincide con el catálogo actual —despublicado, vendido, eliminado o precio cambiado— y avisa que la solicitud no refleja lo actual                                                                                                                                                                                                                                                                                                                                                                                                                                  | `listCartRequestsForEvent` deriva el estado con `LEFT JOIN app.listing` y `app.item`; `CartRequestItem` gana `state` y `currentPriceCents`; `CartRequestSummary` gana `hasChanges`; el panel muestra el aviso y la causa por artículo. **Sin migración**: `listing_id` ya sobrevive a la despublicación y queda nulo al borrar. El comprador, el carrito y el mensaje de WhatsApp no cambian     | M     | Revisión del dueño 2026-11-07; [`decisiones`](../.plans/decisiones-tecnicas-app-mudanzapp.md:1058) §44; [`plan-ciclo-4e`](plan-ciclo-4e-carrito-seleccionados-whatsapp.md:435) §11                       |
 | **B9** | Registro de la solicitud para el comprador | `cerrada c899f42 2026-11-07` — Hoy el comprador pide y no vuelve a saber de su solicitud: la lectura del carrito publica la referencia y el enlace, no los renglones. La funcionalidad deseada es que lea su propia solicitud con los artículos que pidió, el estado de cada uno —vigente, despublicado, vendido, eliminado o precio cambiado— y su importe vigente, con los no disponibles sumando cero. **Alcance corregido por el dueño el 2026-11-07: solo la solicitud abierta**, porque el modelo permite una por comprador y evento; el historial de cerradas queda fuera. No incluye notas del vendedor, respuestas ni aviso en tiempo real. **Revisada `live` en remoto el 2026-11-07.** | Reusar la derivación de B8 en una proyección de comprador: `GET`/`PUT /public/events/:publicSlug/cart` publican los renglones con `state`, el importe vigente y `hasChanges`, y `/carrito/:publicSlug` los muestra en un card colapsable —`Registro de Artículos solicitados`— que se expande. Sin migración, sin escritura nueva y con **una sola** función de derivación para los dos lectores | M     | Evaluación del 2026-11-07 sobre [`decisiones`](../.plans/decisiones-tecnicas-app-mudanzapp.md:1031) §44 y B8; decisión del dueño del 2026-11-07                                                          |
+
+| **B10** | Registro de la solicitud en el panel del vendedor | `cerrada c569513 2026-11-07` — Contraparte de B9 en el panel: hoy la solicitud se lee con su referencia, el nombre y el conteo, no como un registro. La funcionalidad deseada es que el vendedor relea cada solicitud con los artículos que se pidieron —título y precio de la instantánea—, el estado de cada uno —vigente, despublicado, vendido, eliminado o precio cambiado— y su importe vigente, con los no disponibles sumando cero y un precio cambiado sumando el actual, en un card colapsable —`Registro de Artículos solicitados`— que se expande, más la nota `Atención, al menos uno de los artículos cambió de precio.` en el resumen. No cambia la solicitud, su importe congelado, lo que ve el comprador ni el mensaje de WhatsApp. | El panel ya recibe `CartRequestSummary` con los renglones, `state`, `currentPriceCents` y `hasChanges` (B8): el corte es la proyección del vendedor sobre ese mismo contrato, con `cartRequestItemAmount` y `cartRequestAvailableTotal` para el importe vigente. **Sin migración**, sin escritura nueva y sin una segunda derivación; es la misma derivación de B8 que ya consumen los dos lectores. Revisión `live` pendiente del dueño | S | Evaluación del 2026-11-07 sobre B9 y [`decisiones`](../.plans/decisiones-tecnicas-app-mudanzapp.md:1031) §44; decisión del dueño del 2026-11-07 |
 
 ---
 
@@ -246,7 +250,7 @@ son dos evidencias separadas).
   `account-upgrade` · A5 `packing` · A6 `quote-brief` · A7 `receive-check` · A8 `decide-destination`
 - **B** — B1 total del carrito · B2 carrito entre dispositivos · B3 exclusividad por artículo ·
   B4 segundo nombre · B5 caché del carrito · B6 aviso real · B7 monto de la venta · B8 `request-staleness` ·
-  B9 registro de la solicitud para el comprador
+  B9 registro de la solicitud para el comprador · B10 registro de la solicitud en el panel del vendedor
 - **C** — C1 barrido de huérfanos · C2 dominio propio y R2 de producción · C3 CORS y subida directa ·
   C4 cuota de IA · C5 observabilidad de IA · C6 CSP verificada · C7 alerta de `fake`
 - **D** — D1 paginación · D2 selector de evento · D3 toasts · D4 precarga · D5 presupuesto de bundle ·

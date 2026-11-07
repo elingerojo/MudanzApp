@@ -7,7 +7,12 @@ import {
   signal,
 } from '@angular/core';
 import {
+  cartRequestAvailableTotal,
+  cartRequestHasChanges,
+  cartRequestItemAmount,
   formatPriceCents,
+  type CartRequestItem,
+  type CartRequestItemState,
   type CartRequestSummary,
   type InvitationSummary,
   type ItemSummary,
@@ -345,12 +350,9 @@ export class DashboardComponent {
     return `${request.buyerName} · ${items} · ${this.day(request.requestedAt)}`;
   }
 
-  /** La instantánea del pedido, con la moneda del evento (decisión §35). */
-  protected requestItemsLabel(request: CartRequestSummary): string {
-    const currency = this.event()?.currency ?? 'MXN';
-    return request.items
-      .map((item) => `${item.title} — ${formatPriceCents(item.priceCents, currency)}`)
-      .join(' · ');
+  /** La moneda del evento, con la misma regla de formato que el precio por artículo (§35). */
+  private currency(): string {
+    return this.event()?.currency ?? 'MXN';
   }
 
   /**
@@ -358,25 +360,36 @@ export class DashboardComponent {
    *
    * Un borde anterior a B1 no publica `totalCents`. La pantalla no deriva el importe en silencio: si
    * el campo no llega como número finito, dice «Total no disponible» y no pinta `NaN`; cuando el borde
-   * nuevo responde, manda el valor publicado.
+   * nuevo responde, manda el valor publicado. Desde B10 el registro publica aparte el importe
+   * **vigente**: son dos hechos distintos y cada uno conserva su nombre.
    */
   protected requestTotalLabel(request: CartRequestSummary): string {
-    const currency = this.event()?.currency ?? 'MXN';
     const published: unknown = request.totalCents;
     if (typeof published !== 'number' || !Number.isFinite(published)) {
       return 'Total no disponible';
     }
 
-    return `Total ${formatPriceCents(published, currency)}`;
+    return `Total ${formatPriceCents(published, this.currency())}`;
   }
 
   /**
-   * B8: un estado conocido distinto de `current` es el único que marca la solicitud. Un borde anterior
-   * a B8 no publica `state` ni `hasChanges`, y `undefined` **no** es un cambio: el panel no debe pintar
-   * un aviso falso durante un despliegue no atómico.
+   * B10: los renglones que el registro puede leer, o `null` cuando el borde es anterior a B8 y algún
+   * artículo no publica `state`. Un estado ausente no es `current`: sin estados conocidos la pantalla
+   * conserva el renglón de 4e y no pinta importes en cero.
    */
-  private isChangedState(state: string): boolean {
+  protected recordItems(request: CartRequestSummary): readonly CartRequestItem[] | null {
+    const published: unknown = request.items;
+    if (!Array.isArray(published)) {
+      return null;
+    }
+
+    const items = published as readonly CartRequestItem[];
+    return items.every((item) => this.isKnownState(item.state)) ? items : null;
+  }
+
+  private isKnownState(state: unknown): state is CartRequestItemState {
     return (
+      state === 'current' ||
       state === 'unpublished' ||
       state === 'sold' ||
       state === 'deleted' ||
@@ -384,13 +397,85 @@ export class DashboardComponent {
     );
   }
 
-  /** Hay aviso si el borde lo publica o si algún `state` conocido lo confirma. */
+  /** El conteo de renglones del registro, con el mismo texto que la lista del comprador. */
+  protected requestRecordCountLabel(request: CartRequestSummary): string {
+    const count = this.recordItems(request)?.length ?? 0;
+    return count === 1 ? '1 artículo' : `${String(count)} artículos`;
+  }
+
+  /** El importe vigente del registro: la derivación de B9, nunca una suma escrita a mano aquí. */
+  protected requestAvailableTotalLabel(request: CartRequestSummary): string {
+    const items = this.recordItems(request);
+    return formatPriceCents(items === null ? 0 : cartRequestAvailableTotal(items), this.currency());
+  }
+
+  /** El importe vigente de un renglón: `0` si ya no está disponible, el de hoy si cambió. */
+  protected requestItemAmountLabel(item: CartRequestItem): string {
+    return formatPriceCents(cartRequestItemAmount(item), this.currency());
+  }
+
+  /** El precio que se pidió: la instantánea, que no se reescribe. */
+  protected requestItemSnapshotLabel(item: CartRequestItem): string {
+    return formatPriceCents(item.priceCents, this.currency());
+  }
+
+  /** Un precio cambiado y vacío no se puede comprar; el renglón lo dice en vez de pintar `NaN`. */
+  protected requestItemPriceNote(item: CartRequestItem): string | null {
+    return item.state === 'price_changed' && item.currentPriceCents === null
+      ? 'Sin precio actualmente'
+      : null;
+  }
+
+  /**
+   * B10: la nota de precio se enciende solo con `price_changed`, no con cualquier cambio. Un borde
+   * anterior a B8 no la enciende por accidente.
+   */
+  protected requestHasPriceChange(request: CartRequestSummary): boolean {
+    return this.recordItems(request)?.some((item) => item.state === 'price_changed') ?? false;
+  }
+
+  /** La pastilla del registro: el texto nombra el estado; el color solo acompaña. */
+  protected requestItemStateLabel(item: CartRequestItem): string {
+    switch (item.state) {
+      case 'unpublished':
+        return 'Despublicado';
+      case 'sold':
+        return 'Vendido';
+      case 'deleted':
+        return 'Eliminado';
+      case 'price_changed':
+        return 'Precio cambiado';
+      default:
+        return 'Vigente';
+    }
+  }
+
+  protected requestItemStateClasses(item: CartRequestItem): string {
+    if (item.state === 'current') {
+      return 'bg-emerald-100 text-emerald-900';
+    }
+
+    return item.state === 'price_changed'
+      ? 'bg-amber-100 text-amber-900'
+      : 'bg-slate-200 text-slate-700';
+  }
+
+  /**
+   * B8: un estado conocido distinto de `current` es el único que marca el aviso de la solicitud. Un
+   * borde anterior a B8 no publica `state` ni `hasChanges`, y `undefined` **no** es un cambio.
+   */
+  private isChangedState(state: unknown): boolean {
+    return this.isKnownState(state) && state !== 'current';
+  }
+
+  /** Hay aviso si el borde lo publica o si los renglones conocidos lo confirman (B8/B10). */
   protected requestHasChanges(request: CartRequestSummary): boolean {
     if (request.hasChanges === true) {
       return true;
     }
 
-    return request.items.some((item) => this.isChangedState(item.state));
+    const items = this.recordItems(request);
+    return items === null ? false : cartRequestHasChanges(items);
   }
 
   /** Los artículos de la instantánea que ya no coinciden con el catálogo, con su causa. */
@@ -399,11 +484,11 @@ export class DashboardComponent {
   ): readonly { readonly title: string; readonly label: string }[] {
     return request.items
       .filter((item) => this.isChangedState(item.state))
-      .map((item) => ({ title: item.title, label: this.requestItemStateLabel(item) }));
+      .map((item) => ({ title: item.title, label: this.requestChangedItemLabel(item) }));
   }
 
   /** La causa de un artículo cambiado; `price_changed` publica el precio de hoy, no el congelado. */
-  protected requestItemStateLabel(item: CartRequestSummary['items'][number]): string {
+  protected requestChangedItemLabel(item: CartRequestItem): string {
     switch (item.state) {
       case 'unpublished':
         return 'Despublicado después de la solicitud';
@@ -412,10 +497,9 @@ export class DashboardComponent {
       case 'deleted':
         return 'Eliminado después de la solicitud';
       case 'price_changed': {
-        const currency = this.event()?.currency ?? 'MXN';
         const current = item.currentPriceCents;
         return typeof current === 'number' && Number.isFinite(current)
-          ? `Precio actual: ${formatPriceCents(current, currency)}`
+          ? `Precio actual: ${formatPriceCents(current, this.currency())}`
           : 'Sin precio actualmente';
       }
       default:

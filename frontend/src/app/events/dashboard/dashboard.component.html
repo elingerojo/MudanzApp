@@ -202,77 +202,161 @@
                 <ul class="divide-y divide-slate-200">
                   @for (request of requests.requests(); track request.id) {
                     <li
-                      class="flex flex-wrap items-center gap-3 py-3"
+                      class="space-y-2 py-3"
                       [attr.data-testid]="'dashboard-request-' + request.id"
                     >
-                      <div class="min-w-0 flex-1">
-                        <p
-                          class="text-sm font-medium text-slate-900"
-                          data-testid="dashboard-request-reference"
-                        >
-                          Solicitud <span class="font-mono text-xs">{{ request.reference }}</span>
-                        </p>
-                        <p class="text-xs text-slate-600">{{ requestDetail(request) }}</p>
-                        <p class="text-xs text-slate-700">{{ requestItemsLabel(request) }}</p>
-                        <p
-                          class="text-xs font-medium text-slate-900"
-                          data-testid="dashboard-request-total"
-                        >
-                          {{ requestTotalLabel(request) }}
-                        </p>
-
-                        @if (requestHasChanges(request)) {
+                      <div class="flex flex-wrap items-center gap-3">
+                        <div class="min-w-0 flex-1">
                           <p
-                            class="mt-1 text-xs text-amber-800"
-                            data-testid="dashboard-request-stale"
+                            class="text-sm font-medium text-slate-900"
+                            data-testid="dashboard-request-reference"
                           >
-                            Esta solicitud conserva lo que se pidió. Los artículos marcados ya no
-                            coinciden con el catálogo actual.
+                            Solicitud <span class="font-mono text-xs">{{ request.reference }}</span>
+                          </p>
+                          <p class="text-xs text-slate-600">{{ requestDetail(request) }}</p>
+                          <p
+                            class="text-xs font-medium text-slate-900"
+                            data-testid="dashboard-request-total"
+                          >
+                            {{ requestTotalLabel(request) }}
                           </p>
 
-                          @if (changedRequestItems(request); as changed) {
-                            @if (changed.length > 0) {
-                              <ul
-                                class="mt-1 list-disc pl-5 text-xs text-amber-800"
-                                data-testid="dashboard-request-changes"
-                              >
-                                @for (change of changed; track $index) {
-                                  <li>{{ change.title }} — {{ change.label }}</li>
-                                }
-                              </ul>
+                          @if (requestHasChanges(request)) {
+                            <p
+                              class="mt-1 text-xs text-amber-800"
+                              data-testid="dashboard-request-stale"
+                            >
+                              Esta solicitud conserva lo que se pidió. Los artículos marcados ya no
+                              coinciden con el catálogo actual.
+                            </p>
+
+                            @if (changedRequestItems(request); as changed) {
+                              @if (changed.length > 0) {
+                                <ul
+                                  class="mt-1 list-disc pl-5 text-xs text-amber-800"
+                                  data-testid="dashboard-request-changes"
+                                >
+                                  @for (change of changed; track $index) {
+                                    <li>{{ change.title }} — {{ change.label }}</li>
+                                  }
+                                </ul>
+                              }
                             }
                           }
+                        </div>
+
+                        <span
+                          class="rounded-full px-2 py-0.5 text-xs"
+                          [class]="requestStateClasses(request)"
+                          data-testid="dashboard-request-state"
+                        >
+                          {{ requestState(request) }}
+                        </span>
+
+                        @if (request.dismissedAt === null && request.cancelledAt === null) {
+                          <button
+                            type="button"
+                            [class]="dangerClasses"
+                            [disabled]="requests.dismissingId() !== null"
+                            (click)="confirmDismiss(request)"
+                            [attr.data-testid]="
+                              confirmingDismissId() === request.id
+                                ? 'dashboard-request-dismiss-confirm'
+                                : 'dashboard-request-dismiss'
+                            "
+                          >
+                            {{
+                              confirmingDismissId() === request.id
+                                ? requests.dismissingId() === request.id
+                                  ? 'Descartando…'
+                                  : 'Confirmar'
+                                : 'Descartar'
+                            }}
+                          </button>
                         }
                       </div>
 
-                      <span
-                        class="rounded-full px-2 py-0.5 text-xs"
-                        [class]="requestStateClasses(request)"
-                        data-testid="dashboard-request-state"
-                      >
-                        {{ requestState(request) }}
-                      </span>
-
-                      @if (request.dismissedAt === null && request.cancelledAt === null) {
-                        <button
-                          type="button"
-                          [class]="dangerClasses"
-                          [disabled]="requests.dismissingId() !== null"
-                          (click)="confirmDismiss(request)"
-                          [attr.data-testid]="
-                            confirmingDismissId() === request.id
-                              ? 'dashboard-request-dismiss-confirm'
-                              : 'dashboard-request-dismiss'
-                          "
+                      <!-- B10: el registro del vendedor. El `<details>` nativo da el despliegue con
+                           teclado y lector de pantalla; el importe vigente se deriva con las funciones
+                           compartidas de B9 y no altera el importe congelado de la solicitud. -->
+                      @if (recordItems(request); as items) {
+                        <details
+                          class="rounded-lg bg-slate-50 p-3"
+                          data-testid="dashboard-request-record"
                         >
-                          {{
-                            confirmingDismissId() === request.id
-                              ? requests.dismissingId() === request.id
-                                ? 'Descartando…'
-                                : 'Confirmar'
-                              : 'Descartar'
-                          }}
-                        </button>
+                          <summary class="cursor-pointer space-y-1">
+                            <h3 class="text-sm font-semibold text-slate-900">
+                              Registro de Artículos solicitados
+                            </h3>
+                            <p class="text-xs text-slate-600">
+                              {{ requestRecordCountLabel(request) }} · importe vigente
+                              <span
+                                class="font-semibold text-slate-900"
+                                data-testid="dashboard-request-record-total"
+                              >
+                                {{ requestAvailableTotalLabel(request) }}
+                              </span>
+                            </p>
+
+                            @if (requestHasPriceChange(request)) {
+                              <p
+                                class="text-xs font-medium text-amber-800"
+                                data-testid="dashboard-request-record-price-notice"
+                              >
+                                Atención, al menos uno de los artículos cambió de precio.
+                              </p>
+                            }
+                          </summary>
+
+                          <div class="mt-3 space-y-3">
+                            <ul
+                              class="divide-y divide-slate-200"
+                              data-testid="dashboard-request-record-items"
+                            >
+                              @for (item of items; track $index) {
+                                <li
+                                  class="space-y-1 py-2"
+                                  data-testid="dashboard-request-record-item"
+                                >
+                                  <p class="text-sm font-medium text-slate-900">
+                                    {{ item.title }}
+                                  </p>
+                                  <p
+                                    class="text-xs text-slate-600"
+                                    data-testid="dashboard-request-record-item-snapshot"
+                                  >
+                                    Pidió: {{ requestItemSnapshotLabel(item) }}
+                                  </p>
+                                  <p
+                                    class="text-sm text-slate-700"
+                                    data-testid="dashboard-request-record-item-amount"
+                                  >
+                                    Importe vigente: {{ requestItemAmountLabel(item) }}
+                                  </p>
+
+                                  @if (requestItemPriceNote(item); as note) {
+                                    <p class="text-xs text-slate-600">{{ note }}</p>
+                                  }
+
+                                  <span
+                                    class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+                                    [class]="requestItemStateClasses(item)"
+                                    [attr.data-testid]="
+                                      'dashboard-request-record-item-state-' + item.state
+                                    "
+                                  >
+                                    {{ requestItemStateLabel(item) }}
+                                  </span>
+                                </li>
+                              }
+                            </ul>
+
+                            <p class="text-xs text-slate-600">
+                              Los artículos despublicados, vendidos o eliminados no suman al importe
+                              vigente; un artículo con precio cambiado suma el precio de hoy.
+                            </p>
+                          </div>
+                        </details>
                       }
                     </li>
                   }

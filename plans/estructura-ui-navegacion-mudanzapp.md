@@ -237,6 +237,15 @@ hace falta inventar entradas para pantallas que no existen.
 > el texto de cada `<li>`; el estado de la solicitud y `Descartar` no cambian. Sin backend nuevo ni
 > migración: el borde deriva el estado al leer. El detalle vive en
 > [`plan-ciclo-b8-request-staleness`](plan-ciclo-b8-request-staleness.md:1).
+>
+> **Nota (corte B10, 2026-11-07):** el mismo renglón gana un card colapsable
+> `Registro de Artículos solicitados` dentro de `Solicitudes`. El resumen publica el número de
+> artículos y el **importe vigente** —los despublicados, vendidos o eliminados suman cero y un precio
+> cambiado suma el de hoy—, y lleva la nota `Atención, al menos uno de los artículos cambió de
+precio.` cuando alguno cambió. El detalle publica un renglón por artículo con el título, el precio
+> de la instantánea, el importe vigente y la pastilla de estado. El importe **congelado** del panel
+> sigue en su propio renglón y la solicitud no se reescribe. Sin backend nuevo ni migración; el
+> detalle vive en [`plan-ciclo-b10-registro-solicitud-vendedor`](plan-ciclo-b10-registro-solicitud-vendedor.md:1).
 
 ```mermaid
 flowchart TD

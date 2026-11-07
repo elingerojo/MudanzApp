@@ -1081,6 +1081,12 @@ Reglas del crecimiento:
   su **importe vigente**: lo despublicado, vendido o eliminado suma `0` y un `price_changed` suma su
   precio de hoy, con la nota `Atención, al menos uno de los artículos cambió de precio.` cuando alguno
   cambió. El historial de solicitudes cerradas queda fuera y el importe congelado del panel no cambia.
+  **Actualización del corte B10 (2026-11-07):** la contraparte del panel lee el **mismo** registro: el
+  renglón de `Solicitudes` gana un card colapsable `Registro de Artículos solicitados` con el número de
+  artículos, el importe vigente y la nota de precio en el resumen, y con el título, el precio de la
+  instantánea, el importe vigente y la pastilla de estado por artículo en el detalle. `cartRequestItemAmount`,
+  `cartRequestAvailableTotal` y `cartRequestHasChanges` son la única regla: no hay backend nuevo, ni
+  columna, ni segunda derivación, y el importe **congelado** del panel sigue publicado como hoy.
 - **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración
   `010`; **4f queda absorbido**.
 - **Revisión `live` del dueño, 2026-11-05:** el número se fija desde el dashboard del evento; el visitante
