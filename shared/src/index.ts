@@ -43,6 +43,9 @@ export {
   CART_LIMITS,
   WHATSAPP_NUMBER_PATTERN,
   cartPutSchema,
+  cartRequestAvailableTotal,
+  cartRequestHasChanges,
+  cartRequestItemAmount,
   cartRequestMessage,
   cartRequestReference,
   cartTotal,
@@ -52,6 +55,7 @@ export {
   whatsappRequestUrl,
 } from './cart.js';
 export type {
+  BuyerCartRequest,
   CartItem,
   CartPutRequest,
   CartRequestItem,

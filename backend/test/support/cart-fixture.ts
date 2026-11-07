@@ -372,9 +372,19 @@ export function cartDatabase(fixture: CartFixture): CartDatabaseHarness {
         return rows([{ id: request.id, requestedAt: request.requestedAt }]);
       }
 
-      if (text.includes('FROM app.cart_request') && text.includes('dismissed_at IS NULL')) {
+      // B9: la lectura del comprador es la de la solicitud abierta **con** su registro. Se reconoce por
+      // su propia clave (`r.cart_id = $1`); la del panel usa `c.event_id = $1`, así que no se cruzan.
+      if (text.includes('r.cart_id = $1')) {
         const open = openOf(CART_EVENT_ID);
-        return open === undefined ? none() : rows([{ id: open.id, requestedAt: open.requestedAt }]);
+        return open === undefined
+          ? none()
+          : rows([
+              {
+                id: open.id,
+                requestedAt: open.requestedAt,
+                items: open.items.map(deriveSnapshot),
+              },
+            ]);
       }
 
       if (text.includes('UPDATE app.cart_request AS r')) {

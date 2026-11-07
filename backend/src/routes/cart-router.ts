@@ -21,7 +21,7 @@ import {
 import { findPublicEventBySlug, type PublicEventRecord } from '../store/listing-store.js';
 import { parseOrThrow } from '../validation.js';
 import type { IdentityDeps } from './dependencies.js';
-import { toOpenCartRequest, toPublicCart } from './presenters.js';
+import { toBuyerCartRequest, toPublicCart } from './presenters.js';
 import { createSessionMiddleware, identityOf, type RequestIdentity } from './session.js';
 
 /** Un parámetro de ruta que Express tipa como `string | string[]`: solo el texto simple es válido. */
@@ -75,9 +75,9 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
     return identity.user.id;
   };
 
-  /** La solicitud emitida, con su referencia y el enlace que el comprador abre. */
+  /** La solicitud emitida, con su referencia, su enlace y su registro (B9). */
   const issued = (contactPhone: string, request: OpenCartRequestRecord): IssuedCartRequest => ({
-    request: toOpenCartRequest(request, contactPhone),
+    request: toBuyerCartRequest(request, contactPhone),
   });
 
   /**
@@ -172,6 +172,9 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
    * Reintentar devuelve la solicitud abierta con `200` en vez de crear otra: el índice único parcial
    * del DDL es la garantía, y el comprador ve la misma referencia. La instantánea de título y precio se
    * congela aquí; la solicitud **no** cambia el estado de ningún artículo.
+   *
+   * Desde B9 la respuesta lleva el registro completo —renglones, estado e importe vigente—, releído con
+   * la misma consulta que el `GET` del carrito.
    */
   router.post(
     '/public/events/:publicSlug/cart/request',
@@ -220,9 +223,16 @@ export function createPublicCartRouter(deps: IdentityDeps): Router {
             : [{ listingId: item.listingId, title: item.title, priceCents: item.priceCents }],
         );
 
-        const created = await deps.database.transaction((transaction) =>
+        await deps.database.transaction((transaction) =>
           insertCartRequest(transaction, { cartId: cart.id, items }),
         );
+
+        // B9: la respuesta es la **misma** lectura que el comprador ve al recargar. El insert no
+        // reconstruye el registro por su cuenta; se relee para que la derivación siga siendo una sola.
+        const created = await findOpenCartRequest(deps.database, cart.id);
+        if (created === null) {
+          throw new Error('cart-request-read-returned-no-row');
+        }
 
         response.status(201).json(issued(contactPhone, created));
       };

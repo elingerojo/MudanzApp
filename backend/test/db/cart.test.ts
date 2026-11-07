@@ -1,3 +1,5 @@
+import { cartRequestAvailableTotal } from '@mudanzapp/shared';
+
 import { createDatabase } from '../../src/db.js';
 import { normalizeItemDraft } from '../../src/domain/item.js';
 import {
@@ -293,6 +295,69 @@ describe('cart request', () => {
         now: new Date('2026-11-04T19:00:00.000Z'),
       }),
     ).toBe(false);
+  });
+
+  it('reads the open request with the same derived state the panel publishes', async () => {
+    const { buyer, event, item, listing } = await setup();
+
+    const cartId = await replaceCart(database, {
+      userId: buyer.id,
+      eventId: event.id,
+      listingIds: [listing.id],
+    });
+
+    await insertCartRequest(database, {
+      cartId,
+      items: [{ listingId: listing.id, title: 'Silla de prueba', priceCents: 125_000 }],
+    });
+
+    const readOpen = async () => {
+      const open = await findOpenCartRequest(database, cartId);
+      const panel = await listCartRequestsForEvent(database, event.id);
+      // B9: los dos lectores derivan con el mismo fragmento; no pueden describir estados distintos.
+      expect(open?.items).toEqual(panel[0]?.items);
+      return open;
+    };
+
+    // La ficha nace sin precio: la instantánea de 125 000 ya no coincide y el importe vigente es 0.
+    const fresh = await readOpen();
+    expect(fresh?.items).toEqual([
+      {
+        title: 'Silla de prueba',
+        priceCents: 125_000,
+        state: 'price_changed',
+        currentPriceCents: null,
+      },
+    ]);
+    expect(cartRequestAvailableTotal(fresh?.items ?? [])).toBe(0);
+
+    // Un precio nuevo suma el precio **de hoy**, no el de la instantánea.
+    expect(await updateItem(database, event.id, item.id, { priceCents: 99_000 })).toBe(true);
+    const repriced = await readOpen();
+    expect(repriced?.items[0]).toMatchObject({
+      priceCents: 125_000,
+      state: 'price_changed',
+      currentPriceCents: 99_000,
+    });
+    expect(cartRequestAvailableTotal(repriced?.items ?? [])).toBe(99_000);
+
+    // Igual que la instantánea: vigente y con su precio.
+    expect(await updateItem(database, event.id, item.id, { priceCents: 125_000 })).toBe(true);
+    expect(cartRequestAvailableTotal((await readOpen())?.items ?? [])).toBe(125_000);
+
+    // Despublicado: la instantánea se conserva y el importe vigente cae a cero.
+    expect(
+      await unpublishListing(database, item.id, new Date('2026-11-04T19:00:00.000Z')),
+    ).not.toBeNull();
+    const unpublished = await readOpen();
+    expect(unpublished?.items[0]?.state).toBe('unpublished');
+    expect(cartRequestAvailableTotal(unpublished?.items ?? [])).toBe(0);
+
+    // Borrado: la fila sobrevive con `listing_id` nulo y el importe vigente sigue en cero.
+    expect(await deleteItem(database, event.id, item.id)).toBe(true);
+    const deleted = await readOpen();
+    expect(deleted?.items[0]).toMatchObject({ state: 'deleted', currentPriceCents: null });
+    expect(cartRequestAvailableTotal(deleted?.items ?? [])).toBe(0);
   });
 });
 

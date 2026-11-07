@@ -1,4 +1,6 @@
 import {
+  cartRequestAvailableTotal,
+  cartRequestHasChanges,
   cartRequestMessage,
   cartRequestReference,
   cartTotal,
@@ -7,6 +9,7 @@ import {
   listingVersion,
   whatsappRequestUrl,
   type AdminEventSummary,
+  type BuyerCartRequest,
   type CartRequestSummary,
   type EventCardEntry,
   type EventRole,
@@ -346,13 +349,15 @@ export function toPublicCart(
     // alguno perdió el precio.
     totalCents: cartTotal(items),
     whatsappAvailable: event.contactPhone !== null,
-    request: request === null ? null : toOpenCartRequest(request, event.contactPhone),
+    request: request === null ? null : toBuyerCartRequest(request, event.contactPhone),
   };
 }
 
 /**
  * La solicitud abierta con su referencia y el enlace que el comprador ya puede reabrir tras recargar
  * (ciclo 4e). El teléfono **no** se publica como campo: solo se compone dentro del enlace.
+ *
+ * Desde B9 es la base de `toBuyerCartRequest`, que añade el registro.
  */
 export function toOpenCartRequest(
   request: OpenCartRequestRecord,
@@ -368,6 +373,26 @@ export function toOpenCartRequest(
       contactPhone === null
         ? null
         : whatsappRequestUrl(contactPhone, cartRequestMessage(reference)),
+  };
+}
+
+/**
+ * La solicitud abierta con su registro (ciclo B9): la misma referencia y el mismo enlace de 4e, más la
+ * instantánea con el estado derivado de cada artículo y el importe vigente.
+ *
+ * `totalCents` **no** es el importe congelado del panel: es lo que el comprador pagaría hoy, con los
+ * artículos despublicados, vendidos o eliminados en `0` y un `price_changed` a su precio actual.
+ * `hasChanges` usa la misma función pura que el panel, así que los dos lectores no pueden discrepar.
+ */
+export function toBuyerCartRequest(
+  request: OpenCartRequestRecord,
+  contactPhone: string | null,
+): BuyerCartRequest {
+  return {
+    ...toOpenCartRequest(request, contactPhone),
+    items: request.items,
+    totalCents: cartRequestAvailableTotal(request.items),
+    hasChanges: cartRequestHasChanges(request.items),
   };
 }
 
@@ -392,7 +417,7 @@ export function toCartRequestSummary(record: CartRequestRecord): CartRequestSumm
     buyerName: record.buyerName,
     itemCount: items.length,
     items,
-    hasChanges: items.some((item) => item.state !== 'current'),
+    hasChanges: cartRequestHasChanges(items),
     // B1: la instantánea guarda `price_cents_snapshot NOT NULL`, así que la suma siempre existe. El
     // `?? 0` solo satisface el tipo de `cartTotal`; no hay un caso real de precio nulo aquí.
     totalCents: cartTotal(record.items) ?? 0,

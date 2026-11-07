@@ -1,12 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { formatPriceCents, type CartItem } from '@mudanzapp/shared';
+import {
+  cartRequestItemAmount,
+  formatPriceCents,
+  type BuyerCartRequest,
+  type CartItem,
+  type CartRequestItem,
+} from '@mudanzapp/shared';
 
 import { SHOP_OAUTH_FLOW } from '../session/shop-oauth-flow';
 import { shopAccountFailureMessage } from '../session/shop-oauth-message';
 import { saveShopReturnTo } from '../session/shop-return-to';
 import { ShopSessionStore } from '../session/shop-session.store';
 import { ShopCartStore } from './shop-cart.store';
+
+/** El instante de la solicitud, con la zona del dispositivo y sin inventar el huso del evento. */
+const REQUEST_DATE = new Intl.DateTimeFormat('es-MX', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
 
 /**
  * El carrito de seleccionados y la solicitud por WhatsApp (ciclo 4e, `cart-request`).
@@ -94,6 +106,70 @@ export class ShopCartComponent {
 
   protected async cancel(): Promise<void> {
     await this.cart.cancelRequest();
+  }
+
+  /**
+   * Los renglones del registro, o `null` cuando el borde es anterior a B9 y publica la solicitud sin
+   * `items`. La pantalla degrada al aviso de 4e: no inventa una lista vacía ni pinta `NaN`.
+   */
+  protected requestItems(request: BuyerCartRequest): readonly CartRequestItem[] | null {
+    const published: unknown = request.items;
+    return Array.isArray(published) ? (published as readonly CartRequestItem[]) : null;
+  }
+
+  /** El instante de la solicitud en la zona del dispositivo; el contrato lo publica en ISO. */
+  protected requestDateLabel(request: BuyerCartRequest): string {
+    return REQUEST_DATE.format(new Date(request.requestedAt));
+  }
+
+  protected requestCountLabel(request: BuyerCartRequest): string {
+    const count = this.requestItems(request)?.length ?? 0;
+    return count === 1 ? '1 artículo' : `${String(count)} artículos`;
+  }
+
+  /**
+   * El importe vigente que el borde ya derivó (B9): los no disponibles suman cero y un precio cambiado
+   * suma el de hoy. `null` cuando el campo no viene; la pantalla no lo recalcula por su cuenta.
+   */
+  protected requestTotalLabel(request: BuyerCartRequest): string | null {
+    const published: unknown = request.totalCents;
+    return typeof published === 'number' && Number.isFinite(published)
+      ? formatPriceCents(published, this.cart.currency())
+      : null;
+  }
+
+  protected requestAmountLabel(item: CartRequestItem): string {
+    return formatPriceCents(cartRequestItemAmount(item), this.cart.currency());
+  }
+
+  /** El precio que se pidió, solo cuando el de hoy es otro; el importe del renglón ya es el de hoy. */
+  protected requestPreviousPriceLabel(item: CartRequestItem): string | null {
+    return item.state === 'price_changed'
+      ? `Antes: ${formatPriceCents(item.priceCents, this.cart.currency())}`
+      : null;
+  }
+
+  /**
+   * La nota de precio del §5 del plan: se lee en el resumen, sin expandir, y es texto —no solo color—.
+   * Solo cuenta un `state` conocido: un borde anterior a B8 no la enciende por accidente.
+   */
+  protected requestHasPriceChange(request: BuyerCartRequest): boolean {
+    return this.requestItems(request)?.some((item) => item.state === 'price_changed') ?? false;
+  }
+
+  protected requestItemStateLabel(item: CartRequestItem): string {
+    switch (item.state) {
+      case 'unpublished':
+        return 'Despublicado';
+      case 'sold':
+        return 'Vendido';
+      case 'deleted':
+        return 'Eliminado';
+      case 'price_changed':
+        return 'Precio cambiado';
+      default:
+        return 'Vigente';
+    }
   }
 
   /** Entrar desde el carrito vuelve al carrito, no a `/cuenta` (extensión de 4d). */

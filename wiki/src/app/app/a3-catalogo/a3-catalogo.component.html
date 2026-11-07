@@ -194,6 +194,14 @@
         referencia.
       </li>
       <li>
+        El comprador relee su solicitud <strong>abierta</strong> como un registro: los artículos que
+        pidió con su precio de entonces, el estado de cada uno frente al catálogo de hoy —vigente,
+        despublicado, vendido, eliminado o precio cambiado— y el <strong>importe vigente</strong>,
+        donde lo que ya no está disponible suma cero y un precio cambiado suma el de hoy. El card
+        nace colapsado y avisa «Atención, al menos uno de los artículos cambió de precio.» cuando
+        alguno cambió; el historial de solicitudes cerradas no existe.
+      </li>
+      <li>
         El mensaje lleva <strong>solo</strong> la referencia de la solicitud, derivada de su
         identificador y no guardada. La conversación sigue fuera de la aplicación.
       </li>
@@ -208,8 +216,9 @@
       </li>
     </ul>
     <p class="text-xs text-slate-500">
-      El estado de la solicitud frente al catálogo actual y su aviso en el panel viven en
-      <a class="underline" routerLink="/app/a1-administracion">Administración (A1)</a>.
+      El mismo estado por artículo alimenta el aviso del panel del vendedor, que vive en
+      <a class="underline" routerLink="/app/a1-administracion">Administración (A1)</a>: se deriva
+      una sola vez y ninguno de los dos lectores lo recalcula.
     </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">shared/src/cart.ts</code>,

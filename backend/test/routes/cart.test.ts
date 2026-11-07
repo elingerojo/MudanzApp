@@ -267,6 +267,69 @@ describe('public cart', () => {
       await app.close();
     }
   });
+
+  it('publishes the open request with each item state and the amount that is still available', async () => {
+    const { app } = await start({
+      sessions: [BUYER],
+      listings: [AVAILABLE, UNPUBLISHED, SOLD, REPRICED],
+      openRequest: true,
+      contactPhone: PHONE,
+      requestItems: [
+        { listingId: AVAILABLE.listingId, title: AVAILABLE.title, priceCents: 125_000 },
+        { listingId: UNPUBLISHED.listingId, title: UNPUBLISHED.title, priceCents: 45_000 },
+        { listingId: SOLD.listingId, title: SOLD.title, priceCents: 90_000 },
+        { listingId: REPRICED.listingId, title: REPRICED.title, priceCents: 125_000 },
+        { listingId: null, title: 'Cama', priceCents: 50_000 },
+      ],
+    });
+
+    try {
+      const response = await fetch(`${app.baseUrl}${cartUrl()}`, {
+        headers: bearer(BUYER.token),
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        readonly cart: {
+          readonly request: {
+            readonly reference: string;
+            readonly whatsappUrl: string | null;
+            readonly totalCents: number;
+            readonly hasChanges: boolean;
+            readonly items: readonly {
+              readonly title: string;
+              readonly priceCents: number;
+              readonly state: string;
+              readonly currentPriceCents: number | null;
+            }[];
+          } | null;
+        };
+      };
+
+      const request = payload.cart.request;
+      expect(request).not.toBeNull();
+      expect(request?.reference).toHaveLength(8);
+      expect(request?.whatsappUrl).toContain(`https://wa.me/${PHONE}?text=`);
+      expect(request?.items.map((item) => [item.title, item.state])).toEqual([
+        ['Silla', 'current'],
+        ['Ropero', 'unpublished'],
+        ['Mesa', 'sold'],
+        ['Sofá', 'price_changed'],
+        ['Cama', 'deleted'],
+      ]);
+
+      // B9: la instantánea no se toca; el importe vigente descarta lo que ya no está disponible.
+      expect(request?.items[1]?.priceCents).toBe(45_000);
+      expect(request?.items[3]?.priceCents).toBe(125_000);
+      expect(request?.items[3]?.currentPriceCents).toBe(REPRICED.priceCents);
+      // Silla al precio de la instantánea y Sofá al precio de **hoy**; despublicado, vendido y eliminado
+      // suman cero.
+      expect(request?.totalCents).toBe(125_000 + 99_000);
+      expect(request?.hasChanges).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
 });
 
 describe('cart request', () => {
@@ -345,6 +408,57 @@ describe('cart request', () => {
       };
       expect(repeated.request.reference).toBe(created.request.reference);
       expect(harness.state.requests).toHaveLength(1);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('answers the request with the same record the cart read publishes', async () => {
+    const { app } = await start({
+      sessions: [BUYER],
+      listings: [AVAILABLE],
+      cartItems: [AVAILABLE.listingId],
+      contactPhone: PHONE,
+    });
+
+    try {
+      const created = await fetch(`${app.baseUrl}${cartUrl()}/request`, {
+        method: 'POST',
+        headers: bearer(BUYER.token),
+      });
+      expect(created.status).toBe(201);
+      const issued = (await created.json()) as {
+        readonly request: {
+          readonly reference: string;
+          readonly totalCents: number;
+          readonly hasChanges: boolean;
+          readonly items: readonly {
+            readonly title: string;
+            readonly priceCents: number;
+            readonly state: string;
+            readonly currentPriceCents: number | null;
+          }[];
+        };
+      };
+
+      expect(issued.request.items).toEqual([
+        {
+          title: AVAILABLE.title,
+          priceCents: AVAILABLE.priceCents,
+          state: 'current',
+          currentPriceCents: AVAILABLE.priceCents,
+        },
+      ]);
+      expect(issued.request.totalCents).toBe(AVAILABLE.priceCents);
+      expect(issued.request.hasChanges).toBe(false);
+
+      // B9: la recarga publica exactamente lo mismo que el acto. El `POST` relee la solicitud con la
+      // misma consulta del `GET`, así que el comprador no ve dos formas del mismo hecho.
+      const read = await fetch(`${app.baseUrl}${cartUrl()}`, {
+        headers: bearer(BUYER.token),
+      });
+      const payload = (await read.json()) as { readonly cart: { readonly request: unknown } };
+      expect(payload.cart.request).toEqual(issued.request);
     } finally {
       await app.close();
     }

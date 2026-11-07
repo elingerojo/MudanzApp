@@ -94,33 +94,97 @@
   }
 
   @if (cart.openRequest(); as request) {
-    <div class="space-y-2 rounded-lg bg-emerald-50 p-3" data-testid="cart-requested">
-      <p class="text-sm text-emerald-900">
-        Solicitud <span class="font-mono text-xs">{{ request.reference }}</span> enviada. El
-        vendedor la verá en su panel.
-      </p>
+    <!-- El card nace colapsado: referencia, fecha, número de artículos e importe vigente en el resumen.
+         El `<details>` nativo da el despliegue con teclado y lector de pantalla, sin estado propio. -->
+    <details class="rounded-lg bg-emerald-50 p-3" data-testid="cart-requested">
+      <summary class="cursor-pointer space-y-1" data-testid="cart-request-summary">
+        <p class="text-sm text-emerald-900">
+          Solicitud <span class="font-mono text-xs">{{ request.reference }}</span>
+        </p>
+        <p class="text-xs text-emerald-900" data-testid="cart-request-date">
+          {{ requestDateLabel(request) }} · {{ requestCountLabel(request) }}
+        </p>
 
-      @if (request.whatsappUrl; as url) {
-        <a
-          [href]="url"
-          target="_blank"
-          rel="noopener"
-          class="inline-block text-sm font-medium text-emerald-900 underline"
-          data-testid="cart-whatsapp"
+        @if (requestTotalLabel(request); as total) {
+          <p class="text-sm font-semibold text-emerald-900" data-testid="cart-request-total">
+            {{ total }}
+          </p>
+        }
+
+        @if (requestHasPriceChange(request)) {
+          <p class="text-xs font-medium text-amber-900" data-testid="cart-request-price-notice">
+            Atención, al menos uno de los artículos cambió de precio.
+          </p>
+        }
+      </summary>
+
+      <div class="mt-3 space-y-3">
+        @if (requestItems(request); as items) {
+          <h3 class="text-sm font-semibold text-emerald-900">Registro de Artículos solicitados</h3>
+
+          <ul class="divide-y divide-emerald-200" data-testid="cart-request-items">
+            @for (item of items; track $index) {
+              <li class="space-y-1 py-2" data-testid="cart-request-item">
+                <p class="text-sm font-medium text-slate-900">{{ item.title }}</p>
+                <p class="text-sm text-slate-700" data-testid="cart-request-item-amount">
+                  {{ requestAmountLabel(item) }}
+                </p>
+
+                @if (requestPreviousPriceLabel(item); as before) {
+                  <p class="text-xs text-slate-600">{{ before }}</p>
+                }
+
+                <span
+                  class="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900"
+                  [attr.data-testid]="'cart-request-item-state-' + item.state"
+                >
+                  {{ requestItemStateLabel(item) }}
+                </span>
+              </li>
+            }
+          </ul>
+
+          <p class="flex items-baseline justify-between border-t border-emerald-200 pt-2">
+            <span class="text-sm font-medium text-emerald-900">Total</span>
+            <span
+              class="text-base font-semibold text-emerald-900"
+              data-testid="cart-request-record-total"
+            >
+              {{ requestTotalLabel(request) }}
+            </span>
+          </p>
+
+          <p class="text-xs text-emerald-900">
+            Los artículos despublicados, vendidos o eliminados no suman al importe de la solicitud.
+          </p>
+        } @else {
+          <p class="text-sm text-emerald-900">
+            Solicitud enviada. El vendedor la verá en su panel.
+          </p>
+        }
+
+        @if (request.whatsappUrl; as url) {
+          <a
+            [href]="url"
+            target="_blank"
+            rel="noopener"
+            class="inline-block text-sm font-medium text-emerald-900 underline"
+            data-testid="cart-whatsapp"
+          >
+            Abrir WhatsApp
+          </a>
+        }
+
+        <button
+          type="button"
+          class="block text-sm text-red-600 hover:bg-red-50"
+          (click)="cancel()"
+          data-testid="cart-request-cancel"
         >
-          Abrir WhatsApp
-        </a>
-      }
-
-      <button
-        type="button"
-        class="block text-sm text-red-600 hover:bg-red-50"
-        (click)="cancel()"
-        data-testid="cart-request-cancel"
-      >
-        Cancelar solicitud
-      </button>
-    </div>
+          Cancelar solicitud
+        </button>
+      </div>
+    </details>
   } @else if (hasSession() && cart.items().length > 0) {
     <button
       type="button"

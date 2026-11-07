@@ -58,6 +58,12 @@ const REQUESTED: PublicCart = {
     reference: 'ab12cd34',
     requestedAt: '2026-11-04T19:00:00.000Z',
     whatsappUrl: 'https://wa.me/525512345678?text=hola',
+    items: [
+      { title: 'Silla', priceCents: 125_000, state: 'current', currentPriceCents: 125_000 },
+      { title: 'Mesa', priceCents: 90_000, state: 'current', currentPriceCents: 90_000 },
+    ],
+    totalCents: 215_000,
+    hasChanges: false,
   },
 };
 
@@ -232,5 +238,30 @@ describe('ShopCartStore', () => {
     // La respuesta del acto ya publica la solicitud abierta: no hace falta otra lectura.
     expect(store.openRequest()?.reference).toBe('ab12cd34');
     expect(store.openRequest()?.whatsappUrl).toBe(REQUESTED.request?.whatsappUrl);
+    // B9: el acto devuelve también el registro, así que el card aparece sin esperar una recarga.
+    expect(store.openRequest()?.items).toHaveLength(2);
+    expect(store.openRequest()?.totalCents).toBe(215_000);
+  });
+
+  it('keeps the request record through the read and a later write', async () => {
+    store.open(PUBLIC_SLUG);
+    await signIn();
+
+    httpTesting.expectOne(CART_URL).flush({ cart: REQUESTED });
+    await tick();
+
+    expect(store.openRequest()?.items).toHaveLength(2);
+
+    // La limpieza de una fila despublicada escribe el carrito entero; la respuesta no puede perder el
+    // registro que la lectura acababa de publicar.
+    const pending = store.toggle('mesa');
+    httpTesting.expectOne({ method: 'PUT', url: CART_URL }).flush({
+      cart: { ...REQUESTED, items: [REQUESTED.items[0]!], totalCents: 125_000 },
+      dropped: [],
+    });
+    await pending;
+
+    expect(store.openRequest()?.reference).toBe('ab12cd34');
+    expect(store.openRequest()?.items).toHaveLength(2);
   });
 });

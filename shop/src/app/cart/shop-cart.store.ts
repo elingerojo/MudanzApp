@@ -157,7 +157,11 @@ export class ShopCartStore {
     return published !== null && !(typeof published === 'number' && Number.isFinite(published));
   });
 
-  /** Es lo que habilita `Pídelos por WhatsApp`: el número del vendedor existe. */
+  /**
+   * Es lo que habilita `Pídelos por WhatsApp`: el número del vendedor existe. Desde B9 la solicitud
+   * abierta trae también su registro —renglones, estado e importe vigente—, así que esta señal es la
+   * única fuente del card.
+   */
   readonly whatsappAvailable = computed(() => this.cart()?.whatsappAvailable ?? false);
   readonly openRequest = computed(() => this.cart()?.request ?? null);
 

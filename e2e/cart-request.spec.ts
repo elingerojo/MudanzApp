@@ -208,7 +208,21 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     await expect(ask).toBeEnabled();
     await ask.click();
 
+    // 4a. B9: la solicitud se relee como un registro. El card nace colapsado y su resumen ya publica la
+    // referencia, el número de artículos y el importe vigente.
     await expect(shopPage.getByTestId('cart-requested')).toBeVisible();
+    await expect(shopPage.getByTestId('cart-request-summary')).toContainText('1 artículo');
+    await expect(shopPage.getByTestId('cart-request-total')).toContainText('$1,250.00 MXN');
+
+    await shopPage.getByTestId('cart-request-summary').click();
+    await expect(shopPage.getByTestId('cart-requested')).toContainText(
+      'Registro de Artículos solicitados',
+    );
+    await expect(shopPage.getByTestId('cart-request-item-state-current')).toHaveText('Vigente');
+    await expect(shopPage.getByTestId('cart-request-item-amount')).toContainText('$1,250.00 MXN');
+    await expect(shopPage.getByTestId('cart-request-record-total')).toContainText('$1,250.00 MXN');
+    // La nota de precio solo aparece cuando algo cambió.
+    await expect(shopPage.getByTestId('cart-request-price-notice')).toHaveCount(0);
     await expect(shopPage.getByTestId('cart-whatsapp')).toHaveAttribute(
       'href',
       new RegExp(`^https://wa\\.me/${PHONE}\\?text=`),
@@ -223,6 +237,15 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     await shopPage.reload();
     await expect(shopPage.getByTestId('cart-unpublished')).toContainText('Silla de la sala');
     await expect(shopPage.getByTestId(`cart-item-${slug}`)).toHaveCount(0);
+
+    // 4c. B9: la selección vacía no borra el registro. La solicitud conserva su instantánea y el
+    // comprador ve que el artículo ya no está disponible: el renglón y el importe vigente valen cero.
+    await shopPage.getByTestId('cart-request-summary').click();
+    await expect(shopPage.getByTestId('cart-request-item-state-unpublished')).toHaveText(
+      'Despublicado',
+    );
+    await expect(shopPage.getByTestId('cart-request-item-amount')).toContainText('$0.00 MXN');
+    await expect(shopPage.getByTestId('cart-request-record-total')).toContainText('$0.00 MXN');
   } finally {
     await shopContext.close();
   }

@@ -1076,6 +1076,11 @@ Reglas del crecimiento:
   `price_changed`— con `LEFT JOIN app.listing`/`app.item`, publica `hasChanges` y el panel del
   vendedor muestra el aviso y la causa por artículo. Sin migración: `listing_id` ya sobrevive a la
   despublicación y queda nulo al borrar. El carrito, el comprador y el mensaje de WhatsApp no cambian.
+  **Actualización del corte B9 (2026-11-07):** el comprador lee su solicitud **abierta** como un
+  registro —la instantánea con el estado derivado de B8, una sola derivación para los dos lectores— con
+  su **importe vigente**: lo despublicado, vendido o eliminado suma `0` y un `price_changed` suma su
+  precio de hoy, con la nota `Atención, al menos uno de los artículos cambió de precio.` cuando alguno
+  cambió. El historial de solicitudes cerradas queda fuera y el importe congelado del panel no cambia.
 - **Implementada por:** el corte del ciclo 4e (`plan-ciclo-4e-carrito-seleccionados-whatsapp`), migración
   `010`; **4f queda absorbido**.
 - **Revisión `live` del dueño, 2026-11-05:** el número se fija desde el dashboard del evento; el visitante

@@ -114,22 +114,22 @@ esto agrega funcionalidad; todo cambia la forma.
 Regla: **un destino nace con su capacidad**. La barra se dibuja cuando hay dos o más destinos; hoy no
 hace falta inventar entradas para pantallas que no existen.
 
-| Ruta                                  | Superficie | Capacidad                                                                               | Ciclo       | Estado       |
-| ------------------------------------- | ---------- | --------------------------------------------------------------------------------------- | ----------- | ------------ |
-| `/`                                   | `frontend` | marco público: sesión, dispositivo, estado y entrada al canje                           | 3a          | se construye |
-| `/invitacion?token=`                  | `frontend` | `invite`                                                                                | 3a          | se construye |
-| `/eventos/:eventId`                   | `frontend` | `capture`: pestaña **Captura**                                                          | 3a y 3d     | se construye |
-| `/eventos/:eventId/capturados`        | `frontend` | pestaña **Capturados**: los artículos con su estado                                     | 3d          | se construyó |
-| `/eventos/:eventId/articulos/:itemId` | `frontend` | `item-edit`: edición de la ficha desde `Capturados`                                     | 4b          | se construyó |
-| `/eventos/:eventId/dashboard`         | `frontend` | `event-admin`: panel con `Acceso` (co-dispositivos y enlaces) y `Capturas` (`Eliminar`) | 4c-2 a 4c-4 | se construyó |
-| `/eventos`                            | `frontend` | `event-selector`: elección de la mudanza cuando la cuenta tiene varias                  | D2          | se construyó |
-| `/:slug` del artículo                 | `shop`     | `publish` y `item-edit`: precio, snapshot y estado `Vendido`                            | 3c y 4b     | se construyó |
-| `/evento/:publicSlug`                 | `shop`     | `event-index`: índice público del evento                                                | 4a          | se construyó |
-| `/cuenta`                             | `shop`     | `shop-account`: acceso o registro del visitante y nombre opcional                       | 4d          | se construyó |
-| `/auth/callback`                      | `shop`     | `shop-account`: vuelta pública del proveedor                                            | 4d          | se construyó |
-| `/carrito/:publicSlug`                | `shop`     | `cart-request`: seleccionados, y `Pídelos por WhatsApp`                                 | 4e          | se construyó |
-| cuenta y recordatorio 4/11/21         | `frontend` | `account-upgrade`                                                                       | 5           | no existe    |
-| empaque, cotización y verificación    | `frontend` | `packing`, `quote-brief`, `receive-check`                                               | 6           | no existe    |
+| Ruta                                  | Superficie | Capacidad                                                                                                                            | Ciclo       | Estado       |
+| ------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------------ |
+| `/`                                   | `frontend` | marco público: sesión, dispositivo, estado y entrada al canje                                                                        | 3a          | se construye |
+| `/invitacion?token=`                  | `frontend` | `invite`                                                                                                                             | 3a          | se construye |
+| `/eventos/:eventId`                   | `frontend` | `capture`: pestaña **Captura**                                                                                                       | 3a y 3d     | se construye |
+| `/eventos/:eventId/capturados`        | `frontend` | pestaña **Capturados**: los artículos con su estado                                                                                  | 3d          | se construyó |
+| `/eventos/:eventId/articulos/:itemId` | `frontend` | `item-edit`: edición de la ficha desde `Capturados`                                                                                  | 4b          | se construyó |
+| `/eventos/:eventId/dashboard`         | `frontend` | `event-admin`: panel con `Acceso` (co-dispositivos y enlaces) y `Capturas` (`Eliminar`)                                              | 4c-2 a 4c-4 | se construyó |
+| `/eventos`                            | `frontend` | `event-selector`: elección de la mudanza cuando la cuenta tiene varias                                                               | D2          | se construyó |
+| `/:slug` del artículo                 | `shop`     | `publish` y `item-edit`: precio, snapshot y estado `Vendido`                                                                         | 3c y 4b     | se construyó |
+| `/evento/:publicSlug`                 | `shop`     | `event-index`: índice público del evento                                                                                             | 4a          | se construyó |
+| `/cuenta`                             | `shop`     | `shop-account`: acceso o registro del visitante y nombre opcional                                                                    | 4d          | se construyó |
+| `/auth/callback`                      | `shop`     | `shop-account`: vuelta pública del proveedor                                                                                         | 4d          | se construyó |
+| `/carrito/:publicSlug`                | `shop`     | `cart-request` y `request-record`: seleccionados, `Pídelos por WhatsApp` y el registro de la solicitud abierta en un card colapsable | 4e y B9     | se construyó |
+| cuenta y recordatorio 4/11/21         | `frontend` | `account-upgrade`                                                                                                                    | 5           | no existe    |
+| empaque, cotización y verificación    | `frontend` | `packing`, `quote-brief`, `receive-check`                                                                                            | 6           | no existe    |
 
 > **Nota (ciclo 3b):** `shop` existe como artefacto desde el ciclo 3b —workspace, puerto `4202` y
 > Worker `mudanzapp-shop`— con `/` servido por el humo de estado. Las filas de `shop` quedaron en «no

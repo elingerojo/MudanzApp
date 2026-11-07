@@ -44,8 +44,19 @@ export type CartableListing = {
   readonly unpublishedAt: Date | null;
 };
 
-/** La solicitud **abierta** de un carrito: sin descartar y sin cancelar. */
+/** La solicitud **abierta** de un carrito: sin descartar y sin cancelar, con su registro (B9). */
 export type OpenCartRequestRecord = {
+  readonly id: string;
+  readonly requestedAt: Date;
+  /** Instantánea del momento de pedir con el estado derivado de hoy, en el orden `position`. */
+  readonly items: readonly CartRequestItem[];
+};
+
+/**
+ * La solicitud recién insertada. Su instantánea se lee con `findOpenCartRequest`, que es la única
+ * derivación; el insert no la reconstruye por su cuenta (ciclo B9).
+ */
+export type CreatedCartRequest = {
   readonly id: string;
   readonly requestedAt: Date;
 };
@@ -214,17 +225,55 @@ export async function replaceCart(
   return cart.id;
 }
 
-/** La solicitud abierta del carrito, o `null`. Es lo que hace idempotente el reintento del comprador. */
+/**
+ * La instantánea de una solicitud con el estado que el catálogo de hoy le da (ciclos B8 y B9).
+ *
+ * Es una **sola** derivación para los dos lectores —el panel del vendedor y el registro del
+ * comprador—: cambiar el orden del `CASE` o un `JOIN` cambia las dos lecturas a la vez. El alias
+ * exterior es `r`, así que quien la interpola nombra `app.cart_request r`.
+ */
+const CART_REQUEST_SNAPSHOT_SQL = `SELECT json_agg(
+                  json_build_object(
+                    'title', item.title_snapshot,
+                    'priceCents', item.price_cents_snapshot,
+                    'state', CASE
+                      WHEN item.listing_id IS NULL THEN 'deleted'
+                      WHEN listing.unpublished_at IS NOT NULL THEN 'unpublished'
+                      WHEN listing.sold_at IS NOT NULL THEN 'sold'
+                      WHEN i.price_cents IS DISTINCT FROM item.price_cents_snapshot THEN 'price_changed'
+                      ELSE 'current'
+                    END,
+                    'currentPriceCents', i.price_cents
+                  )
+                  ORDER BY item.position
+                ) AS list
+           FROM app.cart_request_item item
+           LEFT JOIN app.listing listing ON listing.id = item.listing_id
+           LEFT JOIN app.item i ON i.id = listing.item_id
+          WHERE item.request_id = r.id`;
+
+/**
+ * La solicitud abierta del carrito con su registro, o `null`. Es lo que hace idempotente el reintento
+ * del comprador y lo que el comprador lee en `/carrito/:publicSlug` (B9).
+ *
+ * Una solicitud sin artículos no existe por el DDL; el `COALESCE` la publica como lista vacía en vez de
+ * convertir la fila en un error de lectura.
+ */
 export async function findOpenCartRequest(
   database: Queryable,
   cartId: string,
 ): Promise<OpenCartRequestRecord | null> {
   const { rows } = await database.query<OpenCartRequestRecord>(
-    `SELECT id, requested_at AS "requestedAt"
-       FROM app.cart_request
-      WHERE cart_id = $1
-        AND dismissed_at IS NULL
-        AND cancelled_at IS NULL`,
+    `SELECT r.id,
+            r.requested_at AS "requestedAt",
+            COALESCE(snapshot.list, '[]'::json) AS "items"
+       FROM app.cart_request r
+       LEFT JOIN LATERAL (
+         ${CART_REQUEST_SNAPSHOT_SQL}
+       ) snapshot ON true
+      WHERE r.cart_id = $1
+        AND r.dismissed_at IS NULL
+        AND r.cancelled_at IS NULL`,
     [cartId],
   );
 
@@ -235,12 +284,15 @@ export async function findOpenCartRequest(
  * Inserta la solicitud y su instantánea. Las dos escrituras van en la misma transacción del borde: una
  * solicitud sin artículos no es un hecho, y el índice único parcial impide que dos peticiones
  * simultáneas dejen dos solicitudes abiertas.
+ *
+ * Devuelve la fila recién creada **sin** el registro: el borde lo relee con `findOpenCartRequest` para
+ * que el acto y una recarga publiquen exactamente la misma derivación (ciclo B9).
  */
 export async function insertCartRequest(
   database: Queryable,
   input: { readonly cartId: string; readonly items: readonly CartRequestItemSnapshot[] },
-): Promise<OpenCartRequestRecord> {
-  const { rows } = await database.query<OpenCartRequestRecord>(
+): Promise<CreatedCartRequest> {
+  const { rows } = await database.query<CreatedCartRequest>(
     `INSERT INTO app.cart_request (cart_id)
      VALUES ($1)
      RETURNING id, requested_at AS "requestedAt"`,
@@ -306,8 +358,7 @@ export async function listCartRequestsForEvent(
   eventId: string,
 ): Promise<readonly CartRequestRecord[]> {
   // B8: la instantánea se queda intacta y el estado actual se **deriva** aquí, al leer. El orden del
-  // `CASE` es explícito: un artículo borrado no puede leerse como despublicado, y uno que tuvo los dos
-  // actos conserva el primero que lo retiró del catálogo.
+  // `CASE` vive en `CART_REQUEST_SNAPSHOT_SQL`, que comparte con la lectura del comprador (B9).
   const { rows } = await database.query<CartRequestRecord>(
     `SELECT r.id,
             u.display_name AS "buyerName",
@@ -319,25 +370,7 @@ export async function listCartRequestsForEvent(
        JOIN app.cart c ON c.id = r.cart_id
        JOIN app."user" u ON u.id = c.user_id
        LEFT JOIN LATERAL (
-         SELECT json_agg(
-                  json_build_object(
-                    'title', item.title_snapshot,
-                    'priceCents', item.price_cents_snapshot,
-                    'state', CASE
-                      WHEN item.listing_id IS NULL THEN 'deleted'
-                      WHEN listing.unpublished_at IS NOT NULL THEN 'unpublished'
-                      WHEN listing.sold_at IS NOT NULL THEN 'sold'
-                      WHEN i.price_cents IS DISTINCT FROM item.price_cents_snapshot THEN 'price_changed'
-                      ELSE 'current'
-                    END,
-                    'currentPriceCents', i.price_cents
-                  )
-                  ORDER BY item.position
-                ) AS list
-           FROM app.cart_request_item item
-           LEFT JOIN app.listing listing ON listing.id = item.listing_id
-           LEFT JOIN app.item i ON i.id = listing.item_id
-          WHERE item.request_id = r.id
+         ${CART_REQUEST_SNAPSHOT_SQL}
        ) snapshot ON true
       WHERE c.event_id = $1
       ORDER BY r.requested_at DESC, r.id`,

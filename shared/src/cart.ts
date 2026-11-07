@@ -184,6 +184,8 @@ export function cartTotal(items: readonly Pick<CartItem, 'priceCents'>[]): numbe
  *
  * `whatsappUrl` es `null` solo si el vendedor quitó el número después de la solicitud. El enlace se
  * compone en el borde porque el teléfono no se publica como campo: el comprador lo ve al escribir.
+ *
+ * Desde B9 es la base de `BuyerCartRequest`, que añade el registro de artículos y el importe vigente.
  */
 export interface OpenCartRequest {
   readonly id: string;
@@ -215,7 +217,11 @@ export interface PublicCart {
   readonly totalCents: number | null;
   /** `app.event.contact_phone IS NOT NULL`: es lo que habilita `Pídelos por WhatsApp`. */
   readonly whatsappAvailable: boolean;
-  readonly request: OpenCartRequest | null;
+  /**
+   * La solicitud **abierta** con su registro (ciclo B9): renglones, estado derivado e importe vigente.
+   * `null` cuando no hay ninguna; una cancelada o descartada no se publica.
+   */
+  readonly request: BuyerCartRequest | null;
 }
 
 /**
@@ -233,11 +239,11 @@ export interface CartWriteResult {
 }
 
 /**
- * Resultado de pedir: la solicitud emitida, con su referencia y su enlace. Es la misma forma que la
- * lectura del carrito publica, así que recargar no pierde el enlace.
+ * Resultado de pedir: la solicitud emitida con la misma forma que la lectura del carrito publica
+ * (ciclo B9), así que el acto y una recarga dicen lo mismo.
  */
 export interface IssuedCartRequest {
-  readonly request: OpenCartRequest;
+  readonly request: BuyerCartRequest;
 }
 
 /**
@@ -265,6 +271,76 @@ export interface CartRequestItem {
   readonly priceCents: number;
   readonly state: CartRequestItemState;
   readonly currentPriceCents: number | null;
+}
+
+/**
+ * El importe de un renglón de la solicitud, en centavos (ciclo B9).
+ *
+ * Es la lectura **vigente**: lo que el artículo vale hoy para esta solicitud.
+ * - `current` — el precio de la instantánea, que sigue siendo el de hoy.
+ * - `price_changed` — el precio actual; `0` si el vendedor vació el precio, porque un artículo sin
+ *   precio no se puede comprar.
+ * - `unpublished`, `sold` y `deleted` — `0`: el artículo ya no está disponible y por eso no suma.
+ *
+ * La instantánea no se toca: `priceCents` sigue siendo el precio que se pidió y la pantalla lo lee como
+ * `Antes`. El importe congelado del panel es otro hecho y no pasa por aquí.
+ */
+export function cartRequestItemAmount(item: CartRequestItem): number {
+  if (item.state === 'current') {
+    return item.priceCents;
+  }
+
+  if (item.state === 'price_changed') {
+    return item.currentPriceCents ?? 0;
+  }
+
+  return 0;
+}
+
+/**
+ * El **importe vigente** de la solicitud: la suma de `cartRequestItemAmount` sobre sus renglones.
+ *
+ * No lee reloj ni base y no conoce la moneda; el texto lo compone `formatPriceCents` con la moneda del
+ * evento. La lista vacía suma `0`, y por eso nunca es `null`: a diferencia del carrito, la instantánea
+ * no guarda precios nulos y lo que no se puede comprar aporta cero.
+ */
+export function cartRequestAvailableTotal(items: readonly CartRequestItem[]): number {
+  let total = 0;
+
+  for (const item of items) {
+    total += cartRequestItemAmount(item);
+  }
+
+  return Number.isSafeInteger(total) ? total : 0;
+}
+
+/**
+ * `true` si algún renglón de la solicitud ya no coincide con el catálogo de hoy (ciclo B8/B9).
+ *
+ * Es la única agregación del estado y la comparten los dos lectores: el panel la usa para su aviso y el
+ * comprador para su nota. No viaja como una segunda regla en el SQL.
+ */
+export function cartRequestHasChanges(items: readonly CartRequestItem[]): boolean {
+  return items.some((item) => item.state !== 'current');
+}
+
+/**
+ * La solicitud **abierta** con su registro para el comprador (ciclo B9).
+ *
+ * Extiende `OpenCartRequest` —la referencia y el enlace que ya publicaba 4e— con la instantánea, el
+ * estado derivado de cada artículo y su importe vigente. No publica el comprador, `cart_id` ni
+ * identificadores internos: es su propia lectura.
+ */
+export interface BuyerCartRequest extends OpenCartRequest {
+  /** La instantánea en el orden en que se pidió, con el estado que el catálogo de hoy le da. */
+  readonly items: readonly CartRequestItem[];
+  /**
+   * El importe vigente: la suma de `cartRequestItemAmount`. Los artículos despublicados, vendidos o
+   * eliminados suman `0`; un `price_changed` suma su precio actual.
+   */
+  readonly totalCents: number;
+  /** `true` si algún renglón cambió; es lo que enciende la nota del card. */
+  readonly hasChanges: boolean;
 }
 
 /**
