@@ -15,6 +15,7 @@ import { API_BASE_URL } from '../../api-base-url.token';
 import { SessionStore } from '../../session/session.store';
 import { SHOP_BASE_URL } from '../../shop-base-url.token';
 import { EventItemsStore } from '../event-items.store';
+import { CartRequestsStore } from './cart-requests.store';
 import { DashboardComponent, type DashboardTabId } from './dashboard.component';
 import { DashboardStore } from './dashboard.store';
 
@@ -475,6 +476,26 @@ describe('DashboardComponent', () => {
     openTab(fixture, 'solicitudes');
 
     expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
+  });
+
+  it('replaces a pre-B1 payload on the focus reload without keeping a stale value', async () => {
+    // La secuencia observada en la revisión: el primer renglón llega sin el campo y el foco relee
+    // cuando el borde ya lo publica. No hay una lectura parcial de signals: cada payload es completo.
+    const stale = { ...CART_REQUEST, totalCents: undefined } as unknown as CartRequestSummary;
+    const fixture = await render([], ADMINISTRATOR, [], [ITEM], [stale]);
+
+    openTab(fixture, 'solicitudes');
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
+
+    TestBed.inject(CartRequestsStore).reload();
+    await tick();
+    httpTesting.expectOne(REQUESTS_URL).flush({
+      requests: [{ ...CART_REQUEST, totalCents: 470_000 }],
+    });
+    await tick();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $4,700.00 MXN');
   });
 
   it('dismisses a request in two touches and reloads the list', async () => {
