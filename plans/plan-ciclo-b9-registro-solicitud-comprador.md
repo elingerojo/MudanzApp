@@ -265,4 +265,4 @@ Vive en el árbol de trabajo y se cierra con su commit. La base de dev branch se
 - **Hallazgo a la bandeja:** `test/db/item-photos.test.ts` usa tres tokens fijos y no limpia sus
   sesiones, así que una segunda corrida contra el mismo sandbox choca con `session_token_hash_key`.
   Disparador: la próxima corrida de `test:api:db:branch` que no parta de un sandbox limpio.
-- **Commit del ciclo:** se anota al cerrar.
+- **Commit del ciclo:** `c899f42`.
