@@ -203,4 +203,4 @@ Vive en el árbol de trabajo y se cierra con su commit. La base de dev branch se
   `typecheck:e2e` y `test:e2e:branch`.
 - **Wiki:** delta del tile A1 (fila de solicitudes) y enlace desde A3; sin cambios en el contrato del
   comprador.
-- **Commit del ciclo:** <pendiente>.
+- **Commit del ciclo:** `8c22f0d`.
