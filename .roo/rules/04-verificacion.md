@@ -36,6 +36,8 @@ Comandos por tipo de corte (solo los que apliquen):
 Reglas de corrida:
 - Un comando por invocación.
 - Una sola corrida de verificación a la vez.
+- Un rojo que no ejerce el corte: limpia `frontend/.angular/cache` y repite una vez antes de
+  diagnosticar.
 - Nunca encadenar `npm test`.
 - La verificación es **proporcional al corte**: un spike no corre el gate completo; un corte
   vertical sí.

@@ -192,11 +192,9 @@ en el árbol de trabajo y se cierra con su commit convencional.
     se lee sin expandir; sin `state` no hay registro ni `NaN`; el importe congelado se conserva.
   - `e2e/cart-request.spec.ts` — el paso 5 expande `Registro de Artículos solicitados` y lee
     `Despublicado`, `Pidió: $1,250.00 MXN`, importe vigente `$0.00 MXN` y el total del registro.
-  - **Falso rojo del arnés, diagnosticado:** una primera corrida de `test:e2e:branch` falló al abrir
-    `/cuenta/evento` también en `event-admin.spec.ts`, que este corte no toca, con
-    `GET /events/:id/dashboard` en `200` y el chunk perezoso del panel sin pedirse. La causa era la
-    caché de build de `ng serve` (`frontend/.angular/cache`): tras `npx ng cache clean` el mismo
-    arnés pasó. Se registra en `plans/inbox.md` #9 como deuda del arnés, no del corte.
+  - **Falso rojo del arnés:** una corrida de `test:e2e:branch` falló al abrir `/cuenta/evento` por un
+    bundle viejo de `ng serve`; tras `npx ng cache clean` el arnés pasó. El protocolo queda en
+    `04-verificacion` y la automatización en `inbox` #9.
   - Gate en verde: `typecheck`, `lint`, `format:check`, `test:web:frontend` (194), `build:web:frontend`,
     `test:web:wiki` (13), `build:web:wiki`, `typecheck:e2e` y `test:e2e:branch` (23 passed, 40 skipped),
     con `db:migrate:branch:test` aplicado a mano antes de la suite.
