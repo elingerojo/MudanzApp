@@ -10,12 +10,13 @@ import { SessionStore } from '../../session/session.store';
 import { requireEventAdmin } from './dashboard.guard';
 
 /**
- * El guard del dashboard (ciclos 4c-2 y el diagnóstico del borde, decisión §37; corte D8).
+ * El guard de la administración del evento (ciclos 4c-2 y el diagnóstico del borde, decisión §37;
+ * cortes D8 y D10).
  *
  * Una salida por hecho y ninguna inventa el derecho: sin credencial, al canje; con `200`, entra; con
- * un fallo, vuelve a `Capturados` con `denied=dashboard` **y la familia del fallo**. Desde D8 el
- * evento sale de la sesión, así que la guarda espera a que la identidad deje de cargar antes de
- * decidir; sin evento, el camino es la portada.
+ * un fallo, vuelve a `Cuenta` con `denied=dashboard` **y la familia del fallo**. Desde D8 el evento
+ * sale de la sesión, así que la guarda espera a que la identidad deje de cargar antes de decidir;
+ * sin evento, el camino es la portada.
  */
 const DASHBOARD_URL = '/api/events/event-1/dashboard';
 
@@ -116,7 +117,7 @@ describe('requireEventAdmin', () => {
     expect(isUrlTree(result) && result.toString()).toBe('/');
   });
 
-  it('sends a forbidden session back to Capturados with the refusal in the URL', async () => {
+  it('sends a forbidden session back to Cuenta with the refusal in the URL', async () => {
     const result = decide(() => {
       httpTesting
         .expectOne(DASHBOARD_URL)
@@ -124,9 +125,7 @@ describe('requireEventAdmin', () => {
     });
 
     const tree = await result;
-    expect(isUrlTree(tree) && tree.toString()).toBe(
-      '/capturados?denied=dashboard&reason=forbidden',
-    );
+    expect(isUrlTree(tree) && tree.toString()).toBe('/cuenta?denied=dashboard&reason=forbidden');
   });
 
   it('tells an event the session cannot see apart from a refusal', async () => {
@@ -137,9 +136,7 @@ describe('requireEventAdmin', () => {
     });
 
     const tree = await result;
-    expect(isUrlTree(tree) && tree.toString()).toBe(
-      '/capturados?denied=dashboard&reason=not_found',
-    );
+    expect(isUrlTree(tree) && tree.toString()).toBe('/cuenta?denied=dashboard&reason=not_found');
   });
 
   it('does not pass a failed read off as a refusal', async () => {
@@ -150,9 +147,7 @@ describe('requireEventAdmin', () => {
     });
 
     const tree = await result;
-    expect(isUrlTree(tree) && tree.toString()).toBe(
-      '/capturados?denied=dashboard&reason=unavailable',
-    );
+    expect(isUrlTree(tree) && tree.toString()).toBe('/cuenta?denied=dashboard&reason=unavailable');
   });
 
   it('treats a network failure as an unavailable read, not as a refusal', async () => {
@@ -161,8 +156,6 @@ describe('requireEventAdmin', () => {
     });
 
     const tree = await result;
-    expect(isUrlTree(tree) && tree.toString()).toBe(
-      '/capturados?denied=dashboard&reason=unavailable',
-    );
+    expect(isUrlTree(tree) && tree.toString()).toBe('/cuenta?denied=dashboard&reason=unavailable');
   });
 });

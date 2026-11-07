@@ -11,10 +11,10 @@
 > §4; [`shop/README`](../shop/README.md:1); [`wiki/README`](../wiki/README.md:1);
 > [`indicador-carga-componente`](../.plans/indicador-carga-componente.md:1).
 >
-> **Última revisión:** 2026-11-06, E1 (`platform-admin`) cerrado en `0e917e6`; D8 (`shell-nav`)
+> **Última revisión:** 2026-11-07, E1 (`platform-admin`) cerrado en `0e917e6`; D8 (`shell-nav`)
 > cerrada en `2bbc7cb` y revisada `live` en remoto el 2026-11-06; D9 (`cuenta-ruta`) cerrada en
-> `b63a9db` y revisada `live` en remoto el 2026-11-06; `D10` abierta por decisión del dueño; workflow
-> de ciclos en vigor.
+> `b63a9db` y revisada `live` en remoto el 2026-11-06; D10 (`cuenta-evento`) planeada en
+> [`plan-ciclo-d10-cuenta-evento`](plan-ciclo-d10-cuenta-evento.md:1); workflow de ciclos en vigor.
 
 ## 0. Reglas de uso
 
@@ -41,18 +41,18 @@
 
 ## 1. Mapa rápido
 
-| Bloque | Qué agrupa                                               | Filas | Estado                                        |
-| ------ | -------------------------------------------------------- | ----- | --------------------------------------------- |
-| A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                                  |
-| B      | **Remanentes de 4f** y de la decisión §44                | 7     | Hechos pendientes con disparador              |
-| C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                               |
-| D      | Escala, rendimiento y UX                                 | 10    | `D8` y `D9` cerradas; `D10` decisión de dueño |
-| E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio            |
-| F      | Publicación, URL y venta                                 | 7     | Disparadores                                  |
-| G      | Cuenta e identidad                                       | 5     | Disparadores                                  |
-| H      | `wiki`, superficies y dossier                            | 3     | Deuda declarada                               |
-| T      | Tooling y arnés de pruebas                               | 4     | Habilita a los demás                          |
-| X      | Fuera de alcance o descartado con disparador             | 10    | **No recomendado** sin cambio de alcance      |
+| Bloque | Qué agrupa                                               | Filas | Estado                                   |
+| ------ | -------------------------------------------------------- | ----- | ---------------------------------------- |
+| A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                             |
+| B      | **Remanentes de 4f** y de la decisión §44                | 7     | Hechos pendientes con disparador         |
+| C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                          |
+| D      | Escala, rendimiento y UX                                 | 10    | `D8` y `D9` cerradas; `D10` planeada     |
+| E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio       |
+| F      | Publicación, URL y venta                                 | 7     | Disparadores                             |
+| G      | Cuenta e identidad                                       | 5     | Disparadores                             |
+| H      | `wiki`, superficies y dossier                            | 3     | Deuda declarada                          |
+| T      | Tooling y arnés de pruebas                               | 4     | Habilita a los demás                     |
+| X      | Fuera de alcance o descartado con disparador             | 10    | **No recomendado** sin cambio de alcance |
 
 ---
 
@@ -120,7 +120,7 @@ Lo que §39 reservaba para 4f y la revisión `live` de 4e dejaron como hecho pen
 | **D7**  | `srcset` responsivo y CDN de imágenes | Hoy se usa una `<img>` por tamaño explícito, no negociación de densidad                                                                                                                                                                           | `srcset`/`sizes` con las tres variantes ya almacenadas; el CDN de imágenes queda fuera y su disparador es un catálogo con decenas de tarjetas                                                                                                                                                                        | S     | [`3c-optimizar`](plan-ciclo-3c-optimizar-fotos.md:68) §7                                                                                         |
 | **D8**  | `shell-nav`                           | `cerrada 2bbc7cb 2026-11-06` — Una sola barra de navegación inferior con `Captura`, `Capturados` y `Cuenta` como destinos de nivel raíz: el evento deja de ser el contenedor de la navegación y las pantallas de detalle quedan fuera de la barra | Aplanar el mapa de rutas a destinos raíz y derivar la barra de una lista fija, no de la sesión. Los enlaces antiguos `/eventos/:eventId/...` quedan como redirecciones. El evento activo es la membresía más reciente mientras D2 abre el selector. Sin dependencias nuevas. Revisada `live` en remoto el 2026-11-06 | M     | Decisión del dueño 2026-11-06; [`estructura-ui`](estructura-ui-navegacion-mudanzapp.md:112) §4                                                   |
 | **D9**  | `cuenta-ruta`                         | `cerrada b63a9db 2026-11-06` — La Cuenta es una pantalla enlazable completa: identidad y estado del dispositivo —cuenta vinculada o no y rol en la mudanza activa—, vincular cuenta, invitar dispositivo, enlace del evento y cerrar sesión       | La ruta `/cuenta` con `requireSession` ya existe desde D8; el corte es el contenido de la pantalla y sus pruebas. El `deviceLabel` de la sesión no se publica: mostrarlo exigiría contrato nuevo. Sin backend. Revisada `live` en remoto el 2026-11-06                                                               | M     | Decisión del dueño 2026-11-06; D8                                                                                                                |
-| **D10** | `cuenta-evento`                       | La administración del evento —co-dispositivos, enlaces, solicitudes y capturas— deja de ser pestaña y pasa a vivir dentro de `Cuenta`                                                                                                             | Ruta hija de `Cuenta` con `requireEventAdmin`; el rechazo se enseña en la pantalla de cuenta                                                                                                                                                                                                                         | M     | Decisión del dueño 2026-11-06; D8                                                                                                                |
+| **D10** | `cuenta-evento`                       | `planeada plans/plan-ciclo-d10-cuenta-evento.md` — La administración del evento —co-dispositivos, enlaces, solicitudes y capturas— deja de ser una ruta hermana y pasa a vivir dentro de `Cuenta`                                                 | Ruta hija de `Cuenta` (`/cuenta/evento`) con `requireEventAdmin`; el rechazo se enseña en la pantalla de cuenta y `/dashboard` queda como redirección                                                                                                                                                                | M     | Decisión del dueño 2026-11-06; D8                                                                                                                |
 
 ---
 

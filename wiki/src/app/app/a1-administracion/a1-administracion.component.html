@@ -4,7 +4,7 @@
     title="Administración"
     route="app/a1-administracion"
     status="current"
-    verified="2026-11-06 · este ciclo"
+    verified="b63a9db · 2026-11-06"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -90,15 +90,16 @@
     <h3 class="text-base font-semibold text-slate-900">Administración de evento</h3>
     <p>
       Un evento lo administra quien lo reclama al autenticarse; la cuenta marcada como
-      administradora de plataforma entra igual. Una sesión de co-dispositivo no administra. La
-      pantalla vive en
-      <code class="font-mono text-xs">/eventos/:eventId/dashboard</code>.
+      administradora de plataforma entra igual. Una sesión de co-dispositivo no administra. Desde
+      D10 la pantalla vive en
+      <code class="font-mono text-xs">/cuenta/evento</code>, ruta hija de la Cuenta;
+      <code class="font-mono text-xs">/dashboard</code> y su alias conservan la redirección.
     </p>
     <p>
       El derecho <strong>no</strong> se deduce de la sesión: la guarda de la ruta pregunta al borde,
       que es el único que sabe quién administra, y solo traduce la respuesta. Un rechazo devuelve a
-      <code class="font-mono text-xs">Capturados</code> con la familia del fallo en la URL, así que
-      el rechazo se enseña en vez de esconder la pestaña.
+      <code class="font-mono text-xs">Cuenta</code> con la familia del fallo en la URL, así que el
+      rechazo se enseña en la pantalla que enlaza la administración.
     </p>
     <p>
       <code class="font-mono text-xs">GET /events/:eventId/dashboard</code> autoriza y pinta en una

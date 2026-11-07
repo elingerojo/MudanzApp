@@ -13,6 +13,10 @@
     </p>
   }
 
+  <!-- Corte D10: la guarda de la administración devuelve aquí con `denied=dashboard`. La Cuenta es
+       la dueña de la pantalla y por eso también la dueña del aviso. -->
+  <app-dashboard-denial />
+
   <app-ui-card title="Identidad y dispositivo">
     <div class="space-y-2">
       <p class="text-sm font-medium text-slate-900" data-testid="cuenta-identity">
@@ -53,10 +57,10 @@
         }
 
         <!-- Siempre visible: esconderlo exigiría que el cliente supiera quién administra antes de
-             pedirlo y el rechazo dejaría de ser la prueba de la frontera (decisión §37). D10 moverá
-             la administración dentro de esta pantalla. -->
+             pedirlo y el rechazo dejaría de ser la prueba de la frontera (decisión §37). Desde D10
+             la administración es la ruta hija `/cuenta/evento`. -->
         <a
-          routerLink="/dashboard"
+          routerLink="/cuenta/evento"
           class="block rounded px-2 py-1 text-sm text-slate-700 underline"
           data-testid="cuenta-dashboard-link"
         >

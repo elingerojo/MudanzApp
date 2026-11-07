@@ -4,7 +4,7 @@
     title="Actores y superficies"
     route="app/a0-superficies"
     status="current"
-    verified="2bbc7cb · 2026-11-06"
+    verified="b63a9db · 2026-11-06"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -104,11 +104,12 @@
         sesión: la puerta es la credencial que se escribe en la pantalla ·
         <code class="font-mono">/captura</code>, <code class="font-mono">/capturados</code> y
         <code class="font-mono">/cuenta</code> son los destinos de la barra inferior, con guarda de
-        sesión · <code class="font-mono">/articulos/:itemId</code> y
-        <code class="font-mono">/dashboard</code> son pantallas de detalle fuera de la barra, la
-        última con guarda de administración de evento. Las rutas
-        <code class="font-mono">/eventos/:eventId...</code> se conservan como redirecciones a los
-        destinos raíz.
+        sesión · <code class="font-mono">/cuenta/evento</code> es la administración del evento, hija
+        de la Cuenta y con guarda de administración de evento ·
+        <code class="font-mono">/articulos/:itemId</code> es la única pantalla de detalle fuera de
+        la barra. Las rutas <code class="font-mono">/eventos/:eventId...</code> y
+        <code class="font-mono">/dashboard</code> se conservan como redirecciones a sus equivalentes
+        raíz.
       </dd>
 
       <dt class="font-mono text-slate-500">shop</dt>
@@ -133,7 +134,7 @@
     </dl>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">frontend/src/app/app.routes.ts</code> y
-      <code class="font-mono">frontend/src/app/app.ts</code> (corte D8);
+      <code class="font-mono">frontend/src/app/app.ts</code> (cortes D8 y D10);
       <code class="font-mono">shop/src/app/app.routes.ts</code>.
     </p>
   </section>

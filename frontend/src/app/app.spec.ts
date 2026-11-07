@@ -95,7 +95,13 @@ describe('App with session', () => {
     expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBeNull();
   });
 
-  it('marks Cuenta while the dashboard detail is open', () => {
+  it('marks Cuenta while the event administration child is open', () => {
+    const fixture = render('/cuenta/evento');
+
+    expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('keeps Cuenta marked on the legacy dashboard alias', () => {
     const fixture = render('/dashboard');
 
     expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBe('page');

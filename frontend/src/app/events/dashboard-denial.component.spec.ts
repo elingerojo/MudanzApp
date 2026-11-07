@@ -4,11 +4,12 @@ import { provideRouter, Router, type UrlTree } from '@angular/router';
 import { DashboardDenialComponent } from './dashboard-denial.component';
 
 /**
- * El aviso del rechazo del dashboard (diagnóstico del borde, 2026-11-04; corte D8).
+ * El aviso del rechazo de la administración del evento (diagnóstico del borde, 2026-11-04; cortes D8
+ * y D10).
  *
- * Antes vivía en el marco del evento. Al desaparecer ese marco, la pantalla a la que la guarda
- * devuelve —`Capturados`— es su dueña. La familia del fallo viaja en la URL y se traduce sin afirmar
- * más de lo que el borde dijo.
+ * Antes vivía en el marco del evento. Desde D10 la pantalla a la que la guarda devuelve —`Cuenta`—
+ * es su dueña. La familia del fallo viaja en la URL y se traduce sin afirmar más de lo que el borde
+ * dijo.
  */
 describe('DashboardDenialComponent', () => {
   beforeEach(async () => {
@@ -21,7 +22,7 @@ describe('DashboardDenialComponent', () => {
   /** Monta el aviso con la URL que la guarda habría escrito. */
   function render(query: string) {
     const router = TestBed.inject(Router);
-    vi.spyOn(router, 'url', 'get').mockReturnValue(`/capturados${query}`);
+    vi.spyOn(router, 'url', 'get').mockReturnValue(`/cuenta${query}`);
     vi.spyOn(router, 'parseUrl').mockReturnValue({
       queryParams: Object.fromEntries(new URLSearchParams(query.replace(/^\?/, ''))),
     } as unknown as UrlTree);

@@ -27,7 +27,11 @@ import { DashboardStore } from './dashboard.store';
 import { EventContactComponent } from './event-contact.component';
 
 /**
- * Pantalla `Dashboard` del event-administrator (ciclos 4c-2 y 4c-3, decisión §37; corte D8).
+ * Pantalla de administración del evento (ciclos 4c-2 y 4c-3, decisión §37; cortes D8 y D10).
+ *
+ * Desde D10 vive en `/cuenta/evento`, como ruta hija de la Cuenta: el panel deja de ser una ruta
+ * hermana y la Cuenta es la que enlaza y la que enseña el rechazo. La guarda sigue preguntando al
+ * borde y el contenido no cambia.
  *
  * Muestra el hecho que el borde autorizó: quién administra, el enlace público, el contador de capturas,
  * los co-dispositivos con su acceso y los enlaces que el evento emitió. Los contadores **no** se piden

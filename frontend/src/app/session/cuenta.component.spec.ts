@@ -2,7 +2,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
+import {
+  ActivatedRoute,
+  convertToParamMap,
+  provideRouter,
+  Router,
+  type UrlTree,
+} from '@angular/router';
 import type { EventSummary, IdentityUser } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../api-base-url.token';
@@ -12,8 +18,9 @@ import { OAUTH_FLOW } from './oauth-flow';
 import { SessionStore } from './session.store';
 
 /**
- * La pantalla `Cuenta` (cortes D8 y D9): publica la identidad y el estado del dispositivo, el
- * trayecto y el enlace del evento, el acceso al dashboard y el cierre de sesión.
+ * La pantalla `Cuenta` (cortes D8, D9 y D10): publica la identidad y el estado del dispositivo, el
+ * trayecto y el enlace del evento, el acceso a la administración y el cierre de sesión; también es
+ * la dueña del aviso cuando la guarda de la administración rechaza al dispositivo.
  */
 const EVENT: EventSummary = {
   id: 'event-1',
@@ -100,7 +107,7 @@ describe('CuentaComponent', () => {
     expect(query(fixture, 'cuenta-device-role')?.textContent).toContain('administra este evento');
   });
 
-  it('says the device has no account and still offers the dashboard', () => {
+  it('says the device has no account and still offers the administration child route', () => {
     const fixture = render();
 
     expect(query(fixture, 'cuenta-identity')?.textContent).toContain(
@@ -108,8 +115,22 @@ describe('CuentaComponent', () => {
     );
     expect(query(fixture, 'cuenta-device')?.textContent).toContain('Sesión de dispositivo');
     expect(query(fixture, 'cuenta-device-role')?.textContent).toContain('sin cuenta vinculada');
-    expect(query(fixture, 'cuenta-dashboard-link')).not.toBeNull();
+    expect(query(fixture, 'cuenta-dashboard-link')?.getAttribute('href')).toBe('/cuenta/evento');
     expect(query(fixture, 'shell-invite-card')).not.toBeNull();
+  });
+
+  it('shows the administration refusal on the account screen', () => {
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'url', 'get').mockReturnValue('/cuenta?denied=dashboard&reason=forbidden');
+    vi.spyOn(router, 'parseUrl').mockReturnValue({
+      queryParams: { denied: 'dashboard', reason: 'forbidden' },
+    } as unknown as UrlTree);
+
+    const fixture = render();
+
+    expect(query(fixture, 'event-dashboard-denied')?.textContent).toContain(
+      'esta cuenta no administra el evento',
+    );
   });
 
   it('waits while the identity is not resolved instead of claiming an empty device', () => {

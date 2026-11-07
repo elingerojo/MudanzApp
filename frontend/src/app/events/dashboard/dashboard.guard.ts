@@ -8,7 +8,7 @@ import { SessionStore } from '../../session/session.store';
 import { DashboardStore } from './dashboard.store';
 
 /**
- * Puerta del dashboard del event-administrator (ciclo 4c-2, decisión §37; corte D8).
+ * Puerta de la administración del evento (ciclo 4c-2, decisión §37; cortes D8 y D10).
  *
  * El derecho **no** se deduce de la sesión: se pregunta al borde, que es el único que sabe quién
  * administra el evento. El guard solo traduce la respuesta.
@@ -18,8 +18,8 @@ import { DashboardStore } from './dashboard.store';
  * cargar antes de decidir. Sin evento, el camino de vuelta es la portada.
  *
  * - Sin credencial, el camino es el canje, igual que en `requireSession` (`/invitacion`).
- * - Un fallo devuelve a `Capturados` con `denied=dashboard` y la familia del fallo en la URL: el
- *   rechazo es el hecho que la hipótesis afirma, así que se enseña en vez de esconder la entrada.
+ * - Un fallo devuelve a `Cuenta` con `denied=dashboard` y la familia del fallo en la URL: desde D10
+ *   la Cuenta es la dueña de la administración y la que enseña el rechazo (antes era `Capturados`).
  * - `forbidden`, `not_found` o `unavailable` distinguen «el borde dijo que no» de «no lo alcanzo» de
  *   «la lectura falló» (diagnóstico del borde, 2026-11-04).
  */
@@ -46,7 +46,7 @@ export const requireEventAdmin: CanActivateFn = () => {
         return true;
       }
 
-      return router.createUrlTree(['/capturados'], {
+      return router.createUrlTree(['/cuenta'], {
         queryParams: { denied: 'dashboard', reason: dashboardDenial(result.code) },
       });
     }),

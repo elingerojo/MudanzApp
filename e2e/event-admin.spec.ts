@@ -11,13 +11,14 @@ import { attachCapture } from './support/attach-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
- * Evidencia de `event-admin` (ciclo 4c-2) y del control de acceso (ciclo 4c-3).
+ * Evidencia de `event-admin` (ciclo 4c-2), del control de acceso (ciclo 4c-3) y de la administración
+ * como hija de la Cuenta (corte D10).
  *
- * La hipótesis se recorre entera: la cuenta que se autentica desde el evento lo reclama y abre el
- * dashboard —con una fila de acceso por co-dispositivo, no la propia—; un co-dispositivo que pulsa la
- * pestaña vuelve a `Capturados` con el aviso porque el borde le responde `403`; el rey des-invita a un
- * dispositivo y ese token deja de servir; y cancela un enlace pendiente, tras lo cual el canje responde
- * `410 invitation_invalid`.
+ * La hipótesis se recorre entera: la cuenta que se autentica desde el evento lo reclama y abre la
+ * administración desde su Cuenta —con una fila de acceso por co-dispositivo, no la propia—; un
+ * co-dispositivo que la pide vuelve a `Cuenta` con el aviso porque el borde le responde `403`; el rey
+ * des-invita a un dispositivo y ese token deja de servir; y cancela un enlace pendiente, tras lo cual
+ * el canje responde `410 invitation_invalid`.
  *
  * **Límite declarado.** El verificador `fake` fija un sujeto, así que todas las cuentas del arnés son la
  * misma: aquí se demuestra el reclamo y el rechazo, no que una segunda cuenta no se lleve el evento. Eso
@@ -204,17 +205,18 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
   const secondStatus = await statusOf(secondDevice.sessionToken);
   expect([firstStatus, secondStatus].sort()).toEqual([200, 401]);
 
-  // 5. El co-dispositivo que sobrevive ve la pestaña y no entra: vuelve a `Capturados` con el aviso.
+  // 5. El co-dispositivo que sobrevive pide la administración y no entra: vuelve a `Cuenta` con el
+  //    aviso, que es la pantalla dueña desde D10.
   const survivorToken = firstStatus === 200 ? firstDevice.sessionToken : secondDevice.sessionToken;
   const context = await browser.newContext();
   try {
     const coDevice = await context.newPage();
     await seedSession(coDevice, survivorToken);
-    await coDevice.goto(`${FRONTEND_URL}/dashboard`);
+    await coDevice.goto(`${FRONTEND_URL}/cuenta/evento`);
 
     // La URL lleva la familia del fallo, no solo el aviso: un `500` no puede leerse como un rechazo
     // de autorización (diagnóstico del borde, 2026-11-04).
-    await expect(coDevice).toHaveURL(/\/capturados\?denied=dashboard&reason=forbidden$/);
+    await expect(coDevice).toHaveURL(/\/cuenta\?denied=dashboard&reason=forbidden$/);
     await expect(coDevice.getByTestId('event-dashboard-denied')).toContainText(
       'esta cuenta no administra el evento',
     );

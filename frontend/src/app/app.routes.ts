@@ -6,15 +6,17 @@ import { RedeemComponent } from './session/redeem.component';
 import { requireSession } from './session/session.guard';
 
 /**
- * Mapa de rutas del corte D8 (`plan-ciclo-d8-shell-nav` §5).
+ * Mapa de rutas de los cortes D8, D9 y D10.
  *
- * La superficie privada tiene tres destinos de nivel raíz —`/captura`, `/capturados` y `/cuenta`— y
- * dos pantallas de detalle fuera de la barra —`/articulos/:itemId` y `/dashboard`—. El evento ya no
- * está en la URL: se resuelve de la sesión, igual que el evento activo de `SessionStore`.
+ * La superficie privada tiene tres destinos de nivel raíz —`/captura`, `/capturados` y `/cuenta`—.
+ * Desde D10 la administración del evento es una **ruta hija de la Cuenta** (`/cuenta/evento`) y la
+ * única pantalla de detalle fuera de la barra es `/articulos/:itemId`. El evento ya no está en la
+ * URL: se resuelve de la sesión, igual que el evento activo de `SessionStore`.
  *
  * Las rutas `/eventos/:eventId...` se conservan como **alias que redirigen** para no romper enlaces
- * internos ya escritos. No validan que el `:eventId` de la URL sea el evento de la sesión: la
- * pantalla usa el evento activo, y una cuenta con más de un evento espera el selector de D2.
+ * internos ya escritos; `/dashboard` también redirige ahora a su hija de Cuenta. No validan que el
+ * `:eventId` de la URL sea el evento de la sesión: la pantalla usa el evento activo, y una cuenta
+ * con más de un evento espera el selector de D2.
  */
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -44,20 +46,31 @@ export const routes: Routes = [
       import('./items/item-edit.component').then((module) => module.ItemEditComponent),
     canActivate: [requireSession],
   },
+  // Cuenta (cortes D8 y D9) y su hija de administración (corte D10). La ruta padre no tiene
+  // componente: `/cuenta` pinta la Cuenta y `/cuenta/evento` pinta el panel en el outlet principal.
+  // El derecho se sigue preguntando al borde (decisión §37), no se deduce de la sesión.
   {
     path: 'cuenta',
-    loadComponent: () =>
-      import('./session/cuenta.component').then((module) => module.CuentaComponent),
     canActivate: [requireSession],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./session/cuenta.component').then((module) => module.CuentaComponent),
+      },
+      {
+        path: 'evento',
+        loadComponent: () =>
+          import('./events/dashboard/dashboard.component').then(
+            (module) => module.DashboardComponent,
+          ),
+        canActivate: [requireEventAdmin],
+      },
+    ],
   },
-  // El dashboard del event-administrator (ciclo 4c-2, decisión §37). Deja de ser pestaña, pero sigue
-  // siendo una ruta propia con su guarda: el derecho se pregunta al borde, no se deduce de la sesión.
-  {
-    path: 'dashboard',
-    loadComponent: () =>
-      import('./events/dashboard/dashboard.component').then((module) => module.DashboardComponent),
-    canActivate: [requireEventAdmin],
-  },
+  // Desde D10 la administración vive dentro de la Cuenta; la URL anterior se conserva como
+  // redirección para no romper enlaces guardados.
+  { path: 'dashboard', redirectTo: '/cuenta/evento' },
   // Administración de plataforma (ciclo E1, decisión §46). No lleva guarda de sesión: la puerta es
   // `ADMIN_TOKEN`, que se escribe en la pantalla y vive solo en la memoria de esa pestaña.
   {
@@ -70,7 +83,7 @@ export const routes: Routes = [
   // Alias de compatibilidad del corte D8. El orden importa: las hijas se declaran antes que el padre.
   { path: 'eventos/:eventId/articulos/:itemId', redirectTo: '/articulos/:itemId' },
   { path: 'eventos/:eventId/capturados', redirectTo: '/capturados' },
-  { path: 'eventos/:eventId/dashboard', redirectTo: '/dashboard' },
+  { path: 'eventos/:eventId/dashboard', redirectTo: '/cuenta/evento' },
   { path: 'eventos/:eventId', redirectTo: '/captura' },
   { path: '**', redirectTo: '' },
 ];
