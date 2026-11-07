@@ -1,6 +1,5 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
-import { cartTotal } from '@mudanzapp/shared';
 import type {
   CartItem,
   IssuedCartRequest,
@@ -133,20 +132,29 @@ export class ShopCartStore {
    * El importe agregado que el borde publica (ciclo B1): `0` con la selección vacía y `null` si algún
    * artículo perdió el precio. Sin carrito del servidor —el espejo local— no hay precios que sumar.
    *
-   * Durante un despliegue no atómico el borde anterior a B1 todavía no publica `totalCents`; en ese
-   * caso se deriva de la misma lista con `cartTotal`, que es la regla única del cálculo. Nunca se
-   * pinta un `NaN`: un precio ausente se lee como «Precio a consultar».
+   * Un borde anterior a B1 no publica `totalCents`. La pantalla **no** deriva el importe en silencio:
+   * `totalUnavailable` distingue ese caso del `null` legítimo de un artículo sin precio. El `null`
+   * publicado se sigue leyendo «Precio a consultar»; el campo ausente, «Total no disponible».
    */
-  readonly totalCents = computed(() => {
+  readonly totalCents = computed<number | null>(() => {
     const cart = this.cart();
     if (cart === null) {
       return null;
     }
 
     const published: unknown = cart.totalCents;
-    return typeof published === 'number' && Number.isFinite(published)
-      ? published
-      : cartTotal(cart.items);
+    return typeof published === 'number' && Number.isFinite(published) ? published : null;
+  });
+
+  /** `true` solo cuando el borde no publicó el importe; un `null` publicado es un total incompleto. */
+  readonly totalUnavailable = computed(() => {
+    const cart = this.cart();
+    if (cart === null) {
+      return true;
+    }
+
+    const published: unknown = cart.totalCents;
+    return published !== null && !(typeof published === 'number' && Number.isFinite(published));
   });
 
   /** Es lo que habilita `Pídelos por WhatsApp`: el número del vendedor existe. */

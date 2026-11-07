@@ -53,10 +53,13 @@ export class ShopCartComponent {
 
   /**
    * El importe agregado de la selección (ciclo B1). Si algún artículo perdió el precio, la misma regla
-   * de formato publica «Precio a consultar»: el total no inventa un cero.
+   * de formato publica «Precio a consultar»: el total no inventa un cero. Si el borde no publicó el
+   * campo —un despliegue no atómico— la pantalla lo dice en vez de derivarlo en silencio.
    */
   protected totalLabel(): string {
-    return formatPriceCents(this.cart.totalCents(), this.cart.currency());
+    return this.cart.totalUnavailable()
+      ? 'Total no disponible'
+      : formatPriceCents(this.cart.totalCents(), this.cart.currency());
   }
 
   protected countLabel(): string {

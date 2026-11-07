@@ -143,18 +143,21 @@ describe('ShopCartStore', () => {
     expect(store.has('mesa')).toBe(true);
     expect(store.whatsappAvailable()).toBe(true);
     expect(store.totalCents()).toBe(215_000);
+    expect(store.totalUnavailable()).toBe(false);
   });
 
-  it('derives the total from the items when the border predates the field', async () => {
+  it('marks the total as unavailable when the border predates the field', async () => {
     store.open(PUBLIC_SLUG);
     await signIn();
 
-    // Un despliegue no atómico: el borde viejo no publica `totalCents` y la pantalla no pinta NaN.
+    // Un despliegue no atómico: el borde viejo no publica `totalCents` y la pantalla no deriva ni
+    // pinta NaN; dice que el total no está disponible.
     const stale = { ...CART, totalCents: undefined } as unknown as PublicCart;
     httpTesting.expectOne(CART_URL).flush({ cart: stale });
     await tick();
 
-    expect(store.totalCents()).toBe(125_000);
+    expect(store.totalCents()).toBeNull();
+    expect(store.totalUnavailable()).toBe(true);
   });
 
   it('says an article without price blocks the request instead of failing in the border', async () => {

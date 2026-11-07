@@ -468,24 +468,24 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'dashboard-request-dismiss')).not.toBeNull();
   });
 
-  it('derives the total from the snapshot when the border predates the field', async () => {
-    // Un despliegue no atómico: el borde viejo no publica `totalCents` y el panel no pinta NaN.
+  it('shows the total as unavailable when the border predates the field', async () => {
+    // Un despliegue no atómico: el borde viejo no publica `totalCents`; el panel no deriva ni pinta NaN.
     const stale = { ...CART_REQUEST, totalCents: undefined } as unknown as CartRequestSummary;
     const fixture = await render([], ADMINISTRATOR, [], [ITEM], [stale]);
 
     openTab(fixture, 'solicitudes');
 
-    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total no disponible');
   });
 
-  it('replaces a pre-B1 payload on the focus reload without keeping a stale value', async () => {
-    // La secuencia observada en la revisión: el primer renglón llega sin el campo y el foco relee
-    // cuando el borde ya lo publica. No hay una lectura parcial de signals: cada payload es completo.
+  it('replaces a pre-B1 payload on the reload without keeping an unavailable total', async () => {
+    // La secuencia observada en la revisión: el primer renglón llega sin el campo y la relectura
+    // trae el payload nuevo. No hay una lectura parcial de signals: cada payload es completo.
     const stale = { ...CART_REQUEST, totalCents: undefined } as unknown as CartRequestSummary;
     const fixture = await render([], ADMINISTRATOR, [], [ITEM], [stale]);
 
     openTab(fixture, 'solicitudes');
-    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total $1,250.00 MXN');
+    expect(query(fixture, 'dashboard-request-total')?.textContent).toContain('Total no disponible');
 
     TestBed.inject(CartRequestsStore).reload();
     await tick();
