@@ -201,4 +201,4 @@ en el árbol de trabajo y se cierra con su commit convencional.
     hallazgo anterior, antes de ejercitar el registro.
 - **Wiki:** delta del tile A1 —el panel publica el registro del vendedor con el importe vigente y la
   nota de precio—; el tile A3 ya publica el registro del comprador y no se reescribe.
-- **Commit del ciclo:** `c569513`.
+- **Commit del ciclo:** `ba2ab6c` (el cierre del estado quedó en un commit `docs` posterior).
