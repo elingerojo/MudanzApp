@@ -212,6 +212,15 @@ hace falta inventar entradas para pantallas que no existen.
 > —co-dispositivos, enlaces, solicitudes y capturas— no cambia. El detalle vive en
 > [`plan-ciclo-d10-cuenta-evento`](plan-ciclo-d10-cuenta-evento.md:1).
 >
+> **Nota (corte D11, 2026-11-07):** la administración del evento se lee por secciones. `/cuenta/evento`
+> publica una tira con cuatro pestañas —`Artículos`, `Solicitudes`, `Invitaciones` y
+> `Otros dispositivos`—, en ese orden y con `Artículos` abierta por defecto; solo la activa monta su
+> lista, y cada una conserva su lectura, su estado vacío y su acto. La configuración del evento
+> —trayecto, enlace público, quién administra y WhatsApp— queda fija arriba, fuera de las pestañas. La
+> pestaña es estado en memoria, no ruta: la URL sigue siendo `/cuenta/evento` y recargar vuelve a
+> `Artículos`. Sin backend, sin contrato ni migración. El detalle vive en
+> [`plan-ciclo-d11-pestanas-panel-evento`](plan-ciclo-d11-pestanas-panel-evento.md:1).
+>
 > **Nota (corte D2, 2026-11-07):** la cuenta con dos o más membresías deja de aterrizar en la más
 > reciente. `/eventos` es el selector: publica la lista de membresías con su trayecto y su rol, y
 > `requireEventChoice` devuelve ahí a los destinos privados —`/captura`, `/capturados`,

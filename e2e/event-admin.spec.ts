@@ -12,14 +12,17 @@ import { chooseNewestEvent } from './support/choose-event.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
- * Evidencia de `event-admin` (ciclo 4c-2), del control de acceso (ciclo 4c-3) y de la administración
- * como hija de la Cuenta (corte D10).
+ * Evidencia de `event-admin` (ciclo 4c-2), del control de acceso (ciclo 4c-3), de la administración
+ * como hija de la Cuenta (corte D10) y de sus cuatro pestañas (corte D11).
  *
  * La hipótesis se recorre entera: la cuenta que se autentica desde el evento lo reclama y abre la
  * administración desde su Cuenta —con una fila de acceso por co-dispositivo, no la propia—; un
  * co-dispositivo que la pide vuelve a `Cuenta` con el aviso porque el borde le responde `403`; el rey
  * des-invita a un dispositivo y ese token deja de servir; y cancela un enlace pendiente, tras lo cual
  * el canje responde `410 invitation_invalid`.
+ *
+ * Desde D11 la administración se lee por secciones: el recorrido abre `Otros dispositivos` e
+ * `Invitaciones` porque cada lista vive en su pestaña y solo una se monta a la vez.
  *
  * **Límite declarado.** El verificador `fake` fija un sujeto, así que todas las cuentas del arnés son la
  * misma: aquí se demuestra el reclamo y el rechazo, no que una segunda cuenta no se lleve el evento. Eso
@@ -166,8 +169,26 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
 
   await expect(page.getByTestId('dashboard-panel')).toBeVisible();
   await expect(page.getByTestId('dashboard-administrator')).toContainText(FAKE_DISPLAY_NAME);
-  await expect(page.getByTestId('dashboard-counts')).toContainText('Capturados: 0');
   await expect(page.getByTestId('dashboard-unclaimed')).toHaveCount(0);
+
+  // 1.1 La configuración queda arriba y `Artículos` abre por defecto (corte D11): el contador vive en
+  // esa pestaña y las otras tres no se montan hasta que se abren.
+  await expect(page.getByTestId('dashboard-configuration')).toBeVisible();
+  await expect(page.getByTestId('dashboard-tab-articulos')).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByTestId('dashboard-panel-articulos')).toBeVisible();
+  await expect(page.getByTestId('dashboard-counts')).toContainText('Capturados: 0');
+  await expect(page.getByTestId('dashboard-panel-solicitudes')).toHaveCount(0);
+  await expect(page.getByTestId('dashboard-panel-invitaciones')).toHaveCount(0);
+  await expect(page.getByTestId('dashboard-panel-dispositivos')).toHaveCount(0);
+
+  // 1.2 Los co-dispositivos viven en su pestaña y la configuración no se mueve al cambiarla.
+  await page.getByTestId('dashboard-tab-dispositivos').click();
+  await expect(page.getByTestId('dashboard-panel-dispositivos')).toBeVisible();
+  await expect(page.getByTestId('dashboard-panel-articulos')).toHaveCount(0);
+  await expect(page.getByTestId('dashboard-configuration')).toBeVisible();
 
   // Solo co-dispositivos, y su estado es evidencia: la sesión de evento del rey sigue en la lista
   // porque el claim la revocó, mientras que su sesión de **cuenta** no aparece. Los dos co-dispositivos
@@ -178,6 +199,20 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
     page.getByTestId('access-device-state').filter({ hasText: 'sin acceso' }),
   ).toHaveCount(1);
   await expect(page.getByTestId('access-device-revoke')).toHaveCount(2);
+
+  // 2. Des-invitar en su pestaña: dos toques y la lectura se rehace. La pestaña activa sobrevive a la
+  // recarga de la lectura, así que la lista sigue a la vista.
+  await page.getByTestId('access-device-revoke').first().click();
+  await page.getByTestId('access-device-revoke-confirm').first().click();
+
+  await expect(
+    page.getByTestId('access-device-state').filter({ hasText: 'sin acceso' }),
+  ).toHaveCount(2);
+
+  // 3. Los enlaces están en su propia pestaña; abrirla desmonta la lista de dispositivos.
+  await page.getByTestId('dashboard-tab-invitaciones').click();
+  await expect(page.getByTestId('dashboard-panel-invitaciones')).toBeVisible();
+  await expect(page.getByTestId('dashboard-panel-dispositivos')).toHaveCount(0);
 
   // El enlace pendiente se publica «activo» y es cancelable; la fila se localiza por su id, no por el
   // orden de la lista, que no se asume.
@@ -192,15 +227,7 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
     `Enlace ${pendingInvitation.label}`,
   );
 
-  // 2. Des-invitar: dos toques y la lectura se rehace.
-  await page.getByTestId('access-device-revoke').first().click();
-  await page.getByTestId('access-device-revoke-confirm').first().click();
-
-  await expect(
-    page.getByTestId('access-device-state').filter({ hasText: 'sin acceso' }),
-  ).toHaveCount(2);
-
-  // 3. Cancelar el enlace pendiente: dos toques, la fila queda cancelada y el token deja de admitir.
+  // 4. Cancelar el enlace pendiente: dos toques, la fila queda cancelada y el token deja de admitir.
   await pendingRow.getByTestId('access-invitation-cancel').click();
   await pendingRow.getByTestId('access-invitation-cancel-confirm').click();
 

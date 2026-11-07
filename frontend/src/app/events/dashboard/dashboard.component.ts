@@ -26,6 +26,18 @@ import { CartRequestsStore } from './cart-requests.store';
 import { DashboardStore } from './dashboard.store';
 import { EventContactComponent } from './event-contact.component';
 
+/** Identificador de cada sección del panel (corte D11). */
+export type DashboardTabId = 'articulos' | 'solicitudes' | 'invitaciones' | 'dispositivos';
+
+/** Una pestaña del panel: el rótulo lo declara la pantalla, no una lista que llega del borde. */
+interface DashboardTab {
+  readonly id: DashboardTabId;
+  readonly label: string;
+}
+
+/** Base de la tira de pestañas: la activa y la inactiva solo cambian de color. */
+const TAB_CLASSES = 'rounded-full px-3 py-1 text-sm font-medium';
+
 /**
  * Pantalla de administración del evento (ciclos 4c-2 y 4c-3, decisión §37; cortes D8 y D10).
  *
@@ -43,6 +55,12 @@ import { EventContactComponent } from './event-contact.component';
  * selecciones de los compradores, mientras que despublicar la oculta y la conserva. Un artículo vendido
  * no se borra: el borde responde `item_sold` y la pantalla lo explica, porque la venta es la evidencia
  * (§40).
+ *
+ * Desde D11 el panel se lee por secciones: `Artículos`, `Solicitudes`, `Invitaciones` y
+ * `Otros dispositivos`, en ese orden y con `Artículos` abierta por defecto. La configuración del
+ * evento —trayecto, enlace público, quién administra y WhatsApp— queda fija arriba, porque no es una
+ * lista. La pestaña vive en memoria: la URL sigue siendo `/cuenta/evento` y recargar vuelve a
+ * `Artículos`.
  *
  * Lo que esta pantalla no hace también declara el corte: no edita el evento y no reemite un enlace
  * cancelado.
@@ -81,6 +99,84 @@ export class DashboardComponent {
   }
 
   protected readonly dangerClasses = uiButtonClasses('danger');
+
+  /**
+   * Las cuatro secciones del panel, en el orden que fijó el dueño (corte D11). `Artículos` abre por
+   * defecto porque es la lista que se mira primero al entrar a administrar.
+   */
+  protected readonly tabs: readonly DashboardTab[] = [
+    { id: 'articulos', label: 'Artículos' },
+    { id: 'solicitudes', label: 'Solicitudes' },
+    { id: 'invitaciones', label: 'Invitaciones' },
+    { id: 'dispositivos', label: 'Otros dispositivos' },
+  ];
+
+  /**
+   * Pestaña abierta. Vive en memoria: la URL sigue siendo `/cuenta/evento` y recargar vuelve a
+   * `Artículos`. Una ruta por pestaña se reabre cuando D1 pagine cada lista con su propio cursor.
+   */
+  protected readonly activeTab = signal<DashboardTabId>('articulos');
+
+  protected isActiveTab(tab: DashboardTabId): boolean {
+    return this.activeTab() === tab;
+  }
+
+  /** Solo la pestaña activa entra en el orden de tabulación; las demás se alcanzan con flechas. */
+  protected tabIndex(tab: DashboardTabId): number {
+    return this.isActiveTab(tab) ? 0 : -1;
+  }
+
+  protected tabClasses(tab: DashboardTabId): string {
+    return this.isActiveTab(tab)
+      ? `${TAB_CLASSES} bg-slate-900 text-white`
+      : `${TAB_CLASSES} bg-slate-100 text-slate-700`;
+  }
+
+  protected selectTab(tab: DashboardTabId): void {
+    this.activeTab.set(tab);
+  }
+
+  /**
+   * Flechas, `Home` y `End` mueven la pestaña activa y el foco, que es lo que una tira de pestañas
+   * promete al lector de pantalla. El foco va al botón hermano, no al panel.
+   */
+  protected onTabKeydown(event: KeyboardEvent, index: number): void {
+    const next = this.nextTabIndex(event.key, index);
+    if (next === null) {
+      return;
+    }
+
+    event.preventDefault();
+    const tab = this.tabs[next];
+    if (tab === undefined) {
+      return;
+    }
+
+    this.activeTab.set(tab.id);
+    const list = (event.currentTarget as HTMLElement | null)?.parentElement ?? null;
+    list?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+  }
+
+  private nextTabIndex(key: string, index: number): number | null {
+    const last = this.tabs.length - 1;
+    if (key === 'Home') {
+      return 0;
+    }
+
+    if (key === 'End') {
+      return last;
+    }
+
+    if (key === 'ArrowRight') {
+      return index === last ? 0 : index + 1;
+    }
+
+    if (key === 'ArrowLeft') {
+      return index === 0 ? last : index - 1;
+    }
+
+    return null;
+  }
 
   /** Solicitud cuyo botón `Descartar` ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingDismissId = signal<string | null>(null);

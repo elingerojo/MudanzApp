@@ -15,7 +15,7 @@ import { API_BASE_URL } from '../../api-base-url.token';
 import { SessionStore } from '../../session/session.store';
 import { SHOP_BASE_URL } from '../../shop-base-url.token';
 import { EventItemsStore } from '../event-items.store';
-import { DashboardComponent } from './dashboard.component';
+import { DashboardComponent, type DashboardTabId } from './dashboard.component';
 import { DashboardStore } from './dashboard.store';
 
 /**
@@ -25,6 +25,9 @@ import { DashboardStore } from './dashboard.store';
  * contador sale del recurso compartido de artículos, y las tres listas —co-dispositivos, enlaces y
  * capturas— son las del payload. También se prueba lo que no hace: no ofrece un acto sobre una fila ya
  * cancelada ni sobre una sesión ya des-invitada, y no borra un artículo vendido.
+ *
+ * Desde D11 el panel se lee en cuatro pestañas y solo la activa se monta, así que cada prueba abre la
+ * suya con `openTab`: la de `Artículos` es la que arranca y la que lleva el contador.
  */
 const DASHBOARD_URL = '/api/events/event-1/dashboard';
 const REVOKE_URL = '/api/events/event-1/sessions/device-1';
@@ -200,19 +203,111 @@ describe('DashboardComponent', () => {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
-  it('publishes who administers, the public link, the count, the co-devices and the links', async () => {
+  /** Abre una pestaña del panel: desde D11 solo la activa se monta. */
+  function openTab(fixture: Fixture, tab: DashboardTabId): void {
+    query(fixture, `dashboard-tab-${tab}`)?.click();
+    fixture.detectChanges();
+  }
+
+  it('publishes the event configuration above the tabs, outside every section', async () => {
     const fixture = await render([DEVICE], ADMINISTRATOR, [INVITATION]);
 
+    expect(query(fixture, 'dashboard-configuration')?.textContent).toContain(
+      'Bogotá → Ciudad de México',
+    );
     expect(query(fixture, 'dashboard-administrator')?.textContent).toContain('Ana');
     expect(query(fixture, 'dashboard-public-link')?.textContent).toContain(
       'http://shop.test/evento/bogota-ciudad-de-mexico-3f9a2c',
     );
-    expect(query(fixture, 'dashboard-counts')?.textContent).toContain('Capturados: 1');
-    expect(query(fixture, 'dashboard-access')).not.toBeNull();
-    expect(query(fixture, 'access-device-revoke')).not.toBeNull();
-    expect(query(fixture, 'access-device-revoke-confirm')).toBeNull();
-    expect(query(fixture, 'access-empty')).toBeNull();
+    // El WhatsApp es configuración, no una lista, así que no vive en ninguna pestaña.
+    expect(query(fixture, 'dashboard-contact')).not.toBeNull();
+    expect(query(fixture, 'dashboard-unclaimed')).toBeNull();
+  });
 
+  it('opens Artículos by default and mounts one list at a time, in the declared order', async () => {
+    const fixture = await render([DEVICE], ADMINISTRATOR, [INVITATION], [ITEM], [CART_REQUEST]);
+
+    const strip = (fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]');
+    expect([...strip].map((tab) => tab.textContent?.trim())).toEqual([
+      'Artículos',
+      'Solicitudes',
+      'Invitaciones',
+      'Otros dispositivos',
+    ]);
+    expect(query(fixture, 'dashboard-tab-articulos')?.getAttribute('aria-selected')).toBe('true');
+    expect(query(fixture, 'dashboard-tab-dispositivos')?.getAttribute('aria-selected')).toBe(
+      'false',
+    );
+    expect(query(fixture, 'dashboard-panel-articulos')).not.toBeNull();
+    expect(query(fixture, 'dashboard-counts')?.textContent).toContain('Capturados: 1');
+    expect(query(fixture, 'dashboard-panel-solicitudes')).toBeNull();
+    expect(query(fixture, 'dashboard-panel-invitaciones')).toBeNull();
+    expect(query(fixture, 'dashboard-panel-dispositivos')).toBeNull();
+
+    // Una lista por vez: abrir otra desmonta la anterior y la configuración no se mueve.
+    openTab(fixture, 'dispositivos');
+    expect(query(fixture, 'dashboard-panel-dispositivos')).not.toBeNull();
+    expect(query(fixture, 'dashboard-panel-articulos')).toBeNull();
+    expect(query(fixture, 'dashboard-tab-dispositivos')?.getAttribute('aria-selected')).toBe(
+      'true',
+    );
+    expect(query(fixture, 'dashboard-configuration')).not.toBeNull();
+
+    openTab(fixture, 'solicitudes');
+    expect(query(fixture, 'dashboard-requests')).not.toBeNull();
+    expect(query(fixture, 'dashboard-panel-dispositivos')).toBeNull();
+  });
+
+  it('moves the active tab with the arrow keys, not only with the pointer', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    query(fixture, 'dashboard-tab-articulos')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(query(fixture, 'dashboard-tab-solicitudes')?.getAttribute('aria-selected')).toBe('true');
+    expect(query(fixture, 'dashboard-panel-solicitudes')).not.toBeNull();
+    expect(query(fixture, 'dashboard-panel-articulos')).toBeNull();
+  });
+
+  it('says the co-devices and the links are empty instead of inventing rows', async () => {
+    const fixture = await render([], ADMINISTRATOR);
+
+    openTab(fixture, 'dispositivos');
+    expect(query(fixture, 'dashboard-access')).not.toBeNull();
+    expect(query(fixture, 'access-empty')).not.toBeNull();
+    expect(query(fixture, 'access-device-revoke')).toBeNull();
+
+    openTab(fixture, 'invitaciones');
+    expect(query(fixture, 'access-invitations-empty')).not.toBeNull();
+    expect(query(fixture, 'access-invitation-cancel')).toBeNull();
+  });
+
+  it('says the event has no administrator instead of inventing one', async () => {
+    const fixture = await render([], null);
+
+    expect(query(fixture, 'dashboard-unclaimed')).not.toBeNull();
+    expect(query(fixture, 'dashboard-administrator')).toBeNull();
+  });
+
+  it('shows the co-devices in their own tab and offers no act over a revoked one', async () => {
+    const fixture = await render([REVOKED], ADMINISTRATOR);
+
+    openTab(fixture, 'dispositivos');
+
+    expect(query(fixture, 'dashboard-panel-dispositivos')).not.toBeNull();
+    expect(query(fixture, 'access-device-state')?.textContent).toContain('sin acceso');
+    expect(query(fixture, 'access-device-revoke')).toBeNull();
+  });
+
+  it('shows the links in their own tab with name, issue, expiry, uses and state', async () => {
+    const fixture = await render([], ADMINISTRATOR, [INVITATION]);
+
+    openTab(fixture, 'invitaciones');
+
+    expect(query(fixture, 'dashboard-panel-invitaciones')).not.toBeNull();
+    expect(query(fixture, 'access-invitation-name')?.textContent).toContain('Enlace caja');
     // El enlace publica su vencimiento, sus canjes y su estado, y ofrece el acto una sola vez.
     expect(query(fixture, 'access-invitation-invitation-1')?.textContent).toContain(
       'vence 2026-11-04 · 2 canjes',
@@ -223,24 +318,10 @@ describe('DashboardComponent', () => {
     expect(query(fixture, 'access-invitations-empty')).toBeNull();
   });
 
-  it('says the event has no administrator instead of inventing one', async () => {
-    const fixture = await render([], null);
-
-    expect(query(fixture, 'dashboard-unclaimed')).not.toBeNull();
-    expect(query(fixture, 'dashboard-administrator')).toBeNull();
-    expect(query(fixture, 'access-empty')).not.toBeNull();
-    expect(query(fixture, 'access-invitations-empty')).not.toBeNull();
-  });
-
-  it('shows a revoked device as evidence and offers no act over it', async () => {
-    const fixture = await render([REVOKED], ADMINISTRATOR);
-
-    expect(query(fixture, 'access-device-state')?.textContent).toContain('sin acceso');
-    expect(query(fixture, 'access-device-revoke')).toBeNull();
-  });
-
   it('shows a cancelled link as evidence and offers no act over it', async () => {
     const fixture = await render([], ADMINISTRATOR, [CANCELLED]);
+
+    openTab(fixture, 'invitaciones');
 
     expect(query(fixture, 'access-invitation-state')?.textContent).toContain('cancelado');
     expect(query(fixture, 'access-invitation-cancel')).toBeNull();
@@ -317,6 +398,7 @@ describe('DashboardComponent', () => {
   it('asks for confirmation in two touches and reloads after revoking', async () => {
     const fixture = await render([DEVICE], ADMINISTRATOR);
 
+    openTab(fixture, 'dispositivos');
     query(fixture, 'access-device-revoke')?.click();
     fixture.detectChanges();
     expect(query(fixture, 'access-device-revoke-confirm')).not.toBeNull();
@@ -345,6 +427,7 @@ describe('DashboardComponent', () => {
   it('asks for confirmation in two touches and reloads after cancelling a link', async () => {
     const fixture = await render([], ADMINISTRATOR, [INVITATION]);
 
+    openTab(fixture, 'invitaciones');
     query(fixture, 'access-invitation-cancel')?.click();
     fixture.detectChanges();
     expect(query(fixture, 'access-invitation-cancel-confirm')).not.toBeNull();
@@ -372,6 +455,9 @@ describe('DashboardComponent', () => {
   it('publishes the cart requests with the buyer name and the snapshot of what was asked', async () => {
     const fixture = await render([], ADMINISTRATOR, [], [ITEM], [CART_REQUEST]);
 
+    openTab(fixture, 'solicitudes');
+
+    expect(query(fixture, 'dashboard-panel-solicitudes')).not.toBeNull();
     expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('Compradora');
     expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('Mesa de roble');
     expect(query(fixture, 'dashboard-request-request-1')?.textContent).toContain('$1,250.00 MXN');
@@ -382,6 +468,7 @@ describe('DashboardComponent', () => {
   it('dismisses a request in two touches and reloads the list', async () => {
     const fixture = await render([], ADMINISTRATOR, [], [ITEM], [CART_REQUEST]);
 
+    openTab(fixture, 'solicitudes');
     query(fixture, 'dashboard-request-dismiss')?.click();
     fixture.detectChanges();
     expect(query(fixture, 'dashboard-request-dismiss-confirm')).not.toBeNull();
@@ -405,6 +492,8 @@ describe('DashboardComponent', () => {
 
   it('says there are no requests yet instead of inventing rows', async () => {
     const fixture = await render([], ADMINISTRATOR);
+
+    openTab(fixture, 'solicitudes');
 
     expect(query(fixture, 'dashboard-requests-empty')).not.toBeNull();
     expect(query(fixture, 'dashboard-request-state')).toBeNull();
@@ -453,6 +542,7 @@ describe('DashboardComponent', () => {
   it('translates the forbidden cancel into its own phrase', async () => {
     const fixture = await render([], ADMINISTRATOR, [INVITATION]);
 
+    openTab(fixture, 'invitaciones');
     query(fixture, 'access-invitation-cancel')?.click();
     fixture.detectChanges();
     query(fixture, 'access-invitation-cancel-confirm')?.click();

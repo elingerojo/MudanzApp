@@ -3,336 +3,418 @@
     <p class="text-sm text-slate-600" data-testid="dashboard-loading">Cargando…</p>
   } @else {
     <div class="space-y-4" data-testid="dashboard-panel">
-      <div>
-        <p class="text-sm text-slate-700">
-          @if (event(); as current) {
-            {{ current.originCity }} → {{ current.destinationCity }}
-          } @else {
-            Evento
-          }
-        </p>
-
-        @if (publicUrl(); as link) {
-          <p class="text-sm text-slate-700" data-testid="dashboard-public-link">
-            Enlace público:
-            <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{
-              link
-            }}</a>
-          </p>
-        }
-      </div>
-
-      <!-- Quién administra es el hecho que el borde publica: la pantalla no lo deduce de la sesión. -->
-      @if (store.administrator(); as administrator) {
-        <p class="text-sm text-slate-700" data-testid="dashboard-administrator">
-          Administra: <span class="font-medium">{{ administrator.displayName }}</span>
-          @if (administrator.isAdmin) {
-            <span class="text-slate-500">· administrador de la plataforma</span>
-          }
-        </p>
-      } @else {
-        <p
-          class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
-          data-testid="dashboard-unclaimed"
-        >
-          Este evento todavía no tiene administrador. La primera persona que entre con su cuenta lo
-          reclama.
-        </p>
-      }
-
-      <p class="text-sm text-slate-700" data-testid="dashboard-counts">
-        Capturados: {{ items.count() }}
-      </p>
-
-      <section class="space-y-2" data-testid="dashboard-access">
-        <h2 class="text-sm font-semibold text-slate-900">Acceso</h2>
-        <p class="text-xs text-slate-600">
-          Estos dispositivos entraron con el enlace y no tienen cuenta. Quitar el acceso no borra lo
-          que documentaron.
-        </p>
-
-        @if (store.devices().length === 0) {
-          <p class="text-sm text-slate-600" data-testid="access-empty">
-            No hay dispositivos sin cuenta en este evento.
-          </p>
-        } @else {
-          <ul class="divide-y divide-slate-200">
-            @for (device of store.devices(); track device.id) {
-              <li
-                class="flex flex-wrap items-center gap-3 py-3"
-                [attr.data-testid]="'access-device-' + device.id"
-              >
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-medium text-slate-900">
-                    {{ deviceLabel(device) }}
-                  </p>
-                  <p class="text-xs text-slate-600">
-                    alta {{ day(device.createdAt) }} · {{ lastSeen(device) }}
-                  </p>
-                </div>
-
-                <span
-                  class="rounded-full px-2 py-0.5 text-xs"
-                  [class]="deviceStateClasses(device)"
-                  data-testid="access-device-state"
-                >
-                  {{ deviceState(device) }}
-                </span>
-
-                @if (device.revokedAt === null) {
-                  <button
-                    type="button"
-                    [class]="dangerClasses"
-                    [disabled]="store.revokingId() !== null"
-                    (click)="confirmRevoke(device)"
-                    [attr.data-testid]="
-                      confirmingRevokeId() === device.id
-                        ? 'access-device-revoke-confirm'
-                        : 'access-device-revoke'
-                    "
-                  >
-                    {{
-                      confirmingRevokeId() === device.id
-                        ? store.revokingId() === device.id
-                          ? 'Retirando…'
-                          : 'Confirmar'
-                        : 'Des-invitar'
-                    }}
-                  </button>
-                }
-              </li>
+      <!-- Configuración del evento (corte D11): trayecto, enlace público, quién administra y WhatsApp
+           quedan fijos arriba, fuera de las pestañas. No son una lista, no se dispersan al cambiar de
+           sección y el formulario del número no se desmonta mientras se escribe. -->
+      <div class="space-y-2" data-testid="dashboard-configuration">
+        <div>
+          <p class="text-sm text-slate-700">
+            @if (event(); as current) {
+              {{ current.originCity }} → {{ current.destinationCity }}
+            } @else {
+              Evento
             }
-          </ul>
-        }
-
-        <div class="space-y-2 border-t border-slate-200 pt-3">
-          <h3 class="text-sm font-semibold text-slate-900">Enlaces</h3>
-          <p class="text-xs text-slate-600">
-            Cada fila es un enlace que se compartió. Cancelarlo impide que se siga usando para
-            entrar; no cierra las sesiones que ya abrió.
           </p>
 
-          @if (store.invitations().length === 0) {
-            <p class="text-sm text-slate-600" data-testid="access-invitations-empty">
-              No hay enlaces emitidos en este evento.
+          @if (publicUrl(); as link) {
+            <p class="text-sm text-slate-700" data-testid="dashboard-public-link">
+              Enlace público:
+              <a [href]="link" target="_blank" rel="noopener" class="break-all underline">{{
+                link
+              }}</a>
             </p>
-          } @else {
-            <ul class="divide-y divide-slate-200">
-              @for (invitation of store.invitations(); track invitation.id) {
-                <li
-                  class="flex flex-wrap items-center gap-3 py-3"
-                  [attr.data-testid]="'access-invitation-' + invitation.id"
-                >
-                  <div class="min-w-0 flex-1">
-                    <p
-                      class="text-sm font-medium text-slate-900"
-                      data-testid="access-invitation-name"
-                    >
-                      Enlace {{ invitationName(invitation) }} ·
-                      <span class="font-mono text-xs text-slate-500">{{
-                        invitationReference(invitation)
-                      }}</span>
-                    </p>
-                    <p class="text-xs text-slate-600">
-                      {{ invitationDetail(invitation) }}
-                    </p>
-                  </div>
-
-                  <span
-                    class="rounded-full px-2 py-0.5 text-xs"
-                    [class]="invitationStateClasses(invitation)"
-                    data-testid="access-invitation-state"
-                  >
-                    {{ invitationState(invitation) }}
-                  </span>
-
-                  @if (invitation.revokedAt === null) {
-                    <button
-                      type="button"
-                      [class]="dangerClasses"
-                      [disabled]="store.cancellingId() !== null"
-                      (click)="confirmCancel(invitation)"
-                      [attr.data-testid]="
-                        confirmingCancelId() === invitation.id
-                          ? 'access-invitation-cancel-confirm'
-                          : 'access-invitation-cancel'
-                      "
-                    >
-                      {{
-                        confirmingCancelId() === invitation.id
-                          ? store.cancellingId() === invitation.id
-                            ? 'Cancelando…'
-                            : 'Confirmar'
-                          : 'Cancelar enlace'
-                      }}
-                    </button>
-                  }
-                </li>
-              }
-            </ul>
           }
         </div>
 
-        @if (store.accessFailure(); as failure) {
-          <p class="text-sm text-red-600" data-testid="access-error">{{ failure }}</p>
-        }
-      </section>
-
-      <!-- El WhatsApp es del evento y lo fija quien lo administra (ciclo 4e). Sin él, el botón del
-           carrito de la tienda no se habilita. -->
-      <app-dashboard-contact />
-
-      <!-- Solicitudes de carrito (ciclo 4e): el aviso del vendedor. Descartar no cambia ningún
-           artículo; el resto de la conversación ocurre en WhatsApp. -->
-      <section class="space-y-2 border-t border-slate-200 pt-3" data-testid="dashboard-requests">
-        <h2 class="text-sm font-semibold text-slate-900">Solicitudes de carrito</h2>
-        <p class="text-xs text-slate-600">
-          Cada fila es un carrito que un comprador pidió por WhatsApp. Descartarla no cambia ningún
-          artículo: la venta se cierra fuera de la aplicación.
-        </p>
-
-        @if (requests.failed()) {
-          <p class="text-sm text-red-600" data-testid="dashboard-requests-error">
-            No se pudieron cargar las solicitudes. Recarga la página.
-          </p>
-        } @else if (requests.requests().length === 0) {
-          <p class="text-sm text-slate-600" data-testid="dashboard-requests-empty">
-            Todavía no hay solicitudes. Sin el WhatsApp configurado, el comprador no puede pedir.
-          </p>
-        } @else {
-          <ul class="divide-y divide-slate-200">
-            @for (request of requests.requests(); track request.id) {
-              <li
-                class="flex flex-wrap items-center gap-3 py-3"
-                [attr.data-testid]="'dashboard-request-' + request.id"
-              >
-                <div class="min-w-0 flex-1">
-                  <p
-                    class="text-sm font-medium text-slate-900"
-                    data-testid="dashboard-request-reference"
-                  >
-                    Solicitud <span class="font-mono text-xs">{{ request.reference }}</span>
-                  </p>
-                  <p class="text-xs text-slate-600">{{ requestDetail(request) }}</p>
-                  <p class="text-xs text-slate-700">{{ requestItemsLabel(request) }}</p>
-                </div>
-
-                <span
-                  class="rounded-full px-2 py-0.5 text-xs"
-                  [class]="requestStateClasses(request)"
-                  data-testid="dashboard-request-state"
-                >
-                  {{ requestState(request) }}
-                </span>
-
-                @if (request.dismissedAt === null && request.cancelledAt === null) {
-                  <button
-                    type="button"
-                    [class]="dangerClasses"
-                    [disabled]="requests.dismissingId() !== null"
-                    (click)="confirmDismiss(request)"
-                    [attr.data-testid]="
-                      confirmingDismissId() === request.id
-                        ? 'dashboard-request-dismiss-confirm'
-                        : 'dashboard-request-dismiss'
-                    "
-                  >
-                    {{
-                      confirmingDismissId() === request.id
-                        ? requests.dismissingId() === request.id
-                          ? 'Descartando…'
-                          : 'Confirmar'
-                        : 'Descartar'
-                    }}
-                  </button>
-                }
-              </li>
+        <!-- Quién administra es el hecho que el borde publica: la pantalla no lo deduce de la sesión. -->
+        @if (store.administrator(); as administrator) {
+          <p class="text-sm text-slate-700" data-testid="dashboard-administrator">
+            Administra: <span class="font-medium">{{ administrator.displayName }}</span>
+            @if (administrator.isAdmin) {
+              <span class="text-slate-500">· administrador de la plataforma</span>
             }
-          </ul>
-        }
-
-        @if (requests.failure(); as failure) {
-          <p class="text-sm text-red-600" data-testid="dashboard-request-error">{{ failure }}</p>
-        }
-      </section>
-
-      <!-- Capturas: el rey retira una captura equivocada (4c-4). Eliminar es irreversible y distinto de
-           `Despublicar` (F3); un vendido se conserva como evidencia y la pantalla lo dice en vez de
-           ofrecer un botón que el borde rechazaría. -->
-      <section class="space-y-2" data-testid="dashboard-captures">
-        <h2 class="text-sm font-semibold text-slate-900">Capturas</h2>
-        <p class="text-xs text-slate-600">
-          Eliminar borra la captura, su enlace y su presencia en las selecciones de los compradores;
-          no se puede deshacer. Para ocultarla sin destruirla, usa <strong>Despublicar</strong> en
-          <strong>Capturados</strong>. Un artículo vendido no se borra: es la evidencia de la venta.
-        </p>
-
-        @if (items.items().length === 0) {
-          <p class="text-sm text-slate-600" data-testid="dashboard-captures-empty">
-            Todavía no hay capturas en este evento.
           </p>
         } @else {
-          <ul class="divide-y divide-slate-200">
-            @for (item of items.items(); track item.id) {
-              <li
-                class="flex flex-wrap items-center gap-3 py-3"
-                [attr.data-testid]="'dashboard-item-row-' + item.id"
-              >
-                @if (item.photo; as photo) {
-                  <app-item-photo [photoId]="photo.id" />
-                } @else {
-                  <span
-                    class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
-                  >
-                    sin foto
-                  </span>
-                }
+          <p
+            class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
+            data-testid="dashboard-unclaimed"
+          >
+            Este evento todavía no tiene administrador. La primera persona que entre con su cuenta
+            lo reclama.
+          </p>
+        }
 
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-medium text-slate-900">{{ item.title }}</p>
-                  <p class="text-sm font-semibold text-slate-900">{{ items.priceLabel(item) }}</p>
+        <!-- El WhatsApp es del evento y lo fija quien lo administra (ciclo 4e). Sin él, el botón del
+             carrito de la tienda no se habilita. -->
+        <app-dashboard-contact />
+      </div>
 
-                  @if (item.soldAt !== null) {
-                    <p class="text-xs text-slate-600" data-testid="dashboard-item-sold">
-                      Vendido: se conserva como evidencia.
-                    </p>
+      <!-- Una pestaña por sección: se monta una sola lista a la vez (corte D11). -->
+      <div class="border-t border-slate-200 pt-3">
+        <div
+          class="flex flex-wrap gap-2"
+          role="tablist"
+          aria-label="Secciones de la administración"
+          data-testid="dashboard-tabs"
+        >
+          @for (tab of tabs; track tab.id; let index = $index) {
+            <button
+              type="button"
+              role="tab"
+              [id]="'dashboard-tab-' + tab.id"
+              [attr.aria-controls]="'dashboard-panel-' + tab.id"
+              [attr.aria-selected]="isActiveTab(tab.id) ? 'true' : 'false'"
+              [attr.tabindex]="tabIndex(tab.id)"
+              [class]="tabClasses(tab.id)"
+              (click)="selectTab(tab.id)"
+              (keydown)="onTabKeydown($event, index)"
+              [attr.data-testid]="'dashboard-tab-' + tab.id"
+            >
+              {{ tab.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @switch (activeTab()) {
+        @case ('articulos') {
+          <!-- Capturas: el rey retira una captura equivocada (4c-4). Eliminar es irreversible y distinto
+               de `Despublicar` (F3); un vendido se conserva como evidencia y la pantalla lo dice en vez
+               de ofrecer un botón que el borde rechazaría. El contador vive aquí porque cuenta esta lista. -->
+          <section
+            class="space-y-2"
+            role="tabpanel"
+            id="dashboard-panel-articulos"
+            aria-labelledby="dashboard-tab-articulos"
+            data-testid="dashboard-panel-articulos"
+          >
+            <div class="space-y-2" data-testid="dashboard-captures">
+              <h2 class="text-sm font-semibold text-slate-900">Artículos</h2>
+              <p class="text-xs text-slate-600">
+                Eliminar borra la captura, su enlace y su presencia en las selecciones de los
+                compradores; no se puede deshacer. Para ocultarla sin destruirla, usa
+                <strong>Despublicar</strong> en <strong>Capturados</strong>. Un artículo vendido no
+                se borra: es la evidencia de la venta.
+              </p>
+
+              <p class="text-sm text-slate-700" data-testid="dashboard-counts">
+                Capturados: {{ items.count() }}
+              </p>
+
+              @if (items.items().length === 0) {
+                <p class="text-sm text-slate-600" data-testid="dashboard-captures-empty">
+                  Todavía no hay capturas en este evento.
+                </p>
+              } @else {
+                <ul class="divide-y divide-slate-200">
+                  @for (item of items.items(); track item.id) {
+                    <li
+                      class="flex flex-wrap items-center gap-3 py-3"
+                      [attr.data-testid]="'dashboard-item-row-' + item.id"
+                    >
+                      @if (item.photo; as photo) {
+                        <app-item-photo [photoId]="photo.id" />
+                      } @else {
+                        <span
+                          class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+                        >
+                          sin foto
+                        </span>
+                      }
+
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-slate-900">{{ item.title }}</p>
+                        <p class="text-sm font-semibold text-slate-900">
+                          {{ items.priceLabel(item) }}
+                        </p>
+
+                        @if (item.soldAt !== null) {
+                          <p class="text-xs text-slate-600" data-testid="dashboard-item-sold">
+                            Vendido: se conserva como evidencia.
+                          </p>
+                        }
+                      </div>
+
+                      <span class="rounded-full px-2 py-0.5 text-xs" [class]="statusClasses(item)">
+                        {{ statusLabel(item) }}
+                      </span>
+
+                      @if (item.soldAt === null) {
+                        <button
+                          type="button"
+                          [class]="dangerClasses"
+                          [disabled]="store.deletingId() !== null"
+                          (click)="confirmDelete(item)"
+                          [attr.data-testid]="
+                            confirmingDeleteId() === item.id
+                              ? 'dashboard-item-delete-confirm'
+                              : 'dashboard-item-delete'
+                          "
+                        >
+                          {{
+                            confirmingDeleteId() === item.id
+                              ? store.deletingId() === item.id
+                                ? 'Eliminando…'
+                                : 'Confirmar borrado'
+                              : 'Eliminar'
+                          }}
+                        </button>
+                      }
+                    </li>
                   }
-                </div>
+                </ul>
+              }
 
-                <span class="rounded-full px-2 py-0.5 text-xs" [class]="statusClasses(item)">
-                  {{ statusLabel(item) }}
-                </span>
+              @if (store.deleteFailure(); as failure) {
+                <p class="text-sm text-red-600" data-testid="dashboard-item-error">{{ failure }}</p>
+              }
+            </div>
+          </section>
+        }
 
-                @if (item.soldAt === null) {
-                  <button
-                    type="button"
-                    [class]="dangerClasses"
-                    [disabled]="store.deletingId() !== null"
-                    (click)="confirmDelete(item)"
-                    [attr.data-testid]="
-                      confirmingDeleteId() === item.id
-                        ? 'dashboard-item-delete-confirm'
-                        : 'dashboard-item-delete'
-                    "
+        @case ('solicitudes') {
+          <!-- Solicitudes de carrito (ciclo 4e): el aviso del vendedor. Descartar no cambia ningún
+               artículo; el resto de la conversación ocurre en WhatsApp. -->
+          <section
+            class="space-y-2"
+            role="tabpanel"
+            id="dashboard-panel-solicitudes"
+            aria-labelledby="dashboard-tab-solicitudes"
+            data-testid="dashboard-panel-solicitudes"
+          >
+            <div class="space-y-2" data-testid="dashboard-requests">
+              <h2 class="text-sm font-semibold text-slate-900">Solicitudes</h2>
+              <p class="text-xs text-slate-600">
+                Cada fila es un carrito que un comprador pidió por WhatsApp. Descartarla no cambia
+                ningún artículo: la venta se cierra fuera de la aplicación.
+              </p>
+
+              @if (requests.failed()) {
+                <p class="text-sm text-red-600" data-testid="dashboard-requests-error">
+                  No se pudieron cargar las solicitudes. Recarga la página.
+                </p>
+              } @else if (requests.requests().length === 0) {
+                <p class="text-sm text-slate-600" data-testid="dashboard-requests-empty">
+                  Todavía no hay solicitudes. Sin el WhatsApp configurado, el comprador no puede
+                  pedir.
+                </p>
+              } @else {
+                <ul class="divide-y divide-slate-200">
+                  @for (request of requests.requests(); track request.id) {
+                    <li
+                      class="flex flex-wrap items-center gap-3 py-3"
+                      [attr.data-testid]="'dashboard-request-' + request.id"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <p
+                          class="text-sm font-medium text-slate-900"
+                          data-testid="dashboard-request-reference"
+                        >
+                          Solicitud <span class="font-mono text-xs">{{ request.reference }}</span>
+                        </p>
+                        <p class="text-xs text-slate-600">{{ requestDetail(request) }}</p>
+                        <p class="text-xs text-slate-700">{{ requestItemsLabel(request) }}</p>
+                      </div>
+
+                      <span
+                        class="rounded-full px-2 py-0.5 text-xs"
+                        [class]="requestStateClasses(request)"
+                        data-testid="dashboard-request-state"
+                      >
+                        {{ requestState(request) }}
+                      </span>
+
+                      @if (request.dismissedAt === null && request.cancelledAt === null) {
+                        <button
+                          type="button"
+                          [class]="dangerClasses"
+                          [disabled]="requests.dismissingId() !== null"
+                          (click)="confirmDismiss(request)"
+                          [attr.data-testid]="
+                            confirmingDismissId() === request.id
+                              ? 'dashboard-request-dismiss-confirm'
+                              : 'dashboard-request-dismiss'
+                          "
+                        >
+                          {{
+                            confirmingDismissId() === request.id
+                              ? requests.dismissingId() === request.id
+                                ? 'Descartando…'
+                                : 'Confirmar'
+                              : 'Descartar'
+                          }}
+                        </button>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+
+              @if (requests.failure(); as failure) {
+                <p class="text-sm text-red-600" data-testid="dashboard-request-error">
+                  {{ failure }}
+                </p>
+              }
+            </div>
+          </section>
+        }
+
+        @case ('invitaciones') {
+          <section
+            class="space-y-2"
+            role="tabpanel"
+            id="dashboard-panel-invitaciones"
+            aria-labelledby="dashboard-tab-invitaciones"
+            data-testid="dashboard-panel-invitaciones"
+          >
+            <h2 class="text-sm font-semibold text-slate-900">Invitaciones</h2>
+            <p class="text-xs text-slate-600">
+              Cada fila es un enlace que se compartió. Cancelarlo impide que se siga usando para
+              entrar; no cierra las sesiones que ya abrió.
+            </p>
+
+            @if (store.invitations().length === 0) {
+              <p class="text-sm text-slate-600" data-testid="access-invitations-empty">
+                No hay enlaces emitidos en este evento.
+              </p>
+            } @else {
+              <ul class="divide-y divide-slate-200">
+                @for (invitation of store.invitations(); track invitation.id) {
+                  <li
+                    class="flex flex-wrap items-center gap-3 py-3"
+                    [attr.data-testid]="'access-invitation-' + invitation.id"
                   >
-                    {{
-                      confirmingDeleteId() === item.id
-                        ? store.deletingId() === item.id
-                          ? 'Eliminando…'
-                          : 'Confirmar borrado'
-                        : 'Eliminar'
-                    }}
-                  </button>
+                    <div class="min-w-0 flex-1">
+                      <p
+                        class="text-sm font-medium text-slate-900"
+                        data-testid="access-invitation-name"
+                      >
+                        Enlace {{ invitationName(invitation) }} ·
+                        <span class="font-mono text-xs text-slate-500">{{
+                          invitationReference(invitation)
+                        }}</span>
+                      </p>
+                      <p class="text-xs text-slate-600">
+                        {{ invitationDetail(invitation) }}
+                      </p>
+                    </div>
+
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs"
+                      [class]="invitationStateClasses(invitation)"
+                      data-testid="access-invitation-state"
+                    >
+                      {{ invitationState(invitation) }}
+                    </span>
+
+                    @if (invitation.revokedAt === null) {
+                      <button
+                        type="button"
+                        [class]="dangerClasses"
+                        [disabled]="store.cancellingId() !== null"
+                        (click)="confirmCancel(invitation)"
+                        [attr.data-testid]="
+                          confirmingCancelId() === invitation.id
+                            ? 'access-invitation-cancel-confirm'
+                            : 'access-invitation-cancel'
+                        "
+                      >
+                        {{
+                          confirmingCancelId() === invitation.id
+                            ? store.cancellingId() === invitation.id
+                              ? 'Cancelando…'
+                              : 'Confirmar'
+                            : 'Cancelar enlace'
+                        }}
+                      </button>
+                    }
+                  </li>
                 }
-              </li>
+              </ul>
             }
-          </ul>
+
+            @if (store.accessFailure(); as failure) {
+              <p class="text-sm text-red-600" data-testid="access-error">{{ failure }}</p>
+            }
+          </section>
         }
 
-        @if (store.deleteFailure(); as failure) {
-          <p class="text-sm text-red-600" data-testid="dashboard-item-error">{{ failure }}</p>
+        @case ('dispositivos') {
+          <section
+            class="space-y-2"
+            role="tabpanel"
+            id="dashboard-panel-dispositivos"
+            aria-labelledby="dashboard-tab-dispositivos"
+            data-testid="dashboard-panel-dispositivos"
+          >
+            <div class="space-y-2" data-testid="dashboard-access">
+              <h2 class="text-sm font-semibold text-slate-900">Otros dispositivos</h2>
+              <p class="text-xs text-slate-600">
+                Estos dispositivos entraron con el enlace y no tienen cuenta. Quitar el acceso no
+                borra lo que documentaron.
+              </p>
+
+              @if (store.devices().length === 0) {
+                <p class="text-sm text-slate-600" data-testid="access-empty">
+                  No hay dispositivos sin cuenta en este evento.
+                </p>
+              } @else {
+                <ul class="divide-y divide-slate-200">
+                  @for (device of store.devices(); track device.id) {
+                    <li
+                      class="flex flex-wrap items-center gap-3 py-3"
+                      [attr.data-testid]="'access-device-' + device.id"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-slate-900">
+                          {{ deviceLabel(device) }}
+                        </p>
+                        <p class="text-xs text-slate-600">
+                          alta {{ day(device.createdAt) }} · {{ lastSeen(device) }}
+                        </p>
+                      </div>
+
+                      <span
+                        class="rounded-full px-2 py-0.5 text-xs"
+                        [class]="deviceStateClasses(device)"
+                        data-testid="access-device-state"
+                      >
+                        {{ deviceState(device) }}
+                      </span>
+
+                      @if (device.revokedAt === null) {
+                        <button
+                          type="button"
+                          [class]="dangerClasses"
+                          [disabled]="store.revokingId() !== null"
+                          (click)="confirmRevoke(device)"
+                          [attr.data-testid]="
+                            confirmingRevokeId() === device.id
+                              ? 'access-device-revoke-confirm'
+                              : 'access-device-revoke'
+                          "
+                        >
+                          {{
+                            confirmingRevokeId() === device.id
+                              ? store.revokingId() === device.id
+                                ? 'Retirando…'
+                                : 'Confirmar'
+                              : 'Des-invitar'
+                          }}
+                        </button>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+
+              @if (store.accessFailure(); as failure) {
+                <p class="text-sm text-red-600" data-testid="access-error">{{ failure }}</p>
+              }
+            </div>
+          </section>
         }
-      </section>
+      }
     </div>
   }
 </app-ui-card>

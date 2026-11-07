@@ -107,6 +107,20 @@
       enlaces emitidos. Los contadores de capturas <em>no</em> viajan ahí: la sección ya los tiene y
       duplicarlos sería una segunda fuente del mismo hecho.
     </p>
+    <p>
+      Desde D11 la pantalla se lee en cuatro pestañas —<code class="font-mono text-xs"
+        >Artículos</code
+      >, <code class="font-mono text-xs">Solicitudes</code>,
+      <code class="font-mono text-xs">Invitaciones</code> y
+      <code class="font-mono text-xs">Otros dispositivos</code>—, en ese orden y con
+      <code class="font-mono text-xs">Artículos</code> abierta por defecto. Cada pestaña monta una
+      sola lista y conserva su estado vacío, su fallo y su acto. La configuración del evento —el
+      enlace público, quién administra y el WhatsApp— queda fija arriba, fuera de las pestañas,
+      porque no es una lista. La pestaña vive en memoria: la URL sigue siendo
+      <code class="font-mono text-xs">/cuenta/evento</code> y recargar vuelve a
+      <code class="font-mono text-xs">Artículos</code>; una ruta por sección se reabre cuando la
+      paginación (D1) pida un cursor por lista.
+    </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">backend/src/routes/events-router.ts</code>;
       <code class="font-mono">frontend/src/app/events/dashboard/dashboard.guard.ts</code>;

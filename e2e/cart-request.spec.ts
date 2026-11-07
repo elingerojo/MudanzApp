@@ -228,6 +228,9 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
   // 5. El vendedor vuelve al panel, ve el renglón con el nombre de la cuenta y lo descarta; el estado
   // queda escrito. La navegación es explícita: el paso 4b lo dejó en `Capturados`.
   await openEventDashboard(page);
+  // Las solicitudes viven en su pestaña desde D11: la administración abre en `Artículos`.
+  await page.getByTestId('dashboard-tab-solicitudes').click();
+  await expect(page.getByTestId('dashboard-panel-solicitudes')).toBeVisible();
   await expect(page.getByTestId('dashboard-requests')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('pendiente');
 
