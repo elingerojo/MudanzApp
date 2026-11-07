@@ -265,4 +265,8 @@ Vive en el árbol de trabajo y se cierra con su commit. La base de dev branch se
 - **Hallazgo a la bandeja:** `test/db/item-photos.test.ts` usa tres tokens fijos y no limpia sus
   sesiones, así que una segunda corrida contra el mismo sandbox choca con `session_token_hash_key`.
   Disparador: la próxima corrida de `test:api:db:branch` que no parta de un sandbox limpio.
+- **Revisión `live` del dueño (2026-11-07):** B9 funciona en remoto: el comprador abre
+  `/carrito/:publicSlug`, expande el card `Registro de Artículos solicitados` y lee sus renglones con el
+  estado de cada artículo y el importe vigente. El panel del vendedor no cambió, que es el corte: sigue
+  con el aviso de B8 y el importe congelado.
 - **Commit del ciclo:** `c899f42`.
