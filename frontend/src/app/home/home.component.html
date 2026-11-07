@@ -25,7 +25,7 @@
         }
       </p>
 
-      @if (firstEvent(); as event) {
+      @if (activeEvent(); as event) {
         <p class="mt-2 text-sm text-slate-600" data-testid="home-event">
           {{ event.originCity }} → {{ event.destinationCity }}
         </p>
@@ -34,6 +34,16 @@
           <app-ui-button link="/capturados" testId="home-event-link">
             Ver los artículos
           </app-ui-button>
+        </div>
+      } @else if (hasSeveralEvents()) {
+        <!-- Corte D2: la cuenta tiene varias mudanzas y ninguna elegida; la portada no resume una
+             que el usuario no eligió. -->
+        <p class="mt-2 text-sm text-slate-600" data-testid="home-events-pending">
+          Esta cuenta tiene varias mudanzas.
+        </p>
+
+        <div class="mt-4">
+          <app-ui-button link="/eventos" testId="home-events-link">Elegir mudanza</app-ui-button>
         </div>
       }
 

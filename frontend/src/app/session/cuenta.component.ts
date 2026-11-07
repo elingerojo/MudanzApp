@@ -12,13 +12,17 @@ import { InviteDeviceComponent } from './invite-device.component';
 import { SessionStore } from './session.store';
 
 /**
- * Pantalla `Cuenta` (cortes D8, D9 y D10).
+ * Pantalla `Cuenta` (cortes D8, D9, D10 y D2).
  *
  * Es el tercer destino de la barra inferior. D8 la creó como destino mínimo para que la navegación
  * tuviera tres entradas; D9 la completa: publica la identidad y el estado del dispositivo —cuenta
  * vinculada o no, y el rol en la mudanza activa—, el trayecto y el enlace público del evento, y las
  * acciones de la sesión. D10 la convierte en la ruta padre de la administración del evento: el
  * enlace abre `/cuenta/evento` y esta pantalla es la que enseña el rechazo del co-dispositivo.
+ *
+ * Desde D2 una cuenta con dos o más membresías no tiene evento activo hasta que elige: la pantalla
+ * enlaza al selector `/eventos` y, mientras no haya elección, pide elegir en vez de presentar la
+ * mudanza más reciente como si fuera la propia.
  *
  * El `deviceLabel` de la sesión no viaja en `/auth/session`, así que la pantalla describe el
  * dispositivo por lo que el borde sí publica: el sujeto y el rol de la membresía. Pedir el nombre
@@ -44,6 +48,10 @@ export class CuentaComponent {
   protected readonly user = this.session.user;
   protected readonly event = this.session.activeEvent;
   protected readonly signOutClasses = uiButtonClasses('danger');
+
+  /** Cuántas mudanzas alcanza la sesión: con dos o más, la Cuenta enlaza al selector. */
+  protected readonly eventCount = computed(() => this.session.events().length);
+  protected readonly hasSeveralEvents = computed(() => this.eventCount() > 1);
 
   /** La identidad todavía no resolvió: la pantalla espera en vez de fingir un dispositivo sin cuenta. */
   protected readonly loading = this.session.identityLoading;

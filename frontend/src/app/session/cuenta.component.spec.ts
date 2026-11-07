@@ -47,6 +47,7 @@ describe('CuentaComponent', () => {
   beforeEach(async () => {
     clear.mockReset();
     user.set(null);
+    events.set([EVENT]);
     activeEvent.set(EVENT);
     identityLoading.set(false);
     identityFailed.set(false);
@@ -117,6 +118,28 @@ describe('CuentaComponent', () => {
     expect(query(fixture, 'cuenta-device-role')?.textContent).toContain('sin cuenta vinculada');
     expect(query(fixture, 'cuenta-dashboard-link')?.getAttribute('href')).toBe('/cuenta/evento');
     expect(query(fixture, 'shell-invite-card')).not.toBeNull();
+  });
+
+  it('links to the selector only when the account has several moves', () => {
+    const single = render();
+    expect(query(single, 'cuenta-events-link')).toBeNull();
+
+    events.set([EVENT, { ...EVENT, id: 'event-2' }]);
+    const several = render();
+
+    expect(query(several, 'cuenta-events-link')?.getAttribute('href')).toBe('/eventos');
+    expect(query(several, 'cuenta-events-choice')).toBeNull();
+  });
+
+  it('asks to choose instead of presenting the newest move when none is chosen', () => {
+    events.set([EVENT, { ...EVENT, id: 'event-2' }]);
+    activeEvent.set(null);
+
+    const fixture = render();
+
+    expect(query(fixture, 'cuenta-events-choice')?.textContent).toContain('2 mudanzas');
+    expect(query(fixture, 'cuenta-event-title')).toBeNull();
+    expect(query(fixture, 'cuenta-dashboard-link')).toBeNull();
   });
 
   it('shows the administration refusal on the account screen', () => {

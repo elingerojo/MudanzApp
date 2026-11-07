@@ -2,21 +2,25 @@ import type { Routes } from '@angular/router';
 
 import { requireEventAdmin } from './events/dashboard/dashboard.guard';
 import { HomeComponent } from './home/home.component';
+import { requireEventChoice } from './session/event-choice.guard';
 import { RedeemComponent } from './session/redeem.component';
 import { requireSession } from './session/session.guard';
 
 /**
- * Mapa de rutas de los cortes D8, D9 y D10.
+ * Mapa de rutas de los cortes D8, D9, D10 y D2.
  *
  * La superficie privada tiene tres destinos de nivel raíz —`/captura`, `/capturados` y `/cuenta`—.
  * Desde D10 la administración del evento es una **ruta hija de la Cuenta** (`/cuenta/evento`) y la
  * única pantalla de detalle fuera de la barra es `/articulos/:itemId`. El evento ya no está en la
  * URL: se resuelve de la sesión, igual que el evento activo de `SessionStore`.
  *
+ * Desde D2 una cuenta con dos o más membresías elige su mudanza en `/eventos`: `requireEventChoice`
+ * devuelve ahí cualquier destino privado mientras no haya una elección explícita. Con una sola
+ * membresía la guarda no interviene y el aterrizaje directo de D8 se conserva.
+ *
  * Las rutas `/eventos/:eventId...` se conservan como **alias que redirigen** para no romper enlaces
- * internos ya escritos; `/dashboard` también redirige ahora a su hija de Cuenta. No validan que el
- * `:eventId` de la URL sea el evento de la sesión: la pantalla usa el evento activo, y una cuenta
- * con más de un evento espera el selector de D2.
+ * internos ya escritos; `/dashboard` también redirige a su hija de Cuenta. No validan que el
+ * `:eventId` de la URL sea el evento de la sesión: la pantalla usa el evento activo.
  */
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -28,23 +32,31 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./session/oauth-callback.component').then((module) => module.OAuthCallbackComponent),
   },
+  // Selector de mudanza (corte D2). Con dos o más membresías es el aterrizaje de la cuenta; con una
+  // sola no se visita.
+  {
+    path: 'eventos',
+    loadComponent: () =>
+      import('./events/event-selector.component').then((module) => module.EventSelectorComponent),
+    canActivate: [requireSession],
+  },
   {
     path: 'captura',
     loadComponent: () =>
       import('./events/capture.component').then((module) => module.CaptureComponent),
-    canActivate: [requireSession],
+    canActivate: [requireSession, requireEventChoice],
   },
   {
     path: 'capturados',
     loadComponent: () =>
       import('./items/item-list.component').then((module) => module.ItemListComponent),
-    canActivate: [requireSession],
+    canActivate: [requireSession, requireEventChoice],
   },
   {
     path: 'articulos/:itemId',
     loadComponent: () =>
       import('./items/item-edit.component').then((module) => module.ItemEditComponent),
-    canActivate: [requireSession],
+    canActivate: [requireSession, requireEventChoice],
   },
   // Cuenta (cortes D8 y D9) y su hija de administración (corte D10). La ruta padre no tiene
   // componente: `/cuenta` pinta la Cuenta y `/cuenta/evento` pinta el panel en el outlet principal.
@@ -64,7 +76,8 @@ export const routes: Routes = [
           import('./events/dashboard/dashboard.component').then(
             (module) => module.DashboardComponent,
           ),
-        canActivate: [requireEventAdmin],
+        // Con varias mudanzas y sin elección, primero se elige: la administración no adivina.
+        canActivate: [requireEventChoice, requireEventAdmin],
       },
     ],
   },

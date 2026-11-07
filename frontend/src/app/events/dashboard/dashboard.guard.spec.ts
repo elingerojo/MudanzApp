@@ -31,11 +31,13 @@ describe('requireEventAdmin', () => {
   let hasSession = true;
   const identityStatus = signal<IdentityStatus>('resolved');
   const activeEventId = signal<string | null>('event-1');
+  const requiresEventChoice = signal(false);
 
   beforeEach(() => {
     hasSession = true;
     identityStatus.set('resolved');
     activeEventId.set('event-1');
+    requiresEventChoice.set(false);
 
     TestBed.configureTestingModule({
       providers: [
@@ -45,7 +47,12 @@ describe('requireEventAdmin', () => {
         { provide: API_BASE_URL, useValue: '/api' },
         {
           provide: SessionStore,
-          useValue: { hasSession: () => hasSession, identityStatus, activeEventId },
+          useValue: {
+            hasSession: () => hasSession,
+            identityStatus,
+            activeEventId,
+            requiresEventChoice,
+          },
         },
       ],
     });
@@ -115,6 +122,15 @@ describe('requireEventAdmin', () => {
     const result = await decide(() => undefined);
 
     expect(isUrlTree(result) && result.toString()).toBe('/');
+  });
+
+  it('sends an account with several moves and no choice to the selector', async () => {
+    activeEventId.set(null);
+    requiresEventChoice.set(true);
+
+    const result = await decide(() => undefined);
+
+    expect(isUrlTree(result) && result.toString()).toBe('/eventos');
   });
 
   it('sends a forbidden session back to Cuenta with the refusal in the URL', async () => {

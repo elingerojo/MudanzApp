@@ -1,0 +1,58 @@
+<section class="space-y-4">
+  <h1 class="text-xl font-semibold text-slate-900" data-testid="event-selector-title">
+    Tus mudanzas
+  </h1>
+  <p class="text-sm text-slate-600">
+    Esta cuenta tiene más de una mudanza. Elige en cuál vas a trabajar; el resto de la aplicación
+    usará la que elijas.
+  </p>
+
+  @if (loading()) {
+    <p class="text-sm text-slate-600" data-testid="event-selector-loading">
+      Cargando tus mudanzas…
+    </p>
+  }
+
+  @if (sessionInvalid()) {
+    <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700" data-testid="event-selector-invalid">
+      La sesión de este dispositivo ya no es válida.
+      <a routerLink="/invitacion" class="underline">Canjea una invitación nueva</a> para volver a
+      entrar.
+    </p>
+  }
+
+  <app-ui-card title="Elige la mudanza">
+    @if (events().length > 0) {
+      <ul class="flex flex-col gap-2" data-testid="event-selector-list">
+        @for (event of events(); track event.id) {
+          <li>
+            <button
+              type="button"
+              data-testid="event-choice"
+              [class]="rowClasses"
+              (click)="choose(event)"
+            >
+              <span class="flex flex-col items-start gap-1">
+                <span class="font-medium" data-testid="event-choice-title">{{ title(event) }}</span>
+                <span class="text-xs text-slate-500" data-testid="event-choice-role">{{
+                  roleLabel(event.role)
+                }}</span>
+              </span>
+
+              @if (activeEventId() === event.id) {
+                <span class="text-xs text-slate-500" data-testid="event-choice-current"
+                  >Actual</span
+                >
+              }
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (!loading() && !sessionInvalid()) {
+      <p class="text-sm text-slate-700" data-testid="event-selector-empty">
+        Esta cuenta todavía no tiene ninguna mudanza.
+        <a routerLink="/invitacion" class="underline">Canjea una invitación</a> para empezar.
+      </p>
+    }
+  </app-ui-card>
+</section>

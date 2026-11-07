@@ -74,9 +74,20 @@ test('a device with no credential comes back with its account and reaches its ev
   await expect(page.getByTestId('home-door-account')).toBeVisible();
   await expect(page.getByTestId('home-account-signin')).toBeVisible();
 
-  // 2. Se entra por la cuenta, sin canjear nada.
+  // 2. Se entra por la cuenta, sin canjear nada. El doble `fake` acumula membresías entre corridas,
+  //    así que desde D2 el aterrizaje es el selector cuando hay más de una; con una sola sigue
+  //    siendo `/captura`. En cualquiera de los dos casos se llega a la mudanza de este caso.
   await page.getByTestId('home-account-signin').click();
-  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page).toHaveURL(/\/(captura|eventos)$/);
+
+  if (new URL(page.url()).pathname === '/eventos') {
+    await page
+      .getByTestId('event-choice')
+      .filter({ hasText: `${event.originCity} → ${event.destinationCity}` })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/captura$/);
+  }
 
   // 3. El dispositivo queda con sesión de cuenta, así que la Cuenta muestra el nombre y ya no ofrece
   //    vincular: el regreso no es un reclamo.

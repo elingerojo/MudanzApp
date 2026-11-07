@@ -106,8 +106,10 @@
         <code class="font-mono">/cuenta</code> son los destinos de la barra inferior, con guarda de
         sesión · <code class="font-mono">/cuenta/evento</code> es la administración del evento, hija
         de la Cuenta y con guarda de administración de evento ·
-        <code class="font-mono">/articulos/:itemId</code> es la única pantalla de detalle fuera de
-        la barra. Las rutas <code class="font-mono">/eventos/:eventId...</code> y
+        <code class="font-mono">/eventos</code> es el selector de mudanza de una cuenta con dos o
+        más membresías, y los destinos privados devuelven ahí mientras no haya una elección ·
+        <code class="font-mono">/articulos/:itemId</code> es una pantalla de detalle fuera de la
+        barra. Las rutas <code class="font-mono">/eventos/:eventId...</code> y
         <code class="font-mono">/dashboard</code> se conservan como redirecciones a sus equivalentes
         raíz.
       </dd>
@@ -132,10 +134,17 @@
         <a class="underline" routerLink="/ingenieria/m0-registro">M0</a>.
       </dd>
     </dl>
+    <p>
+      Con una sola membresía el evento activo es esa membresía; con dos o más, es la que el usuario
+      elige en el selector, y hasta entonces no hay evento activo. La elección vive en memoria
+      mientras dura la visita: recargar un destino privado vuelve a preguntar en vez de caer en una
+      mudanza que el usuario no eligió.
+    </p>
     <p class="text-xs text-slate-500">
-      Evidencia: <code class="font-mono">frontend/src/app/app.routes.ts</code> y
-      <code class="font-mono">frontend/src/app/app.ts</code> (cortes D8 y D10);
-      <code class="font-mono">shop/src/app/app.routes.ts</code>.
+      Evidencia: <code class="font-mono">frontend/src/app/app.routes.ts</code>,
+      <code class="font-mono">frontend/src/app/app.ts</code> y
+      <code class="font-mono">frontend/src/app/session/session.store.ts</code> (cortes D8, D10 y
+      D2); <code class="font-mono">shop/src/app/app.routes.ts</code>.
     </p>
   </section>
 

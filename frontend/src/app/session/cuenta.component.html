@@ -45,6 +45,17 @@
           {{ label }}
         </p>
 
+        <!-- Corte D2: con varias mudanzas, la elección se revisa en el selector. -->
+        @if (hasSeveralEvents()) {
+          <a
+            routerLink="/eventos"
+            class="block rounded px-2 py-1 text-sm text-slate-700 underline"
+            data-testid="cuenta-events-link"
+          >
+            Cambiar de mudanza
+          </a>
+        }
+
         <!-- El enlace del evento existe desde que se crea: el índice nace vacío y sigue siendo un
              enlace válido (decisión §36). -->
         @if (publicUrl(); as link) {
@@ -65,6 +76,23 @@
           data-testid="cuenta-dashboard-link"
         >
           Administrar el evento
+        </a>
+      </div>
+    </app-ui-card>
+  } @else if (hasSeveralEvents()) {
+    <!-- La cuenta tiene varias membresías y ninguna elegida: no se presenta la más reciente como si
+         fuera la propia; se pide elegir (corte D2). -->
+    <app-ui-card title="Tus mudanzas">
+      <div class="space-y-2">
+        <p class="text-sm text-slate-700" data-testid="cuenta-events-choice">
+          Esta cuenta tiene {{ eventCount() }} mudanzas. Elige una para trabajar en ella.
+        </p>
+        <a
+          routerLink="/eventos"
+          class="block rounded px-2 py-1 text-sm text-slate-700 underline"
+          data-testid="cuenta-events-link"
+        >
+          Elegir mudanza
         </a>
       </div>
     </app-ui-card>

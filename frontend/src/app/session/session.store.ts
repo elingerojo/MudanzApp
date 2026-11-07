@@ -54,14 +54,43 @@ export class SessionStore {
   readonly events = computed<readonly EventSummary[]>(() => this.identity()?.events ?? []);
 
   /**
-   * El evento que la superficie privada trata como activo (corte D8).
+   * La membresía que el usuario eligió en `/eventos` (corte D2).
    *
-   * `listEventsForUser` ordena por `created_at` ascendente, así que el primero es el más antiguo. La
-   * superficie usa la **membresía más reciente**, que es la mudanza en curso; el selector explícito
-   * de una cuenta con varias membresías es D2 y reemplazará esta regla sin cambiar las rutas.
+   * Vive en memoria mientras dura la visita: persistirla en `localStorage` sería un estado en disco
+   * con vida propia, y D8 §2 ya había dejado fuera esa decisión. Se limpia al establecer o cerrar
+   * sesión, porque una cuenta nueva es una elección nueva.
    */
-  readonly activeEvent = computed<EventSummary | null>(() => this.events().at(-1) ?? null);
+  private readonly selectedEventId = signal<string | null>(null);
+
+  /**
+   * El evento que la superficie privada trata como activo (cortes D8 y D2).
+   *
+   * `listEventsForUser` ordena por `created_at` ascendente, así que la última es la más reciente. La
+   * regla de D8 —usar la más reciente— solo se conserva cuando la cuenta tiene **una** membresía:
+   * con dos o más, el evento activo es `null` hasta que el usuario elige en `/eventos`. Ninguna
+   * pantalla usa en silencio una membresía que el usuario no eligió.
+   */
+  readonly activeEvent = computed<EventSummary | null>(() => {
+    const events = this.events();
+    const selectedId = this.selectedEventId();
+    const chosen =
+      selectedId === null ? null : (events.find((event) => event.id === selectedId) ?? null);
+    if (chosen !== null) {
+      return chosen;
+    }
+
+    return events.length === 1 ? (events[0] ?? null) : null;
+  });
+
   readonly activeEventId = computed(() => this.activeEvent()?.id ?? null);
+
+  /**
+   * La cuenta tiene una decisión pendiente: dos o más membresías y ninguna elegida. La guarda de los
+   * destinos privados la usa para mandar a `/eventos` en vez de adivinar.
+   */
+  readonly requiresEventChoice = computed(
+    () => this.events().length > 1 && this.activeEvent() === null,
+  );
 
   /**
    * Estado de la lectura de identidad. La credencial se restaura de forma síncrona, pero el evento
@@ -106,6 +135,7 @@ export class SessionStore {
 
   /** Establece la sesión recién canjeada: memoria primero, disco después. */
   establish(session: IssuedSession): void {
+    this.selectedEventId.set(null);
     this.credential.set(session.sessionToken);
 
     const storage = browserStorage();
@@ -122,6 +152,7 @@ export class SessionStore {
 
   /** Cierra la sesión local. No hay endpoint: el token deja de viajar en la próxima petición. */
   clear(): void {
+    this.selectedEventId.set(null);
     this.credential.set(null);
 
     const storage = browserStorage();
@@ -139,5 +170,18 @@ export class SessionStore {
   /** El evento visible con ese identificador, si la sesión lo alcanza. */
   eventById(eventId: string): EventSummary | null {
     return this.events().find((event) => event.id === eventId) ?? null;
+  }
+
+  /**
+   * Fija la elección del selector (corte D2). Solo acepta una membresía que la sesión alcance: una
+   * identidad vieja o un identificador inventado no crean un evento que el borde no publicó.
+   */
+  selectEvent(eventId: string): boolean {
+    if (!this.events().some((event) => event.id === eventId)) {
+      return false;
+    }
+
+    this.selectedEventId.set(eventId);
+    return true;
   }
 }

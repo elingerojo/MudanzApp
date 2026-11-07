@@ -8,6 +8,7 @@ import type {
 } from '@mudanzapp/shared';
 
 import { attachCapture } from './support/attach-capture.js';
+import { chooseNewestEvent } from './support/choose-event.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
@@ -115,6 +116,27 @@ async function seedSession(page: Page, token: string): Promise<void> {
   );
 }
 
+/**
+ * Abre la administración desde la Cuenta. Desde D2 una cuenta con varias membresías elige su
+ * mudanza antes; el caso elige la más reciente —la que acaba de crear— y vuelve a la Cuenta con la
+ * barra, porque la elección vive en memoria y un `goto` la perdería.
+ */
+async function openDashboardFromAccount(page: Page): Promise<void> {
+  await page.goto(`${FRONTEND_URL}/cuenta`);
+  await expect(
+    page.locator('[data-testid="cuenta-dashboard-link"], [data-testid="cuenta-events-choice"]'),
+  ).toBeVisible();
+
+  if ((await page.getByTestId('cuenta-events-choice').count()) > 0) {
+    await page.getByTestId('cuenta-events-link').click();
+    await chooseNewestEvent(page);
+    await page.getByTestId('shell-nav-account').click();
+    await expect(page.getByTestId('cuenta-dashboard-link')).toBeVisible();
+  }
+
+  await page.getByTestId('cuenta-dashboard-link').click();
+}
+
 test('the event administrator opens its dashboard, revokes a co-device and cancels a link', async ({
   request,
   page,
@@ -140,8 +162,7 @@ test('the event administrator opens its dashboard, revokes a co-device and cance
 
   // 1. El rey abre la Cuenta y entra al panel desde su enlace.
   await seedSession(page, king.sessionToken);
-  await page.goto(`${FRONTEND_URL}/cuenta`);
-  await page.getByTestId('cuenta-dashboard-link').click();
+  await openDashboardFromAccount(page);
 
   await expect(page.getByTestId('dashboard-panel')).toBeVisible();
   await expect(page.getByTestId('dashboard-administrator')).toContainText(FAKE_DISPLAY_NAME);
@@ -270,8 +291,7 @@ test('the event administrator retires a mistaken capture and the public page sto
 
   // 2. El rey abre el panel, ve la captura y la elimina con dos toques.
   await seedSession(page, king.sessionToken);
-  await page.goto(`${FRONTEND_URL}/cuenta`);
-  await page.getByTestId('cuenta-dashboard-link').click();
+  await openDashboardFromAccount(page);
 
   const row = page.getByTestId(`dashboard-item-row-${item.id}`);
   await expect(row).toBeVisible();

@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import type { EventSummary } from '@mudanzapp/shared';
 import type { Mock } from 'vitest';
 
 import { API_BASE_URL } from '../api-base-url.token';
@@ -23,11 +24,13 @@ describe('HomeComponent', () => {
   let begin: Mock<OAuthFlow['begin']>;
   let hasSession: boolean;
   let identityFailed: boolean;
+  let events: EventSummary[];
 
   beforeEach(async () => {
     begin = vi.fn<OAuthFlow['begin']>().mockResolvedValue(undefined);
     hasSession = false;
     identityFailed = false;
+    events = [];
 
     const flow: OAuthFlow = { begin, complete: vi.fn<OAuthFlow['complete']>() };
 
@@ -47,7 +50,8 @@ describe('HomeComponent', () => {
             hasSession: () => hasSession,
             user: () => null,
             identityFailed: () => identityFailed,
-            events: () => [],
+            events: () => events,
+            activeEvent: () => (events.length === 1 ? (events[0] ?? null) : null),
             clear: vi.fn(),
           },
         },
@@ -146,5 +150,57 @@ describe('HomeComponent', () => {
       fixture.nativeElement.querySelector('[data-testid="home-session-invalid"]'),
     ).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="home-door-account"]')).not.toBeNull();
+  });
+
+  it('resume el evento activo y no invita a elegir cuando la cuenta tiene una sola mudanza', async () => {
+    hasSession = true;
+    events = [
+      {
+        id: 'event-1',
+        publicSlug: 'quito-guayaquil-1a2b3c',
+        originCity: 'Quito',
+        destinationCity: 'Guayaquil',
+        currency: 'USD',
+        state: 'open',
+        role: 'member',
+      },
+    ];
+
+    const fixture = await render();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="home-event"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="home-events-link"]')).toBeNull();
+  });
+
+  it('ofrece elegir mudanza cuando hay varias y ninguna está elegida', async () => {
+    hasSession = true;
+    events = [
+      {
+        id: 'event-a',
+        publicSlug: 'quito-guayaquil-1a2b3c',
+        originCity: 'Quito',
+        destinationCity: 'Guayaquil',
+        currency: 'USD',
+        state: 'open',
+        role: 'owner',
+      },
+      {
+        id: 'event-b',
+        publicSlug: 'loja-cuenca-4d5e6f',
+        originCity: 'Loja',
+        destinationCity: 'Cuenca',
+        currency: 'USD',
+        state: 'open',
+        role: 'member',
+      },
+    ];
+
+    const fixture = await render();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="home-events-pending"]'),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="home-events-link"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="home-event"]')).toBeNull();
   });
 });

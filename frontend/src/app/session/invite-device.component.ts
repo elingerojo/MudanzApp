@@ -46,8 +46,11 @@ export class InviteDeviceComponent {
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly session = inject(SessionStore);
 
-  /** El evento visible de la sesión: la misma fuente que usa la barra del marco. */
-  private readonly event = computed(() => this.session.events()[0] ?? null);
+  /**
+   * El evento activo de la sesión (corte D2): con una elección explícita, el primero de la lista del
+   * borde podía ser una mudanza distinta de la que el usuario está trabajando.
+   */
+  private readonly event = this.session.activeEvent;
 
   /** Sin evento no hay a quién invitar: el card no se dibuja. */
   protected readonly visible = computed(() => this.event() !== null);

@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import type {
   CreatedEvent,
   CreatedInvitation,
@@ -8,6 +8,7 @@ import type {
 } from '@mudanzapp/shared';
 
 import { attachCapture } from './support/attach-capture.js';
+import { chooseEventIfAsked } from './support/choose-event.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
@@ -117,13 +118,41 @@ async function eventWithPublishedArticle(
 }
 
 /** Deja el dispositivo con la credencial que la aplicación lee al arrancar. */
-async function seedSession(page: import('@playwright/test').Page, token: string): Promise<void> {
+async function seedSession(page: Page, token: string): Promise<void> {
   await page.addInitScript(
     ([key, value]) => {
       localStorage.setItem(key ?? '', value ?? '');
     },
     [SESSION_KEY, token],
   );
+}
+
+/**
+ * Abre la administración del evento. Desde D2 una cuenta con varias membresías elige antes de
+ * entrar; la elección vive en memoria, así que se llega al panel con la barra y no con un `goto`.
+ */
+async function openEventDashboard(page: Page): Promise<void> {
+  await page.goto(`${FRONTEND_URL}/dashboard`);
+  await expect(page).toHaveURL(/\/(cuenta\/evento|eventos)$/);
+
+  if (await chooseEventIfAsked(page)) {
+    await page.getByTestId('shell-nav-account').click();
+    await page.getByTestId('cuenta-dashboard-link').click();
+  }
+
+  await expect(page.getByTestId('dashboard-panel')).toBeVisible();
+}
+
+/** Igual que el panel: `Capturados` es un destino privado y desde D2 puede exigir elegir antes. */
+async function openCaptured(page: Page): Promise<void> {
+  await page.goto(`${FRONTEND_URL}/capturados`);
+  await expect(page).toHaveURL(/\/(capturados|eventos)$/);
+
+  if (await chooseEventIfAsked(page)) {
+    await page.getByTestId('shell-nav-captured').click();
+  }
+
+  await expect(page).toHaveURL(/\/capturados$/);
 }
 
 test('the seller sets its WhatsApp and the buyer asks the cart from the shop', async ({
@@ -147,7 +176,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
   const account = (await claimed.json()) as IssuedSession;
 
   await seedSession(page, account.sessionToken);
-  await page.goto(`${FRONTEND_URL}/dashboard`);
+  await openEventDashboard(page);
 
   // 2. El número es del evento y lo fija quien lo administra, aquí y no en la Cuenta del marco.
   await expect(page.getByTestId('dashboard-contact-empty')).toBeVisible();
@@ -184,7 +213,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
     );
     // 4b. El vendedor despublica desde `Capturados`: la ficha sale del catálogo y el carrito del
     // comprador la retira con un aviso que la nombra (F3).
-    await page.goto(`${FRONTEND_URL}/capturados`);
+    await openCaptured(page);
     const row = page.getByTestId(`item-${itemId}`);
     await row.getByTestId('item-unpublish').click();
     await expect(row.getByTestId('item-status')).toHaveText('despublicado');
@@ -198,7 +227,7 @@ test('the seller sets its WhatsApp and the buyer asks the cart from the shop', a
 
   // 5. El vendedor vuelve al panel, ve el renglón con el nombre de la cuenta y lo descarta; el estado
   // queda escrito. La navegación es explícita: el paso 4b lo dejó en `Capturados`.
-  await page.goto(`${FRONTEND_URL}/dashboard`);
+  await openEventDashboard(page);
   await expect(page.getByTestId('dashboard-requests')).toContainText(FAKE_DISPLAY_NAME);
   await expect(page.getByTestId('dashboard-request-state')).toHaveText('pendiente');
 

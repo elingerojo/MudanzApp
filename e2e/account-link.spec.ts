@@ -6,6 +6,7 @@ import type {
   IssuedSession,
 } from '@mudanzapp/shared';
 
+import { chooseEventIfAsked } from './support/choose-event.js';
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
@@ -78,7 +79,11 @@ test('a co-device links an account from the account card and keeps its event', a
   await expect(page.getByTestId('shell-account-link')).toBeVisible();
 
   // 2. Al pulsar, el flujo sale y vuelve; el reclamo deja la sesión de cuenta y la pantalla en captura.
+  //    La cuenta acumula membresías, así que desde D2 el destino puede ser el selector: se elige la
+  //    más reciente, que es este evento.
   await page.getByTestId('shell-account-link').click();
+  await expect(page).toHaveURL(/\/(captura|eventos)$/);
+  await chooseEventIfAsked(page);
   await expect(page).toHaveURL(/\/captura$/);
 
   // 3. La Cuenta ya muestra la cuenta vinculada y la acción desaparece.

@@ -106,4 +106,11 @@ describe('App with session', () => {
 
     expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBe('page');
   });
+
+  it('marks Cuenta while the event selector is open', () => {
+    const fixture = render('/eventos');
+
+    expect(navItem(fixture, 'shell-nav-account')?.getAttribute('aria-current')).toBe('page');
+    expect(navItem(fixture, 'shell-nav-capture')?.getAttribute('aria-current')).toBeNull();
+  });
 });

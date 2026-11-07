@@ -46,7 +46,7 @@ describe('InviteDeviceComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: API_BASE_URL, useValue: '/api' },
-        { provide: SessionStore, useValue: { events: () => events } },
+        { provide: SessionStore, useValue: { activeEvent: () => events[0] ?? null } },
       ],
     }).compileComponents();
 

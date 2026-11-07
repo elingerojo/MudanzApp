@@ -8,14 +8,15 @@ import { SessionStore } from '../../session/session.store';
 import { DashboardStore } from './dashboard.store';
 
 /**
- * Puerta de la administración del evento (ciclo 4c-2, decisión §37; cortes D8 y D10).
+ * Puerta de la administración del evento (ciclo 4c-2, decisión §37; cortes D8, D10 y D2).
  *
  * El derecho **no** se deduce de la sesión: se pregunta al borde, que es el único que sabe quién
  * administra el evento. El guard solo traduce la respuesta.
  *
  * Desde D8 el evento no está en la URL. La credencial se restaura de forma síncrona, pero el evento
  * activo llega en la lectura de identidad, así que la guarda **espera** a que esa lectura deje de
- * cargar antes de decidir. Sin evento, el camino de vuelta es la portada.
+ * cargar antes de decidir. Sin evento, el camino de vuelta es la portada; desde D2, si la cuenta
+ * tiene varias mudanzas y ninguna elegida, el camino es el selector.
  *
  * - Sin credencial, el camino es el canje, igual que en `requireSession` (`/invitacion`).
  * - Un fallo devuelve a `Cuenta` con `denied=dashboard` y la familia del fallo en la URL: desde D10
@@ -38,7 +39,7 @@ export const requireEventAdmin: CanActivateFn = () => {
     switchMap(async () => {
       const eventId = session.activeEventId();
       if (eventId === null) {
-        return router.createUrlTree(['/']);
+        return router.createUrlTree([session.requiresEventChoice() ? '/eventos' : '/']);
       }
 
       const result = await dashboard.load(eventId);

@@ -33,7 +33,13 @@ export class HomeComponent {
   protected readonly hasSession = this.session.hasSession;
   protected readonly user = this.session.user;
   protected readonly identityFailed = this.session.identityFailed;
-  protected readonly firstEvent = computed(() => this.session.events()[0] ?? null);
+
+  /**
+   * La portada resume el **evento activo** (corte D2), no el primero de la lista del borde: con una
+   * elección explícita, el primero podía ser una mudanza que el usuario no eligió.
+   */
+  protected readonly activeEvent = this.session.activeEvent;
+  protected readonly hasSeveralEvents = computed(() => this.session.events().length > 1);
 
   /** El botón de cerrar sesión no es navegación, así que no usa la primitiva con `link`. */
   protected readonly signOutClasses = uiButtonClasses('danger');

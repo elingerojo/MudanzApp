@@ -49,7 +49,8 @@ const DESTINATIONS: readonly Destination[] = [
  * Qué destino de la barra corresponde a una URL. Las pantallas de detalle no son destinos, pero
  * conservan marcada la sección de la que salieron: `articulos/:itemId` es de Capturados y la
  * administración del evento —`/cuenta/evento`, desde D10— es de Cuenta, igual que el alias
- * `/dashboard`.
+ * `/dashboard`. El selector de mudanza (`/eventos`, corte D2) también es de Cuenta: elegir es un
+ * acto de la cuenta, no un cuarto destino.
  */
 function sectionOf(url: string): Destination['id'] | null {
   const path = url.split('?')[0]?.split('#')[0] ?? '';
@@ -62,7 +63,12 @@ function sectionOf(url: string): Destination['id'] | null {
     return 'capturados';
   }
 
-  if (path === '/cuenta' || path.startsWith('/cuenta/') || path.startsWith('/dashboard')) {
+  if (
+    path === '/cuenta' ||
+    path.startsWith('/cuenta/') ||
+    path.startsWith('/dashboard') ||
+    path === '/eventos'
+  ) {
     return 'cuenta';
   }
 
