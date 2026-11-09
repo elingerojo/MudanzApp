@@ -1,6 +1,7 @@
 # Plan del ciclo D14 — `barra-estados-cierre`: cada destino dice su estado, la bienvenida no duplica la cámara y la captura termina en `Capturados`
 
-> **Estado:** en curso. Sin migración, sin dependencia nueva y sin rama por ciclo.
+> **Estado:** **implementado y validado en local el 2026-11-09; revisión `live` pendiente.** Sin
+> migración, sin dependencia nueva y sin rama por ciclo.
 > **Hipótesis:** la barra inferior comunica por el fondo si un destino está disponible, si es el
 > actual o si está deshabilitado; la bienvenida deja la cámara en el único botón que existe —`Foto`,
 > al centro— y la captura que termina lleva sola a `Capturados`, donde el artículo recién creado se
@@ -183,4 +184,23 @@ la barra, que vive en la shell y ya entrega la foto a la sesión de captura.
 
 ## 13. Cierre
 
-Se escribe al cerrar el ciclo.
+Implementado y validado en local el 2026-11-09, en el commit `254ccf2`. Gate ejecutado, un comando
+por invocación: `npm run typecheck`, `npm run lint`, `npm run format:check`,
+`npm run test:web:frontend` (32 archivos, 211 pruebas), `npm run build:web:frontend` (inicial de
+747.14 kB, con el aviso de presupuesto conocido de D5), `npm run test:web:wiki` (13 pruebas),
+`npm run build:web:wiki`, `npm run typecheck:e2e`, `npm run db:migrate:test` a mano antes del arnés y
+`npm run test:e2e` (24 pasaron, 42 omitidas por proyecto; la bienvenida pasó en 1.2 s, la foto pesada
+en 1.6 s y la captura desde el enlace en 1.6 s). `npm run ciclo:check` cerró en `ok` con los 16
+avisos preexistentes.
+
+Lo que se observó: `/inicio` publica la cabecera del evento, la instrucción de documentar, el card
+que nombra el botón `Foto` y el siguiente paso, y no monta ningún `input[type="file"]`; las cuatro
+posiciones de la barra publican `data-nav-state` —`selected` en la sección actual, `rest` en el
+resto y `off` sin foto en `Captura` y siempre en `Ayuda`—; con foto, `Captura` pasa a `rest` con
+`href="/captura"` y sin `aria-current`; guardar y publicar refrescan la lista y navegan solos a
+`/capturados`, donde el artículo aparece con su estado; y pedir `/captura` sin sesión de foto vuelve
+a `/inicio`.
+
+Pendiente con su disparador: la revisión `live` en remoto del dueño. El aviso `Publicado. El
+enlace…` del panel se retiró porque la navegación automática lo hacía inalcanzable; si el dueño
+quiere leer ese enlace sin pasar por `Capturados`, es un corte propio con su aviso donde corresponda.
