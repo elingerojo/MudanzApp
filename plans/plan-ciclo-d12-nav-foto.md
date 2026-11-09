@@ -1,7 +1,7 @@
 # Plan del ciclo D12 — `nav-foto`: la cámara en la barra y el panel de siempre
 
-> **Estado:** **plan ejecutable, sin ejecutar.** Abierto por decisión del dueño del 2026-11-09. Sin
-> migración, sin dependencia nueva y sin rama por ciclo.
+> **Estado:** **implementado, validado en local y revisado `live` en remoto el 2026-11-09.** Abierto
+> por decisión del dueño del 2026-11-09. Sin migración, sin dependencia nueva y sin rama por ciclo.
 > **Hipótesis:** con un botón redondo `Foto` al centro de la barra inferior, cualquier pantalla privada
 > abre la cámara del dispositivo en un toque y la foto tomada llega **al mismo formulario de captura**
 > —sin ruta nueva, sin contrato nuevo y sin cambiar el contenido ni los rótulos del panel—; cancelar la
@@ -259,5 +259,6 @@ formulario lo optimiza, publica `item-photo-preview` y conserva el título escri
 admitido produce el mismo mensaje del panel. `npm run ciclo:check` cerró en `ok` con los avisos
 preexistentes.
 
-Pendiente con su disparador: la revisión `live` en remoto del dueño, y el contenido del hueco `Ayuda`
-solo si el dueño abre su propio ciclo —hoy es inerte por decisión del 2026-11-09—.
+Revisada `live` en remoto por el dueño el 2026-11-09: la barra de cinco posiciones, el botón `Foto` y
+la foto que aterriza en el panel funcionan en el despliegue. Pendiente con su disparador: el contenido
+del hueco `Ayuda`, solo si el dueño abre su propio ciclo —hoy es inerte por decisión del 2026-11-09—.
