@@ -20,7 +20,8 @@
 > (`request-record`) cerrada en `c899f42` y revisada `live` por el dueño en remoto el 2026-11-07, con
 > el alcance corregido —solo la solicitud abierta—; B10 (`seller-request-record`) cerrada en `ba2ab6c`
 > el 2026-11-07 como contraparte del panel, con la misma derivación de B8/B9; la hoja
-> `backlog-vendedor-solicitud` se retiró; workflow de ciclos en vigor.
+> `backlog-vendedor-solicitud` se retiró; D12 (`nav-foto`) cerrada en `b7e67aa` el 2026-11-09 y
+> pendiente de revisión `live`; workflow de ciclos en vigor.
 
 ## 0. Reglas de uso
 
@@ -52,7 +53,7 @@
 | A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                                    |
 | B      | **Remanentes de 4f** y de la decisión §44                | 10    | B1, B8, B9 y B10 cerradas; resto con disparador |
 | C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                                 |
-| D      | Escala, rendimiento y UX                                 | 12    | `D2`, `D8`, `D9`, `D10` y `D11` cerradas        |
+| D      | Escala, rendimiento y UX                                 | 12    | `D2`, `D8`, `D9`, `D10`, `D11` y `D12` cerradas |
 | E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio              |
 | F      | Publicación, URL y venta                                 | 7     | Disparadores                                    |
 | G      | Cuenta e identidad                                       | 5     | Disparadores                                    |
@@ -133,7 +134,7 @@ Lo que §39 reservaba para 4f y la revisión `live` de 4e dejaron como hecho pen
 | **D10** | `cuenta-evento`                       | `cerrada cb9cae5 2026-11-07` — La administración del evento —co-dispositivos, enlaces, solicitudes y capturas— deja de ser una ruta hermana y pasa a vivir dentro de `Cuenta`                                                                                                                                                                                                          | Ruta hija de `Cuenta` (`/cuenta/evento`) con `requireEventAdmin`; el rechazo se enseña en la pantalla de cuenta y `/dashboard` queda como redirección. Revisada `live` en remoto el 2026-11-07                                                                                                                                               | M     | Decisión del dueño 2026-11-06; D8                                                                                                                |
 | **D11** | Pestañas del panel del evento         | `cerrada 350fa8d 2026-11-07` — `plans/plan-ciclo-d11-pestanas-panel-evento.md`. Renombrar los rótulos a `Artículos`, `Solicitudes`, `Invitaciones` y `Otros dispositivos`, y separar el panel en cuatro pestañas en ese orden, con `Artículos` abierta por defecto; la configuración del evento —enlace público, quién administra y WhatsApp— queda fija arriba, fuera de las pestañas | Una tira de pestañas dentro de `/cuenta/evento` que muestra una lista por vez, con las lecturas y los actos de cada bloque sin cambios; el armazón decide en su plan si es ruta hija o estado en memoria, y cada lista queda lista para paginar por separado. Sin backend, contrato ni migración. Revisada `live` en remoto el 2026-11-07    | M     | Decisión del dueño 2026-11-07; D1                                                                                                                |
 
-| **D12** | `nav-foto` | `en curso` — Barra de cinco posiciones: `Captura`, `Capturados`, botón redondo `Foto` al centro, hueco inerte con la leyenda `Ayuda` y `Cuenta`. `Foto` abre la cámara del móvil desde cualquier pantalla privada; cancelar no navega, y una captura abre el panel `Captura` actual con esa foto, sin cambiar su contenido ni sus rótulos. El hueco `Ayuda` solo sostiene la simetría e insinúa una ayuda futura; hoy no es enlace ni funcionalidad. `Captura` sigue siendo el enlace al panel y el renombre `Asistente IA` se descartó. | Input de cámara oculto en la shell que entrega el archivo al panel por un store compartido; el panel queda intacto y la foto se procesa igual que una elegida en él. Sin backend, `shared`, base ni dependencias. | S | Decisión del dueño 2026-11-09; [`plan-ciclo-d12`](plan-ciclo-d12-nav-foto.md:1) |
+| **D12** | `nav-foto` | `cerrada b7e67aa 2026-11-09` — Barra de cinco posiciones: `Captura`, `Capturados`, botón redondo `Foto` al centro, hueco inerte con la leyenda `Ayuda` y `Cuenta`. `Foto` abre la cámara del móvil desde cualquier pantalla privada; cancelar no navega, y una captura abre el panel `Captura` actual con esa foto, sin cambiar su contenido ni sus rótulos. El hueco `Ayuda` solo sostiene la simetría e insinúa una ayuda futura; hoy no es enlace ni funcionalidad. `Captura` sigue siendo el enlace al panel y el renombre `Asistente IA` se descartó. Revisión `live` pendiente del dueño. | Input de cámara oculto en la shell que entrega el archivo al panel por un store compartido; el panel queda intacto y la foto se procesa igual que una elegida en él. Sin backend, `shared`, base ni dependencias. | S | Decisión del dueño 2026-11-09; [`plan-ciclo-d12`](plan-ciclo-d12-nav-foto.md:1) |
 
 ---
 
