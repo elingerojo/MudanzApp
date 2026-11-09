@@ -426,3 +426,42 @@ test('a co-device opens the link and captures the first article from the browser
   await expect(page.getByTestId('item-photo')).toBeVisible();
   await expect(page).toHaveURL(/\/capturados$/);
 });
+
+test('the bar photo button opens the camera and lands on the capture panel', async ({
+  page,
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'UI capture suite opens the private surface');
+
+  const own = await eventWithSession(request, 'Bogotá', 'Ciudad de México');
+
+  await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
+  await page.getByTestId('redeem-submit').click();
+  await expect(page).toHaveURL(/\/captura$/);
+
+  // 1. Desde otra pantalla privada, `Foto` es un botón que dispara la cámara; cancelar no navega.
+  await page.getByTestId('shell-nav-account').click();
+  await expect(page).toHaveURL(/\/cuenta$/);
+
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByTestId('shell-nav-photo').click();
+  await chooser;
+  await expect(page).toHaveURL(/\/cuenta$/);
+
+  // 2. Un archivo de la cámara abre el panel con la foto ya procesada en el dispositivo.
+  await page.setInputFiles('[data-testid="shell-photo-input"]', {
+    name: 'cama.png',
+    mimeType: 'image/png',
+    buffer: PNG,
+  });
+
+  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page.getByTestId('shell-nav-capture')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('item-photo-preview')).toBeVisible();
+  await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
+
+  // 3. El panel es el de siempre: la ficha se escribe después y el guardado funciona.
+  await page.getByTestId('item-title-input').fill('Cama individual');
+  await page.getByTestId('item-form-save-only').click();
+  await expect(page.getByTestId('capture-saved')).toBeVisible();
+});

@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   OnDestroy,
@@ -27,6 +28,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
+import { PhotoInboxStore } from '../events/photo-inbox.store';
 import {
   AI_NOT_CONFIGURED,
   AI_OUTPUT_INVALID,
@@ -123,6 +125,7 @@ export class ItemFormComponent implements OnDestroy {
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly optimize = inject(PHOTO_OPTIMIZER);
   private readonly sendPhoto = inject(PHOTO_UPLOADER);
+  private readonly inbox = inject(PhotoInboxStore);
 
   readonly eventId = input.required<string>();
 
@@ -198,6 +201,17 @@ export class ItemFormComponent implements OnDestroy {
 
   private objectUrl: string | null = null;
 
+  constructor() {
+    // La barra inferior deposita la foto en el buzón desde otra pantalla (corte D12). Se consume una
+    // sola vez, así que navegar a `/captura` sin remontar el panel no la entrega dos veces.
+    effect(() => {
+      const pending = this.inbox.take();
+      if (pending !== null) {
+        void this.acceptPhoto(pending);
+      }
+    });
+  }
+
   protected onInput(target: 'title' | 'note' | 'widthCm' | 'heightCm' | 'depthCm' | 'weightKg') {
     return (event: Event): void => {
       const value = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
@@ -215,23 +229,35 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Acepta la foto elegida, la optimiza en el dispositivo, la previsualiza y pide el ticket.
+   * Acepta la foto elegida en el panel. El input se vacía siempre para que la misma foto pueda
+   * elegirse dos veces seguidas; el procesamiento es el único de `acceptPhoto`.
+   */
+  protected async onPhoto(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const [file] = Array.from(input.files ?? []);
+    input.value = '';
+    if (file === undefined) {
+      return;
+    }
+
+    await this.acceptPhoto(file);
+  }
+
+  /**
+   * Acepta la foto, la optimiza en el dispositivo, la previsualiza y pide el ticket.
+   *
+   * Es el camino **único** de una foto: la elegida en el panel y la tomada con el botón `Foto` de la
+   * barra (corte D12) pasan por aquí, así que las dos tienen los mismos mensajes, el mismo orden y el
+   * mismo ticket. Además, la foto del buzón reemplaza solo la foto: no borra lo que ya está escrito.
    *
    * Un archivo rechazado no reemplaza al que ya estaba: el mensaje explica el motivo y la captura
    * sigue siendo válida. El ticket se pide **aquí** y no al pulsar, para que el tap no pague un viaje
    * de ida y vuelta; no escribe nada en el almacén.
    */
-  protected async onPhoto(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const [file] = Array.from(input.files ?? []);
-    if (file === undefined) {
-      return;
-    }
-
+  private async acceptPhoto(file: File): Promise<void> {
     const typeAccepted = (ITEM_PHOTO_CONTENT_TYPES as readonly string[]).includes(file.type);
     if (!typeAccepted) {
       this.error.set('La foto debe ser JPEG, PNG o WebP.');
-      input.value = '';
       return;
     }
 
@@ -239,7 +265,6 @@ export class ItemFormComponent implements OnDestroy {
     // dispositivo. Un archivo mayor se rechaza aquí, sin tocar la red.
     if (file.size > ITEM_LIMITS.photoBytes) {
       this.error.set(`La foto supera el límite de ${String(this.maxPhotoMiB)} MB.`);
-      input.value = '';
       return;
     }
 
@@ -275,7 +300,6 @@ export class ItemFormComponent implements OnDestroy {
       await this.ensureTicket();
     } catch {
       this.clearPhoto();
-      input.value = '';
       this.error.set('No se pudo procesar esta foto. Elige otra o toma una nueva.');
     } finally {
       this.optimizing.set(false);

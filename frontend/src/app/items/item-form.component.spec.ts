@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { API_BASE_URL } from '../api-base-url.token';
+import { PhotoInboxStore } from '../events/photo-inbox.store';
 import { PROGRESS_DONE_FLASH_MS } from '../ui/ui-progress-button/ui-progress-button';
 import { ItemFormComponent } from './item-form.component';
 import { PHOTO_OPTIMIZER } from './photo-optimizer.token';
@@ -432,5 +433,34 @@ describe('ItemFormComponent', () => {
     await flash(fixture);
 
     expect(saved).toHaveBeenCalledWith(null);
+  });
+
+  it('takes the photo the bar left in the inbox without losing what is written', async () => {
+    const fixture = render();
+    fill(fixture, 'item-title-input', 'Bicicleta');
+
+    const file = new File(['barra'], 'barra.webp', { type: 'image/webp' });
+    TestBed.inject(PhotoInboxStore).stage(file);
+    await settle(fixture);
+
+    // Mismo camino que una foto elegida en el panel: optimiza, pide su ticket y no sube nada.
+    httpTesting.expectOne(TICKET_URL).flush(TICKET);
+    await settle(fixture);
+
+    expect(query(fixture, 'item-photo-preview')).not.toBeNull();
+    expect((query(fixture, 'item-photo-sizes') as HTMLElement).children).toHaveLength(3);
+    expect((query(fixture, 'item-title-input') as HTMLInputElement).value).toBe('Bicicleta');
+    expect(TestBed.inject(PhotoInboxStore).take()).toBeNull();
+  });
+
+  it('rejects a photo from the inbox with the same message as the panel', async () => {
+    const fixture = render();
+
+    TestBed.inject(PhotoInboxStore).stage(new File(['gif'], 'anim.gif', { type: 'image/gif' }));
+    await settle(fixture);
+
+    expect(errorText(fixture)).toContain('JPEG');
+    httpTesting.expectNone(TICKET_URL);
+    expect(TestBed.inject(PhotoInboxStore).take()).toBeNull();
   });
 });

@@ -221,6 +221,15 @@ hace falta inventar entradas para pantallas que no existen.
 > `Artículos`. Sin backend, sin contrato ni migración. El detalle vive en
 > [`plan-ciclo-d11-pestanas-panel-evento`](plan-ciclo-d11-pestanas-panel-evento.md:1).
 >
+> **Nota (corte D12, 2026-11-09):** la barra inferior pasa a **cinco posiciones**: `Captura`,
+> `Capturados`, un botón redondo `Foto` al centro, un hueco inerte con la leyenda `Ayuda` y `Cuenta`.
+> Los tres destinos conservan su enlace y su `aria-current`; `Foto` no es un destino, es el acto de
+> abrir la cámara del dispositivo desde cualquier pantalla privada, y `Ayuda` solo sostiene la
+> simetría. La foto tomada se deposita en un buzón en memoria (`PhotoInboxStore`) y el formulario de
+> `Captura` la consume igual que una elegida en él: el panel no cambia de contenido ni de rótulos, y
+> cancelar la cámara no navega. Sin ruta nueva, sin backend, sin contrato, sin dependencia y sin
+> migración. El detalle vive en [`plan-ciclo-d12-nav-foto`](plan-ciclo-d12-nav-foto.md:1).
+>
 > **Nota (corte D2, 2026-11-07):** la cuenta con dos o más membresías deja de aterrizar en la más
 > reciente. `/eventos` es el selector: publica la lista de membresías con su trayecto y su rol, y
 > `requireEventChoice` devuelve ahí a los destinos privados —`/captura`, `/capturados`,
