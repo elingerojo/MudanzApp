@@ -205,7 +205,8 @@ que el botón de la barra; al elegir archivo deposita la foto en el buzón y nav
 
 ## 13. Cierre
 
-Implementado y validado en local el 2026-11-09. Gate ejecutado, un comando por invocación:
+Implementado y validado en local el 2026-11-09, en el commit `1092f45`. Gate ejecutado, un comando
+por invocación:
 `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test:web:frontend` (32 archivos,
 212 pruebas), `npm run build:web:frontend` (inicial de 740.63 kB, con el aviso de presupuesto conocido
 de D5), `npm run test:web:wiki` (13 pruebas), `npm run build:web:wiki`, `npm run typecheck:e2e`,
