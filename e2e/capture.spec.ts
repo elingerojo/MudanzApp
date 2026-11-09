@@ -376,9 +376,10 @@ test('a co-device opens the link and captures the first article from the browser
   await expect(page.getByTestId('redeem-token')).toHaveValue(own.invitation.token);
   await page.getByTestId('redeem-submit').click();
 
-  // Desde D13 el canje aterriza en la bienvenida y `Captura` inicia deshabilitado.
+  // Desde D13 el canje aterriza en la bienvenida y `Captura` inicia deshabilitado; desde D14 la
+  // cámara es solo el botón central de la barra.
   await expect(page).toHaveURL(/\/inicio$/);
-  await expect(page.getByTestId('inicio-photo-label')).toBeVisible();
+  await expect(page.getByTestId('inicio-camera-hint')).toBeVisible();
   await expect(page.getByTestId('shell-nav-capture')).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByTestId('shell-nav-captured')).toBeVisible();
 
@@ -415,11 +416,8 @@ test('a co-device opens the link and captures the first article from the browser
   await expect(page.getByTestId('item-form-save-only')).toHaveAttribute('aria-busy', 'true');
   await expect(page.getByTestId('item-form-save-only')).toContainText('%');
 
-  // La captura no publica: guarda la ficha privada y ofrece el enlace a `Capturados`.
-  await expect(page.getByTestId('capture-saved')).toBeVisible();
-  await expect(page.getByTestId('item-form-save-only')).toBeDisabled();
-
-  await page.getByTestId('capture-go-captured').click();
+  // La captura guarda la ficha privada y el cierre navega solo a `Capturados` (corte D14).
+  await expect(page).toHaveURL(/\/capturados$/);
 
   // 4. Aparece en la lista con su miniatura, servida con la sesión del dispositivo.
   await expect(page.getByTestId('items-list')).toBeVisible();
@@ -444,10 +442,10 @@ test('the welcome screen starts the capture and the bar keeps it while a photo i
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
 
-  // 1. La bienvenida presenta el evento, pide la foto y deja `Captura` deshabilitado.
+  // 1. La bienvenida presenta el evento, nombra el botón `Foto` y deja `Captura` deshabilitado.
   await expect(page).toHaveURL(/\/inicio$/);
   await expect(page.getByTestId('event-title')).toBeVisible();
-  await expect(page.getByTestId('inicio-photo-label')).toBeVisible();
+  await expect(page.getByTestId('inicio-camera-hint')).toBeVisible();
   await expect(page.getByTestId('shell-nav-capture')).toHaveAttribute('aria-disabled', 'true');
 
   // 2. Desde otra pantalla privada, `Foto` dispara la cámara; cancelar no navega.
@@ -480,13 +478,13 @@ test('the welcome screen starts the capture and the bar keeps it while a photo i
   await expect(page).toHaveURL(/\/captura$/);
   await expect(page.getByTestId('item-photo-preview')).toBeVisible();
 
-  // 5. Guardar termina la captura: `Captura` se deshabilita y recargar el panel vuelve a la
-  //    bienvenida, porque la sesión de foto ya no existe.
+  // 5. Guardar termina la captura y navega solo a `Capturados`: `Captura` se deshabilita y pedir el
+  //    panel otra vez vuelve a la bienvenida, porque la sesión de foto ya no existe.
   await page.getByTestId('item-title-input').fill('Cama individual');
   await page.getByTestId('item-form-save-only').click();
-  await expect(page.getByTestId('capture-saved')).toBeVisible();
+  await expect(page).toHaveURL(/\/capturados$/);
   await expect(page.getByTestId('shell-nav-capture')).toHaveAttribute('aria-disabled', 'true');
 
-  await page.reload();
+  await page.goto('/captura');
   await expect(page).toHaveURL(/\/inicio$/);
 });

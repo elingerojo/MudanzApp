@@ -186,15 +186,12 @@ test('the human reviews the draft in the form and publishes from the same screen
     'revísalo antes de publicar',
   );
 
-  // 2. El humano corrige el título y publica: el enlace aparece en la misma pantalla.
+  // 2. El humano corrige el título y publica: el cierre navega solo a `Capturados` (corte D14).
   await page.getByTestId('item-title-input').fill('Silla blanca');
   await page.getByTestId('item-form-publish').click();
-
-  await expect(page.getByTestId('capture-saved')).toBeVisible();
-  await expect(page.getByTestId('capture-published-link')).toBeVisible();
+  await expect(page).toHaveURL(/\/capturados$/);
 
   // 3. La pantalla de capturados lo muestra como publicado, y recargar no lo pierde.
-  await page.getByTestId('shell-nav-captured').click();
   await expect(page.getByTestId('item-title')).toHaveText('Silla blanca');
   await expect(page.getByTestId('item-status')).toHaveText('publicado');
 
@@ -242,9 +239,9 @@ test('saving without publishing leaves the article en proceso and the row can pu
 
   await page.getByTestId('item-title-input').fill('Caja de cartón');
   await page.getByTestId('item-form-save-only').click();
-  await expect(page.getByTestId('capture-saved')).toContainText('en proceso');
 
-  await page.getByTestId('shell-nav-captured').click();
+  // Guardar también cierra la captura y lleva a `Capturados` (corte D14).
+  await expect(page).toHaveURL(/\/capturados$/);
   await expect(page.getByTestId('item-status')).toHaveText('en proceso');
 
   await page.getByTestId('item-publish').click();

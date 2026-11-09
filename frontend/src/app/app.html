@@ -33,7 +33,8 @@
         @if (item.capture) { @if (hasPhoto()) {
         <a
           [routerLink]="item.path"
-          class="flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs font-semibold text-slate-900"
+          class="bg-nav-rest text-ink flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs font-semibold"
+          data-nav-state="rest"
           [attr.data-testid]="item.testId"
         >
           <span aria-hidden="true">{{ item.icon }}</span>
@@ -43,7 +44,8 @@
         <span
           aria-disabled="true"
           title="Toma una foto para empezar"
-          class="flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs text-slate-400"
+          class="bg-nav-off text-muted flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs opacity-60"
+          data-nav-state="off"
           [attr.data-testid]="item.testId"
         >
           <span aria-hidden="true">{{ item.icon }}</span>
@@ -68,7 +70,8 @@
         } @else if (item.help) {
         <div
           aria-hidden="true"
-          class="flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs text-slate-400"
+          class="bg-nav-off text-muted flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs opacity-60"
+          data-nav-state="off"
           [attr.data-testid]="item.testId"
         >
           <span class="text-base leading-none">?</span>
@@ -78,12 +81,13 @@
         <a
           [routerLink]="item.path"
           class="flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs"
-          [class.text-slate-900]="item.section !== null && item.section === activeSection()"
-          [class.font-semibold]="item.section !== null && item.section === activeSection()"
-          [class.text-slate-500]="item.section === null || item.section !== activeSection()"
-          [attr.aria-current]="
-            item.section !== null && item.section === activeSection() ? 'page' : null
-          "
+          [class.bg-nav-selected]="isSection(item)"
+          [class.text-brand-strong]="isSection(item)"
+          [class.font-semibold]="isSection(item)"
+          [class.bg-nav-rest]="!isSection(item)"
+          [class.text-ink]="!isSection(item)"
+          [attr.aria-current]="isSection(item) ? 'page' : null"
+          [attr.data-nav-state]="isSection(item) ? 'selected' : 'rest'"
           [attr.data-testid]="item.testId"
         >
           <span aria-hidden="true">{{ item.icon }}</span>

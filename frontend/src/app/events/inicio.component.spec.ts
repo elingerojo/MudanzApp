@@ -1,12 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import type { EventSummary } from '@mudanzapp/shared';
 
 import { SessionStore } from '../session/session.store';
 import { SHOP_BASE_URL } from '../shop-base-url.token';
 import { InicioComponent } from './inicio.component';
-import { PhotoInboxStore } from './photo-inbox.store';
 
 const EVENT: EventSummary = {
   id: 'event-1',
@@ -19,8 +18,8 @@ const EVENT: EventSummary = {
 };
 
 /**
- * La bienvenida (corte D13): presenta el evento, dice qué documentar y pide la primera foto. La foto
- * entra a la sesión de captura y el panel la recibe al montarse.
+ * La bienvenida (cortes D13 y D14): presenta el evento, dice qué documentar y pide la primera foto
+ * sin montar una cámara propia, porque el único botón que la toma es el central de la barra.
  */
 describe('InicioComponent', () => {
   beforeEach(async () => {
@@ -50,10 +49,6 @@ describe('InicioComponent', () => {
     return fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLElement | null;
   }
 
-  function stageFiles(input: HTMLInputElement, files: readonly File[]): void {
-    Object.defineProperty(input, 'files', { value: files, configurable: true });
-  }
-
   it('publishes the event header and the instruction to document each article', () => {
     const fixture = render();
 
@@ -62,38 +57,18 @@ describe('InicioComponent', () => {
     expect(query(fixture, 'event-public-link')?.textContent).toContain('bogota-ciudad-de-mexico');
   });
 
-  it('invites the first photo with the starting card', () => {
+  it('invites the first photo without mounting a camera of its own', () => {
     const fixture = render();
 
     expect(query(fixture, 'inicio-card')?.textContent).toContain(
       'Toma una foto del artículo que quieres publicar',
     );
-    expect(query(fixture, 'inicio-photo-label')?.textContent).toContain('Tomar la foto');
+    expect(query(fixture, 'inicio-camera-hint')?.textContent).toContain('botón Foto de la barra');
     expect(query(fixture, 'inicio-next-step')?.textContent).toContain('título');
-  });
 
-  it('stages the photo and opens the capture panel', () => {
-    const fixture = render();
-    const router = TestBed.inject(Router);
-    const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    const file = new File(['foto'], 'foto.png', { type: 'image/png' });
-    const input = query(fixture, 'inicio-photo-input') as HTMLInputElement;
-    stageFiles(input, [file]);
-    input.dispatchEvent(new Event('change'));
-
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBe(file);
-    expect(navigate).toHaveBeenCalledWith('/captura');
-  });
-
-  it('does nothing when the camera is cancelled', () => {
-    const fixture = render();
-    const router = TestBed.inject(Router);
-    const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    const input = query(fixture, 'inicio-photo-input') as HTMLInputElement;
-    stageFiles(input, []);
-    input.dispatchEvent(new Event('change'));
-
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
-    expect(navigate).not.toHaveBeenCalled();
+    // La cámara vive en la barra: esta pantalla no publica un segundo control.
+    expect(query(fixture, 'inicio-photo-input')).toBeNull();
+    expect(query(fixture, 'inicio-photo-label')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('input[type="file"]')).toBeNull();
   });
 });

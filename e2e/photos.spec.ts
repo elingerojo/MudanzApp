@@ -142,8 +142,8 @@ test('the device optimizes a heavy photo into three sizes and the original never
 
   const own = await eventWithSession(request, 'Bogotá', 'Ciudad de México');
 
-  // 1. La sesión entra por el enlace y la bienvenida pide la foto (corte D13): la foto pesada se
-  //    elige ahí, así que el panel abre con ella ya optimizada.
+  // 1. La sesión entra por el enlace y la bienvenida nombra la cámara (cortes D13 y D14): la foto
+  //    pesada se elige con el input de la barra, así que el panel abre con ella ya optimizada.
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
   await expect(page).toHaveURL(/\/inicio$/);
@@ -162,7 +162,7 @@ test('the device optimizes a heavy photo into three sizes and the original never
     uploads.push({ bytes: request.postDataBuffer()?.length ?? 0 });
   });
 
-  await page.setInputFiles('[data-testid="inicio-photo-input"]', {
+  await page.setInputFiles('[data-testid="shell-photo-input"]', {
     name: 'sala.jpg',
     mimeType: 'image/jpeg',
     buffer: Buffer.from(source.base64, 'base64'),
@@ -213,8 +213,9 @@ test('the device optimizes a heavy photo into three sizes and the original never
   }
 
   await page.getByTestId('item-form-save-only').click();
-  await expect(page.getByTestId('capture-saved')).toBeVisible();
-  await page.getByTestId('capture-go-captured').click();
+
+  // El cierre de la captura navega solo a `Capturados` (corte D14).
+  await expect(page).toHaveURL(/\/capturados$/);
 
   // 4. Se subieron exactamente tres cuerpos y ninguno se acerca al peso de la original.
   await expect(page.getByTestId('items-list')).toBeVisible();

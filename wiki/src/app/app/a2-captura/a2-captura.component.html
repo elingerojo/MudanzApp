@@ -21,16 +21,24 @@
   <section class="flex flex-col gap-2">
     <h3 class="text-base font-semibold text-slate-900">La captura empieza fuera del panel</h3>
     <p>
-      Desde el corte D13 la foto se toma en la bienvenida o en la barra, no dentro del panel. La
-      <strong>sesión de captura</strong> vive en memoria: el panel nunca se abre vacío —sin foto, la
-      guarda devuelve a la bienvenida—, volver la reutiliza reoptimizando el archivo, el control
-      interno es siempre <code class="font-mono text-xs">Repetir la foto</code> y guardar o publicar
-      cierran la sesión.
+      Desde el corte D14 la foto se toma solo con el botón <strong>Foto</strong> de la barra: la
+      bienvenida lo nombra y no monta una cámara propia. La <strong>sesión de captura</strong> vive
+      en memoria: el panel nunca se abre vacío —sin foto, la guarda devuelve a la bienvenida—,
+      volver la reutiliza reoptimizando el archivo y el control interno es siempre
+      <code class="font-mono text-xs">Repetir la foto</code>.
+    </p>
+    <p>
+      Publicar o solo guardar cierra la sesión y, cuando el indicador de progreso termina, la
+      pantalla navega sola a <code class="font-mono text-xs">Capturados</code>, donde el artículo se
+      ve con su estado y su enlace. Un error no navega: el mensaje y el reintento de foto se quedan
+      en <code class="font-mono text-xs">Captura</code>.
     </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">frontend/src/app/events/photo-inbox.store.ts</code>,
-      <code class="font-mono">frontend/src/app/events/capture-session.guard.ts</code> y
-      <code class="font-mono">frontend/src/app/items/item-form.component.ts</code> (corte D13).
+      <code class="font-mono">frontend/src/app/events/capture-session.guard.ts</code>,
+      <code class="font-mono">frontend/src/app/events/capture.component.ts</code> y
+      <code class="font-mono">frontend/src/app/items/item-form.component.ts</code> (cortes D13 y
+      D14).
     </p>
   </section>
 

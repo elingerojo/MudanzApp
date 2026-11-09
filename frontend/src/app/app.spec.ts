@@ -90,7 +90,19 @@ describe('App with session', () => {
     expect(capture?.getAttribute('aria-disabled')).toBe('true');
     expect(capture?.hasAttribute('href')).toBe(false);
     expect(capture?.getAttribute('aria-current')).toBeNull();
+    expect(capture?.getAttribute('data-nav-state')).toBe('off');
     expect(navItem(fixture, 'shell-nav-captured')?.getAttribute('aria-current')).toBeNull();
+  });
+
+  it('paints the four destinations with their state: selected, rest and off', () => {
+    const fixture = render('/capturados');
+
+    expect(navItem(fixture, 'shell-nav-captured')?.getAttribute('data-nav-state')).toBe('selected');
+    expect(navItem(fixture, 'shell-nav-account')?.getAttribute('data-nav-state')).toBe('rest');
+    expect(navItem(fixture, 'shell-nav-capture')?.getAttribute('data-nav-state')).toBe('off');
+    expect(navItem(fixture, 'shell-nav-help')?.getAttribute('data-nav-state')).toBe('off');
+    // `Foto` no es destino: no lleva estado de destino.
+    expect(navItem(fixture, 'shell-nav-photo')?.hasAttribute('data-nav-state')).toBe(false);
   });
 
   it('enables Captura while a photo is in the capture session', () => {
@@ -102,6 +114,7 @@ describe('App with session', () => {
     expect(capture?.tagName).toBe('A');
     expect(capture?.getAttribute('href')).toBe('/captura');
     expect(capture?.getAttribute('aria-current')).toBeNull();
+    expect(capture?.getAttribute('data-nav-state')).toBe('rest');
   });
 
   it('keeps Capturados marked while an article is being edited', () => {

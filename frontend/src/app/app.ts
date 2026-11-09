@@ -28,13 +28,16 @@ interface NavItem {
 }
 
 /**
- * La barra es una lista **fija** de cinco posiciones (cortes D8, D12 y D13): `Captura`, `Capturados`,
- * `Foto`, `Ayuda` y `Cuenta`. No se deriva de la sesión ni del número de eventos: agregar una
- * sección es agregar una entrada aquí y su ruta en `app.routes.ts`.
+ * La barra es una lista **fija** de cinco posiciones (cortes D8, D12, D13 y D14): `Captura`,
+ * `Capturados`, `Foto`, `Ayuda` y `Cuenta`. No se deriva de la sesión ni del número de eventos:
+ * agregar una sección es agregar una entrada aquí y su ruta en `app.routes.ts`.
  *
  * `Captura` no es un destino permanente desde D13: se habilita con una foto en la sesión de captura y
  * se deshabilita al guardar o publicar. `Foto` es el acto de abrir la cámara desde cualquier pantalla
  * privada. `Ayuda` solo insinúa una ayuda futura.
+ *
+ * Desde D14 los cuatro destinos se distinguen por el fondo en tres estados —`rest`, `selected` y
+ * `off`— que la plantilla publica en `data-nav-state`. El botón central no participa: no es destino.
  */
 const NAV_ITEMS: readonly NavItem[] = [
   {
@@ -145,6 +148,14 @@ export class App {
   );
 
   protected readonly activeSection = computed(() => sectionOf(this.currentUrl()));
+
+  /**
+   * El destino es la sección actual. `Captura` y `Ayuda` nunca lo son: no tienen `section`, así que
+   * su fondo lo decide la rama de la plantilla y no este método.
+   */
+  protected isSection(item: NavItem): boolean {
+    return item.section !== null && item.section === this.activeSection();
+  }
 
   constructor() {
     // La marca vive en `shared/src/brand.json`; el título del documento se deriva de ahí.

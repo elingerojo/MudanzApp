@@ -19,6 +19,13 @@
   --color-muted: #64748b;
   --color-line: #cbd5e1;
 
+  /* Estados de la barra inferior (corte D14): solo el fondo distingue un destino disponible, el
+     actual y uno deshabilitado. El texto reusa los tokens que ya existen —`--color-ink`,
+     `--color-brand-strong` y `--color-muted`— y el botón central `Foto` no participa: no es destino. */
+  --color-nav-rest: #eef2f7;
+  --color-nav-selected: #dbeafe;
+  --color-nav-off: #f8fafc;
+
   --color-brand: #2563eb;
   --color-brand-strong: #1d4ed8;
   --color-brand-soft: #2563eb14;

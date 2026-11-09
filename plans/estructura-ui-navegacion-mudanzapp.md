@@ -238,6 +238,16 @@ hace falta inventar entradas para pantallas que no existen.
 > panel la reutiliza. Sin backend, sin contrato, sin dependencia y sin migración. El detalle vive en
 > [`plan-ciclo-d13-inicio-captura`](plan-ciclo-d13-inicio-captura.md:1).
 >
+> **Nota (corte D14, 2026-11-09):** la barra inferior comunica el estado de sus cuatro destinos con el
+> fondo: disponible sin seleccionar, seleccionado y deshabilitado, con los tokens `nav-rest`,
+> `nav-selected` y `nav-off` de `shared/src/theme.css`. El botón central `Foto` no participa porque no
+> es destino, y `Ayuda` se lee siempre como deshabilitado. `/inicio` deja de montar su propio control
+> de cámara: el único botón que toma la foto es el central de la barra, y el card de la bienvenida solo
+> lo nombra. Publicar o guardar termina la captura y navega a `/capturados` cuando el indicador de
+> progreso ya destelló; un error se queda en `Captura` con su mensaje. Sin backend, sin contrato, sin
+> dependencia y sin migración. El detalle vive en
+> [`plan-ciclo-d14-barra-estados-cierre`](plan-ciclo-d14-barra-estados-cierre.md:1).
+>
 > **Nota (corte D2, 2026-11-07):** la cuenta con dos o más membresías deja de aterrizar en la más
 > reciente. `/eventos` es el selector: publica la lista de membresías con su trayecto y su rol, y
 > `requireEventChoice` devuelve ahí a los destinos privados —`/captura`, `/capturados`,

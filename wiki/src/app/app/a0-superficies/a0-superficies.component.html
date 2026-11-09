@@ -103,12 +103,15 @@
         <code class="font-mono">/admin/plataforma</code> administración de plataforma, sin guarda de
         sesión: la puerta es la credencial que se escribe en la pantalla ·
         <code class="font-mono">/inicio</code> es el aterrizaje privado —cabecera del evento y la
-        primera foto— · <code class="font-mono">/captura</code> es el panel de la captura en curso:
-        exige una foto en la sesión y sin ella devuelve a <code class="font-mono">/inicio</code> ·
-        <code class="font-mono">/capturados</code> y <code class="font-mono">/cuenta</code> son los
-        otros destinos de la barra, con guarda de sesión; la barra tiene cinco posiciones —esos dos,
-        el botón de cámara <code class="font-mono">Foto</code>, el hueco inerte
-        <code class="font-mono">Ayuda</code> y <code class="font-mono">Cuenta</code>— ·
+        guía de la primera foto— · <code class="font-mono">/captura</code> es el panel de la captura
+        en curso: exige una foto en la sesión, sin ella devuelve a
+        <code class="font-mono">/inicio</code> y al publicar o guardar navega a
+        <code class="font-mono">/capturados</code> · <code class="font-mono">/capturados</code> y
+        <code class="font-mono">/cuenta</code> son los otros destinos de la barra, con guarda de
+        sesión; la barra tiene cinco posiciones —esos dos, el botón de cámara
+        <code class="font-mono">Foto</code>, el hueco inerte <code class="font-mono">Ayuda</code> y
+        <code class="font-mono">Cuenta</code>— y sus cuatro destinos se pintan con tres estados:
+        disponible sin seleccionar, seleccionado y deshabilitado ·
         <code class="font-mono">/cuenta/evento</code> es la administración del evento, hija de la
         Cuenta y con guarda de administración de evento · <code class="font-mono">/eventos</code> es
         el selector de mudanza de una cuenta con dos o más membresías, y los destinos privados
@@ -156,6 +159,10 @@
       <code class="font-mono">requireCaptureSession</code> viven en
       <code class="font-mono">frontend/src/app/events/inicio.component.ts</code> y
       <code class="font-mono">frontend/src/app/events/capture-session.guard.ts</code> (corte D13);
+      los tres estados de la barra y el cierre de la captura viven en
+      <code class="font-mono">frontend/src/app/app.html</code>,
+      <code class="font-mono">shared/src/theme.css</code> y
+      <code class="font-mono">frontend/src/app/events/capture.component.ts</code> (corte D14);
       <code class="font-mono">shop/src/app/app.routes.ts</code>.
     </p>
   </section>

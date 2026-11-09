@@ -3,28 +3,13 @@
 
   <app-ui-card title="Toma una foto del artículo que quieres publicar" data-testid="inicio-card">
     <p class="text-sm text-slate-700">
-      La cámara abre con el botón y la foto se optimiza en este dispositivo; la original no se
-      envía.
+      La foto se optimiza en este dispositivo y la original no se envía. El único botón que abre la
+      cámara es <strong>Foto</strong>, al centro de la barra.
     </p>
 
-    <input
-      id="inicio-photo"
-      data-testid="inicio-photo-input"
-      type="file"
-      [attr.accept]="accept"
-      capture="environment"
-      class="sr-only"
-      (change)="onPhoto($event)"
-    />
-
-    <label
-      for="inicio-photo"
-      [class]="primaryClasses"
-      class="mt-3 inline-block"
-      data-testid="inicio-photo-label"
-    >
-      Tomar la foto
-    </label>
+    <p class="mt-3 text-xs text-slate-500" data-testid="inicio-camera-hint">
+      Usa el botón Foto de la barra para abrir la cámara.
+    </p>
 
     <p class="mt-3 text-xs text-slate-500" data-testid="inicio-next-step">
       Después te pediremos el título. Si quieres, la IA propone título y nota; tú los revisas antes
