@@ -1,7 +1,7 @@
 # Plan del ciclo D14 — `barra-estados-cierre`: cada destino dice su estado, la bienvenida no duplica la cámara y la captura termina en `Capturados`
 
-> **Estado:** **implementado y validado en local el 2026-11-09; revisión `live` pendiente.** Sin
-> migración, sin dependencia nueva y sin rama por ciclo.
+> **Estado:** **implementado y validado en local el 2026-11-09; revisado `live` en remoto por el dueño
+> el 2026-11-09.** Sin migración, sin dependencia nueva y sin rama por ciclo.
 > **Hipótesis:** la barra inferior comunica por el fondo si un destino está disponible, si es el
 > actual o si está deshabilitado; la bienvenida deja la cámara en el único botón que existe —`Foto`,
 > al centro— y la captura que termina lleva sola a `Capturados`, donde el artículo recién creado se
@@ -201,6 +201,10 @@ resto y `off` sin foto en `Captura` y siempre en `Ayuda`—; con foto, `Captura`
 `/capturados`, donde el artículo aparece con su estado; y pedir `/captura` sin sesión de foto vuelve
 a `/inicio`.
 
-Pendiente con su disparador: la revisión `live` en remoto del dueño. El aviso `Publicado. El
-enlace…` del panel se retiró porque la navegación automática lo hacía inalcanzable; si el dueño
-quiere leer ese enlace sin pasar por `Capturados`, es un corte propio con su aviso donde corresponda.
+La revisión `live` en remoto la confirmó el dueño el 2026-11-09: los tres fondos de la barra se
+distinguen en el móvil, la bienvenida no ofrece un segundo botón de cámara y guardar o publicar
+termina en `Capturados` con el artículo a la vista.
+
+Pendiente con su disparador: el aviso `Publicado. El enlace…` del panel se retiró porque la
+navegación automática lo hacía inalcanzable; si el dueño quiere leer ese enlace sin pasar por
+`Capturados`, es un corte propio con su aviso donde corresponda.
