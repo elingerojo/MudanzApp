@@ -142,10 +142,11 @@ test('the device optimizes a heavy photo into three sizes and the original never
 
   const own = await eventWithSession(request, 'Bogotá', 'Ciudad de México');
 
-  // 1. La sesión entra por el enlace de invitación, como lo hace un co-dispositivo.
+  // 1. La sesión entra por el enlace y la bienvenida pide la foto (corte D13): la foto pesada se
+  //    elige ahí, así que el panel abre con ella ya optimizada.
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 
   const source = await generateHeavyPhoto(page);
 
@@ -161,12 +162,13 @@ test('the device optimizes a heavy photo into three sizes and the original never
     uploads.push({ bytes: request.postDataBuffer()?.length ?? 0 });
   });
 
-  await page.getByTestId('item-title-input').fill('Sofá de tres puestos');
-  await page.setInputFiles('[data-testid="item-photo-input"]', {
+  await page.setInputFiles('[data-testid="inicio-photo-input"]', {
     name: 'sala.jpg',
     mimeType: 'image/jpeg',
     buffer: Buffer.from(source.base64, 'base64'),
   });
+  await expect(page).toHaveURL(/\/captura$/);
+  await page.getByTestId('item-title-input').fill('Sofá de tres puestos');
 
   // 3. La tarjeta de pesos aparece con las tres variantes ya codificadas en el dispositivo.
   await expect(page.getByTestId('item-photo-sizes')).toBeVisible();

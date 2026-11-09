@@ -14,7 +14,8 @@ import { expect, type Page } from '@playwright/test';
 export async function chooseNewestEvent(page: Page): Promise<void> {
   await expect(page.getByTestId('event-selector-title')).toBeVisible();
   await page.getByTestId('event-choice').last().click();
-  await expect(page).toHaveURL(/\/captura$/);
+  // Desde D13 elegir aterriza en la bienvenida, que pide la primera foto.
+  await expect(page).toHaveURL(/\/inicio$/);
 }
 
 /**

@@ -73,8 +73,8 @@ describe('App with session', () => {
     return (fixture.nativeElement as HTMLElement).querySelector(`[data-testid="${testId}"]`);
   }
 
-  it('draws the three fixed destinations of the bar', () => {
-    const fixture = render('/captura');
+  it('draws the bar with its destinations and the capture session slot', () => {
+    const fixture = render('/inicio');
 
     expect(navItem(fixture, 'shell-nav')).not.toBeNull();
     expect(navItem(fixture, 'shell-nav-capture')).not.toBeNull();
@@ -82,11 +82,26 @@ describe('App with session', () => {
     expect(navItem(fixture, 'shell-nav-account')).not.toBeNull();
   });
 
-  it('marks Captura as the active section', () => {
+  it('starts Captura disabled and does not mark a section on the capture panel', () => {
     const fixture = render('/captura');
+    const capture = navItem(fixture, 'shell-nav-capture');
 
-    expect(navItem(fixture, 'shell-nav-capture')?.getAttribute('aria-current')).toBe('page');
+    expect(capture?.tagName).toBe('SPAN');
+    expect(capture?.getAttribute('aria-disabled')).toBe('true');
+    expect(capture?.hasAttribute('href')).toBe(false);
+    expect(capture?.getAttribute('aria-current')).toBeNull();
     expect(navItem(fixture, 'shell-nav-captured')?.getAttribute('aria-current')).toBeNull();
+  });
+
+  it('enables Captura while a photo is in the capture session', () => {
+    const fixture = render('/inicio');
+    TestBed.inject(PhotoInboxStore).stage(new File(['foto'], 'foto.png', { type: 'image/png' }));
+    fixture.detectChanges();
+
+    const capture = navItem(fixture, 'shell-nav-capture');
+    expect(capture?.tagName).toBe('A');
+    expect(capture?.getAttribute('href')).toBe('/captura');
+    expect(capture?.getAttribute('aria-current')).toBeNull();
   });
 
   it('keeps Capturados marked while an article is being edited', () => {
@@ -172,7 +187,7 @@ describe('App with session', () => {
     expect(input.getAttribute('accept')).toContain('image/webp');
   });
 
-  it('does not navigate or stage a photo when the camera is cancelled', () => {
+  it('does not navigate or start a capture when the camera is cancelled', () => {
     const fixture = render('/cuenta');
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
@@ -181,10 +196,10 @@ describe('App with session', () => {
     input.dispatchEvent(new Event('change'));
 
     expect(navigate).not.toHaveBeenCalled();
-    expect(TestBed.inject(PhotoInboxStore).take()).toBeNull();
+    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
   });
 
-  it('stages the captured photo and opens the capture panel', () => {
+  it('stages the captured photo, opens the panel and enables Captura', () => {
     const fixture = render('/cuenta');
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
@@ -192,8 +207,10 @@ describe('App with session', () => {
     const input = cameraInput(fixture);
     stageFiles(input, [file]);
     input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
 
     expect(navigate).toHaveBeenCalledWith('/captura');
-    expect(TestBed.inject(PhotoInboxStore).take()).toBe(file);
+    expect(TestBed.inject(PhotoInboxStore).peek()).toBe(file);
+    expect(navItem(fixture, 'shell-nav-capture')?.getAttribute('aria-disabled')).toBeNull();
   });
 });

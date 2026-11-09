@@ -88,7 +88,7 @@ describe('EventSelectorComponent', () => {
     choices(fixture)[1]?.click();
 
     expect(selectEvent).toHaveBeenCalledWith('event-b');
-    expect(navigate).toHaveBeenCalledWith(['/captura']);
+    expect(navigate).toHaveBeenCalledWith(['/inicio']);
   });
 
   it('does not navigate when the session cannot see the chosen membership', () => {

@@ -89,11 +89,12 @@ test('an account with two moves chooses where to work instead of landing on the 
   await expect(choices.filter({ hasText: 'Ambato → Machala' }).first()).toBeVisible();
   await expect(choices.filter({ hasText: 'Tena → Esmeraldas' }).first()).toBeVisible();
 
-  // 3. Se elige la primera de la lista —la más antigua— y captura habla de ella, no de la reciente.
+  // 3. Se elige la primera de la lista —la más antigua— y la bienvenida habla de ella, no de la
+  //    reciente (corte D13: elegir aterriza en `/inicio`).
   const firstChoice = choices.first();
   const firstTitle = (await firstChoice.getByTestId('event-choice-title').innerText()).trim();
   await firstChoice.click();
-  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page).toHaveURL(/\/inicio$/);
   await expect(page.getByTestId('event-title')).toHaveText(firstTitle);
 
   // 4. La Cuenta refleja la misma mudanza y ofrece cambiarla.

@@ -4,7 +4,7 @@
     title="Cuenta y captura"
     route="app/a2-captura"
     status="current"
-    verified="2026-11-06 · este ciclo"
+    verified="2026-11-09 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -15,6 +15,22 @@
       Alguien invita con un enlace, el otro dispositivo lo canjea, se captura un artículo con su
       foto, se revisa la ficha y se publica una URL para compartir. La cuenta es opcional en todo el
       camino: solo es la forma de volver a entrar.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">La captura empieza fuera del panel</h3>
+    <p>
+      Desde el corte D13 la foto se toma en la bienvenida o en la barra, no dentro del panel. La
+      <strong>sesión de captura</strong> vive en memoria: el panel nunca se abre vacío —sin foto, la
+      guarda devuelve a la bienvenida—, volver la reutiliza reoptimizando el archivo, el control
+      interno es siempre <code class="font-mono text-xs">Repetir la foto</code> y guardar o publicar
+      cierran la sesión.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">frontend/src/app/events/photo-inbox.store.ts</code>,
+      <code class="font-mono">frontend/src/app/events/capture-session.guard.ts</code> y
+      <code class="font-mono">frontend/src/app/items/item-form.component.ts</code> (corte D13).
     </p>
   </section>
 

@@ -30,7 +30,26 @@
     <ul class="mx-auto flex max-w-3xl">
       @for (item of items; track item.testId) {
       <li class="flex flex-1">
-        @if (item.photo) {
+        @if (item.capture) { @if (hasPhoto()) {
+        <a
+          [routerLink]="item.path"
+          class="flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs font-semibold text-slate-900"
+          [attr.data-testid]="item.testId"
+        >
+          <span aria-hidden="true">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </a>
+        } @else {
+        <span
+          aria-disabled="true"
+          title="Toma una foto para empezar"
+          class="flex w-full flex-col items-center gap-0.5 px-2 py-2 text-xs text-slate-400"
+          [attr.data-testid]="item.testId"
+        >
+          <span aria-hidden="true">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </span>
+        } } @else if (item.photo) {
         <button
           type="button"
           class="flex w-full flex-col items-center gap-0.5 px-2 py-1"

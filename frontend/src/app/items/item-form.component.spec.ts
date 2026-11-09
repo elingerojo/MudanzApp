@@ -379,6 +379,8 @@ describe('ItemFormComponent', () => {
     await flash(fixture);
 
     expect(saved).toHaveBeenCalledWith(null);
+    // Guardar termina la captura: la barra deshabilita `Captura` (corte D13).
+    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
     httpTesting.expectNone(LISTING_URL);
   });
 
@@ -435,7 +437,7 @@ describe('ItemFormComponent', () => {
     expect(saved).toHaveBeenCalledWith(null);
   });
 
-  it('takes the photo the bar left in the inbox without losing what is written', async () => {
+  it('reuses the photo of the capture session without losing what is written', async () => {
     const fixture = render();
     fill(fixture, 'item-title-input', 'Bicicleta');
 
@@ -450,10 +452,11 @@ describe('ItemFormComponent', () => {
     expect(query(fixture, 'item-photo-preview')).not.toBeNull();
     expect((query(fixture, 'item-photo-sizes') as HTMLElement).children).toHaveLength(3);
     expect((query(fixture, 'item-title-input') as HTMLInputElement).value).toBe('Bicicleta');
-    expect(TestBed.inject(PhotoInboxStore).take()).toBeNull();
+    // La foto sigue en la sesión: volver al panel la reutiliza (corte D13).
+    expect(TestBed.inject(PhotoInboxStore).peek()).toBe(file);
   });
 
-  it('rejects a photo from the inbox with the same message as the panel', async () => {
+  it('rejects a photo from the session with the same message and ends an empty capture', async () => {
     const fixture = render();
 
     TestBed.inject(PhotoInboxStore).stage(new File(['gif'], 'anim.gif', { type: 'image/gif' }));
@@ -461,6 +464,7 @@ describe('ItemFormComponent', () => {
 
     expect(errorText(fixture)).toContain('JPEG');
     httpTesting.expectNone(TICKET_URL);
-    expect(TestBed.inject(PhotoInboxStore).take()).toBeNull();
+    // No había foto anterior: la sesión se cierra para que `Captura` vuelva a deshabilitarse.
+    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
   });
 });

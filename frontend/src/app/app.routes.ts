@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 
+import { requireCaptureSession } from './events/capture-session.guard';
 import { requireEventAdmin } from './events/dashboard/dashboard.guard';
 import { HomeComponent } from './home/home.component';
 import { requireEventChoice } from './session/event-choice.guard';
@@ -7,12 +8,14 @@ import { RedeemComponent } from './session/redeem.component';
 import { requireSession } from './session/session.guard';
 
 /**
- * Mapa de rutas de los cortes D8, D9, D10 y D2.
+ * Mapa de rutas de los cortes D8, D9, D10, D2 y D13.
  *
- * La superficie privada tiene tres destinos de nivel raíz —`/captura`, `/capturados` y `/cuenta`—.
- * Desde D10 la administración del evento es una **ruta hija de la Cuenta** (`/cuenta/evento`) y la
- * única pantalla de detalle fuera de la barra es `/articulos/:itemId`. El evento ya no está en la
- * URL: se resuelve de la sesión, igual que el evento activo de `SessionStore`.
+ * La superficie privada aterriza en `/inicio`, que presenta el evento y pide la primera foto. Desde
+ * D13 `Captura` no es un destino permanente: exige una foto en la sesión de captura y, sin ella,
+ * redirige a `/inicio`. Los otros destinos de la barra son `/capturados` y `/cuenta`. Desde D10 la
+ * administración del evento es una **ruta hija de la Cuenta** (`/cuenta/evento`) y la única pantalla
+ * de detalle fuera de la barra es `/articulos/:itemId`. El evento ya no está en la URL: se resuelve
+ * de la sesión, igual que el evento activo de `SessionStore`.
  *
  * Desde D2 una cuenta con dos o más membresías elige su mudanza en `/eventos`: `requireEventChoice`
  * devuelve ahí cualquier destino privado mientras no haya una elección explícita. Con una sola
@@ -40,11 +43,20 @@ export const routes: Routes = [
       import('./events/event-selector.component').then((module) => module.EventSelectorComponent),
     canActivate: [requireSession],
   },
+  // Bienvenida de la sesión privada (corte D13): el aterrizaje después del canje, de la vuelta del
+  // proveedor y de elegir mudanza. Presenta el evento y pide la primera foto.
+  {
+    path: 'inicio',
+    loadComponent: () =>
+      import('./events/inicio.component').then((module) => module.InicioComponent),
+    canActivate: [requireSession, requireEventChoice],
+  },
   {
     path: 'captura',
     loadComponent: () =>
       import('./events/capture.component').then((module) => module.CaptureComponent),
-    canActivate: [requireSession, requireEventChoice],
+    // Desde D13 el panel nunca se abre vacío: sin foto, la guarda devuelve a la bienvenida.
+    canActivate: [requireSession, requireEventChoice, requireCaptureSession],
   },
   {
     path: 'capturados',
@@ -97,6 +109,6 @@ export const routes: Routes = [
   { path: 'eventos/:eventId/articulos/:itemId', redirectTo: '/articulos/:itemId' },
   { path: 'eventos/:eventId/capturados', redirectTo: '/capturados' },
   { path: 'eventos/:eventId/dashboard', redirectTo: '/cuenta/evento' },
-  { path: 'eventos/:eventId', redirectTo: '/captura' },
+  { path: 'eventos/:eventId', redirectTo: '/inicio' },
   { path: '**', redirectTo: '' },
 ];

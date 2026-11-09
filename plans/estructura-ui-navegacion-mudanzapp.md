@@ -223,12 +223,20 @@ hace falta inventar entradas para pantallas que no existen.
 >
 > **Nota (corte D12, 2026-11-09):** la barra inferior pasa a **cinco posiciones**: `Captura`,
 > `Capturados`, un botón redondo `Foto` al centro, un hueco inerte con la leyenda `Ayuda` y `Cuenta`.
-> Los tres destinos conservan su enlace y su `aria-current`; `Foto` no es un destino, es el acto de
-> abrir la cámara del dispositivo desde cualquier pantalla privada, y `Ayuda` solo sostiene la
-> simetría. La foto tomada se deposita en un buzón en memoria (`PhotoInboxStore`) y el formulario de
-> `Captura` la consume igual que una elegida en él: el panel no cambia de contenido ni de rótulos, y
-> cancelar la cámara no navega. Sin ruta nueva, sin backend, sin contrato, sin dependencia y sin
-> migración. El detalle vive en [`plan-ciclo-d12-nav-foto`](plan-ciclo-d12-nav-foto.md:1).
+> `Foto` no es un destino, es el acto de abrir la cámara del dispositivo desde cualquier pantalla
+> privada, y `Ayuda` solo sostiene la simetría. La foto tomada se deposita en un buzón en memoria
+> (`PhotoInboxStore`) y el formulario de `Captura` la consume igual que una elegida en él: el panel no
+> cambia de contenido ni de rótulos, y cancelar la cámara no navega. Sin ruta nueva, sin backend, sin
+> contrato, sin dependencia y sin migración. El detalle vive en
+> [`plan-ciclo-d12-nav-foto`](plan-ciclo-d12-nav-foto.md:1).
+>
+> **Nota (corte D13, 2026-11-09):** el aterrizaje privado deja de ser `/captura` y pasa a `/inicio`,
+> que publica la cabecera del evento y pide la primera foto. `Captura` deja de ser un destino
+> permanente: inicia deshabilitado, se habilita con la foto de la sesión, se mantiene mientras dura la
+> captura y se deshabilita al publicar o guardar; `/captura` sin foto redirige a `/inicio` y el botón
+> interno del panel es siempre `Repetir la foto`. La foto vive en la sesión de captura y volver al
+> panel la reutiliza. Sin backend, sin contrato, sin dependencia y sin migración. El detalle vive en
+> [`plan-ciclo-d13-inicio-captura`](plan-ciclo-d13-inicio-captura.md:1).
 >
 > **Nota (corte D2, 2026-11-07):** la cuenta con dos o más membresías deja de aterrizar en la más
 > reciente. `/eventos` es el selector: publica la lista de membresías con su trayecto y su rol, y

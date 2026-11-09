@@ -53,7 +53,7 @@ test('a co-device gets in from the account card of the frame', async ({
   // 1. El primer dispositivo entra con el enlace del administrador y abre la Cuenta del marco.
   await page.goto(`/invitacion?token=${encodeURIComponent(invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 
   await page.getByTestId('shell-nav-account').click();
   await expect(page.getByTestId('shell-invite-card')).toBeVisible();
@@ -82,8 +82,12 @@ test('a co-device gets in from the account card of the frame', async ({
     await expect(secondPage.getByTestId('redeem-token')).toHaveValue(/.+/);
     await secondPage.getByTestId('redeem-submit').click();
 
-    await expect(secondPage).toHaveURL(/\/captura$/);
-    await expect(secondPage.getByTestId('shell-nav-capture')).toBeVisible();
+    await expect(secondPage).toHaveURL(/\/inicio$/);
+    // Desde D13 `Captura` inicia deshabilitado: nadie entra al panel sin foto.
+    await expect(secondPage.getByTestId('shell-nav-capture')).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
 
     const stored = await secondPage.evaluate(() => localStorage.getItem('mudanzapp.session'));
     expect(stored).not.toBeNull();

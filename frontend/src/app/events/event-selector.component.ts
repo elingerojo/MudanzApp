@@ -13,10 +13,10 @@ import { eventTitle } from './event-title';
  * Es la pantalla a la que una cuenta con dos o más membresías llega al entrar y a la que la guarda
  * de los destinos privados devuelve cuando no hay elección. Publica la lista que el borde ya entrega
  * en `/auth/session` —trayecto y rol— y no inventa ninguna: elegir fija la elección del store y
- * navega a `/captura`, que es el destino de trabajo.
+ * navega a `/inicio`, la bienvenida que pide la primera foto (corte D13).
  *
  * Con una sola membresía la pantalla no se visita: la guarda no interviene y el aterrizaje directo
- * de D8 se conserva. Sin evento, el camino de vuelta sigue siendo el enlace.
+ * se conserva. Sin evento, el camino de vuelta sigue siendo el enlace.
  */
 @Component({
   selector: 'app-event-selector',
@@ -59,6 +59,6 @@ export class EventSelectorComponent {
       return;
     }
 
-    void this.router.navigate(['/captura']);
+    void this.router.navigate(['/inicio']);
   }
 }

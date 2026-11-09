@@ -8,6 +8,7 @@ import {
 } from '@mudanzapp/shared';
 import pg from 'pg';
 
+import { enterCapture } from './support/enter-capture.js';
 import { ADMIN_TOKEN, BACKEND_URL, testDatabaseUrl } from './support/harness.js';
 
 const { Client } = pg;
@@ -168,10 +169,10 @@ test('the human reviews the draft in the form and publishes from the same screen
 
   const own = await eventWithSession(request, 'Bogotá', 'Ciudad de México');
 
-  // 1. Canje, foto y borrador: nada existe todavía en la base.
+  // 1. Canje, bienvenida, foto y borrador: nada existe todavía en la base.
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(/\/captura$/);
+  await enterCapture(page);
 
   await page.setInputFiles('[data-testid="item-photo-input"]', {
     name: 'silla.png',
@@ -230,7 +231,7 @@ test('saving without publishing leaves the article en proceso and the row can pu
 
   await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
   await page.getByTestId('redeem-submit').click();
-  await expect(page).toHaveURL(/\/captura$/);
+  await enterCapture(page);
 
   await page.setInputFiles('[data-testid="item-photo-input"]', {
     name: 'caja.png',

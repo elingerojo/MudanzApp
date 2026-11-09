@@ -71,7 +71,8 @@ test('a co-device links an account from the account card and keeps its event', a
     (token) => localStorage.setItem('mudanzapp.session', token),
     own.session.sessionToken,
   );
-  await page.goto(`${FRONTEND_URL}/captura`);
+  // Desde D13 la superficie privada aterriza en la bienvenida.
+  await page.goto(`${FRONTEND_URL}/inicio`);
   await expect(page.getByTestId('event-title')).toBeVisible();
 
   // 1. La Cuenta es un destino de la barra y ofrece vincular: el dispositivo no tiene sujeto.
@@ -82,9 +83,9 @@ test('a co-device links an account from the account card and keeps its event', a
   //    La cuenta acumula membresías, así que desde D2 el destino puede ser el selector: se elige la
   //    más reciente, que es este evento.
   await page.getByTestId('shell-account-link').click();
-  await expect(page).toHaveURL(/\/(captura|eventos)$/);
+  await expect(page).toHaveURL(/\/(inicio|eventos)$/);
   await chooseEventIfAsked(page);
-  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page).toHaveURL(/\/inicio$/);
 
   // 3. La Cuenta ya muestra la cuenta vinculada y la acción desaparece.
   await page.getByTestId('shell-nav-account').click();

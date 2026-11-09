@@ -93,7 +93,7 @@ describe('RedeemComponent', () => {
     // La sesión queda establecida dentro de la promesa: se deja correr un turno antes de mirar.
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(navigate).toHaveBeenCalledWith(['/captura']);
+    expect(navigate).toHaveBeenCalledWith(['/inicio']);
     expect(localStorage.getItem(STORAGE_KEY)).toBe('session-token');
   });
 

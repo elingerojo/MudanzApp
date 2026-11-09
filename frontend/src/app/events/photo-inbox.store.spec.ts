@@ -7,17 +7,29 @@ describe('PhotoInboxStore', () => {
     return TestBed.inject(PhotoInboxStore);
   }
 
-  it('delivers the staged photo only once', () => {
+  it('starts without a capture session', () => {
+    expect(inbox().hasPhoto()).toBe(false);
+    expect(inbox().peek()).toBeNull();
+  });
+
+  it('keeps the photo until the capture is cleared', () => {
     const store = inbox();
     const file = new File(['foto'], 'foto.png', { type: 'image/png' });
 
     store.stage(file);
 
-    expect(store.take()).toBe(file);
-    expect(store.take()).toBeNull();
+    expect(store.hasPhoto()).toBe(true);
+    // Leer no consume: volver al panel reutiliza la misma foto.
+    expect(store.peek()).toBe(file);
+    expect(store.peek()).toBe(file);
+
+    store.clear();
+
+    expect(store.hasPhoto()).toBe(false);
+    expect(store.peek()).toBeNull();
   });
 
-  it('keeps the most recent photo in a single slot', () => {
+  it('replaces the photo when the capture is retaken', () => {
     const store = inbox();
     const first = new File(['uno'], 'uno.png', { type: 'image/png' });
     const second = new File(['dos'], 'dos.png', { type: 'image/png' });
@@ -25,15 +37,7 @@ describe('PhotoInboxStore', () => {
     store.stage(first);
     store.stage(second);
 
-    expect(store.take()).toBe(second);
-  });
-
-  it('clears the slot without delivering when the session ends', () => {
-    const store = inbox();
-    store.stage(new File(['foto'], 'foto.png', { type: 'image/png' }));
-
-    store.clear();
-
-    expect(store.take()).toBeNull();
+    expect(store.peek()).toBe(second);
+    expect(store.hasPhoto()).toBe(true);
   });
 });

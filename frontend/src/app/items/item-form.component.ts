@@ -201,12 +201,16 @@ export class ItemFormComponent implements OnDestroy {
 
   private objectUrl: string | null = null;
 
+  /** La última foto procesada por esta instancia: el efecto no repite el trabajo. */
+  private lastAccepted: File | null = null;
+
   constructor() {
-    // La barra inferior deposita la foto en el buzón desde otra pantalla (corte D12). Se consume una
-    // sola vez, así que navegar a `/captura` sin remontar el panel no la entrega dos veces.
+    // La foto vive en la sesión de captura (cortes D12 y D13), no en el formulario: al montarse se
+    // procesa la vigente —aunque ya se hubiera procesado en una visita anterior—, y si vuelve a
+    // cambiar la referencia la procesa de nuevo.
     effect(() => {
-      const pending = this.inbox.take();
-      if (pending !== null) {
+      const pending = this.inbox.photo();
+      if (pending !== null && pending !== this.lastAccepted) {
         void this.acceptPhoto(pending);
       }
     });
@@ -240,6 +244,8 @@ export class ItemFormComponent implements OnDestroy {
       return;
     }
 
+    // Retomar reemplaza la foto de la sesión (corte D13): volver al panel usa la misma.
+    this.inbox.stage(file);
     await this.acceptPhoto(file);
   }
 
@@ -255,9 +261,12 @@ export class ItemFormComponent implements OnDestroy {
    * de ida y vuelta; no escribe nada en el almacén.
    */
   private async acceptPhoto(file: File): Promise<void> {
+    this.lastAccepted = file;
+
     const typeAccepted = (ITEM_PHOTO_CONTENT_TYPES as readonly string[]).includes(file.type);
     if (!typeAccepted) {
       this.error.set('La foto debe ser JPEG, PNG o WebP.');
+      this.endEmptySession(file);
       return;
     }
 
@@ -265,6 +274,7 @@ export class ItemFormComponent implements OnDestroy {
     // dispositivo. Un archivo mayor se rechaza aquí, sin tocar la red.
     if (file.size > ITEM_LIMITS.photoBytes) {
       this.error.set(`La foto supera el límite de ${String(this.maxPhotoMiB)} MB.`);
+      this.endEmptySession(file);
       return;
     }
 
@@ -300,9 +310,17 @@ export class ItemFormComponent implements OnDestroy {
       await this.ensureTicket();
     } catch {
       this.clearPhoto();
+      this.endEmptySession(file);
       this.error.set('No se pudo procesar esta foto. Elige otra o toma una nueva.');
     } finally {
       this.optimizing.set(false);
+    }
+  }
+
+  /** Una foto rechazada sin foto anterior deja la sesión sin nada que capturar: se cierra. */
+  private endEmptySession(file: File): void {
+    if (this.photo() === null && this.inbox.photo() === file) {
+      this.inbox.clear();
     }
   }
 
@@ -456,6 +474,11 @@ export class ItemFormComponent implements OnDestroy {
     await flashDelay();
     this.saved.emit(slug);
     this.reset();
+
+    // Guardar o publicar termina la captura (corte D13): la barra deshabilita `Captura` y volver
+    // exige una foto nueva.
+    this.inbox.clear();
+    this.lastAccepted = null;
   }
 
   /** Crea el artículo una sola vez por formulario y recuerda su identificador. */
@@ -670,7 +693,10 @@ export class ItemFormComponent implements OnDestroy {
     this.flashing.set(false);
   }
 
-  /** Salir del formulario con una captura a medias no deja staging a propósito. */
+  /**
+   * Salir del formulario no termina la captura (corte D13): la foto sigue en la sesión y volver al
+   * panel la reutiliza. Solo se descartan el staging y la vista previa, que son de esta instancia.
+   */
   ngOnDestroy(): void {
     this.discardCapture();
     this.releasePreview();

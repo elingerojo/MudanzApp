@@ -48,18 +48,18 @@
 
 ## 1. Mapa rápido
 
-| Bloque | Qué agrupa                                               | Filas | Estado                                          |
-| ------ | -------------------------------------------------------- | ----- | ----------------------------------------------- |
-| A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                                    |
-| B      | **Remanentes de 4f** y de la decisión §44                | 10    | B1, B8, B9 y B10 cerradas; resto con disparador |
-| C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                                 |
-| D      | Escala, rendimiento y UX                                 | 12    | `D2`, `D8`, `D9`, `D10`, `D11` y `D12` cerradas |
-| E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio              |
-| F      | Publicación, URL y venta                                 | 7     | Disparadores                                    |
-| G      | Cuenta e identidad                                       | 5     | Disparadores                                    |
-| H      | `wiki`, superficies y dossier                            | 3     | Deuda declarada                                 |
-| T      | Tooling y arnés de pruebas                               | 4     | Habilita a los demás                            |
-| X      | Fuera de alcance o descartado con disparador             | 10    | **No recomendado** sin cambio de alcance        |
+| Bloque | Qué agrupa                                               | Filas | Estado                                                          |
+| ------ | -------------------------------------------------------- | ----- | --------------------------------------------------------------- |
+| A      | Cortes y ciclos **ya declarados** con secuencia acordada | 8     | Esperan plan                                                    |
+| B      | **Remanentes de 4f** y de la decisión §44                | 10    | B1, B8, B9 y B10 cerradas; resto con disparador                 |
+| C      | Almacenamiento, operación y costo                        | 7     | Deuda declarada                                                 |
+| D      | Escala, rendimiento y UX                                 | 13    | `D2`, `D8`, `D9`, `D10`, `D11` y `D12` cerradas; `D13` en curso |
+| E      | Administración del evento y del producto                 | 6     | Disparadores y un candidato propio                              |
+| F      | Publicación, URL y venta                                 | 7     | Disparadores                                                    |
+| G      | Cuenta e identidad                                       | 5     | Disparadores                                                    |
+| H      | `wiki`, superficies y dossier                            | 3     | Deuda declarada                                                 |
+| T      | Tooling y arnés de pruebas                               | 4     | Habilita a los demás                                            |
+| X      | Fuera de alcance o descartado con disparador             | 10    | **No recomendado** sin cambio de alcance                        |
 
 ---
 
@@ -135,6 +135,7 @@ Lo que §39 reservaba para 4f y la revisión `live` de 4e dejaron como hecho pen
 | **D11** | Pestañas del panel del evento         | `cerrada 350fa8d 2026-11-07` — `plans/plan-ciclo-d11-pestanas-panel-evento.md`. Renombrar los rótulos a `Artículos`, `Solicitudes`, `Invitaciones` y `Otros dispositivos`, y separar el panel en cuatro pestañas en ese orden, con `Artículos` abierta por defecto; la configuración del evento —enlace público, quién administra y WhatsApp— queda fija arriba, fuera de las pestañas | Una tira de pestañas dentro de `/cuenta/evento` que muestra una lista por vez, con las lecturas y los actos de cada bloque sin cambios; el armazón decide en su plan si es ruta hija o estado en memoria, y cada lista queda lista para paginar por separado. Sin backend, contrato ni migración. Revisada `live` en remoto el 2026-11-07    | M     | Decisión del dueño 2026-11-07; D1                                                                                                                |
 
 | **D12** | `nav-foto` | `cerrada b7e67aa 2026-11-09` — Barra de cinco posiciones: `Captura`, `Capturados`, botón redondo `Foto` al centro, hueco inerte con la leyenda `Ayuda` y `Cuenta`. `Foto` abre la cámara del móvil desde cualquier pantalla privada; cancelar no navega, y una captura abre el panel `Captura` actual con esa foto, sin cambiar su contenido ni sus rótulos. El hueco `Ayuda` solo sostiene la simetría e insinúa una ayuda futura; hoy no es enlace ni funcionalidad. `Captura` sigue siendo el enlace al panel y el renombre `Asistente IA` se descartó. Revisada `live` en remoto por el dueño el 2026-11-09. | Input de cámara oculto en la shell que entrega el archivo al panel por un store compartido; el panel queda intacto y la foto se procesa igual que una elegida en él. Sin backend, `shared`, base ni dependencias. | S | Decisión del dueño 2026-11-09; [`plan-ciclo-d12`](plan-ciclo-d12-nav-foto.md:1) |
+| **D13** | `inicio-captura` | `en curso` — Pantalla nueva `/inicio` como aterrizaje privado: cabecera del evento —trayecto, `Documenta cada artículo…` y enlace público— y un card `Toma una foto del artículo que quieres publicar` que abre la cámara, deja la foto en la sesión de captura y abre el panel. `Captura` deja de ser el destino por defecto: inicia deshabilitada, se habilita con la foto, se mantiene con o sin borrador de IA y se deshabilita al publicar o guardar. `/captura` sin foto redirige a `/inicio`; el botón interno del panel es siempre `Repetir la foto`; volver al panel reutiliza la misma foto. Sin backend, `shared`, base ni dependencias. | Sesión de captura en `PhotoInboxStore` —la foto no se consume al entrar—, guarda `requireCaptureSession`, pantalla `InicioComponent` con su cámara, aterrizajes de canje, proveedor y selector a `/inicio`, y la barra leyendo la sesión. Sin migración. | M | Decisión del dueño 2026-11-09; [`plan-ciclo-d13`](plan-ciclo-d13-inicio-captura.md:1) |
 
 ---
 

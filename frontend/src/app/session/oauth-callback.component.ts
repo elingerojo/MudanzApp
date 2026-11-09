@@ -68,7 +68,8 @@ export class OAuthCallbackComponent {
       this.session.establish(issued);
 
       const eventId = issued.event?.id ?? null;
-      await this.router.navigate(eventId === null ? ['/'] : ['/captura'], {
+      // Corte D13: la vuelta del proveedor aterriza en la bienvenida, igual que el canje.
+      await this.router.navigate(eventId === null ? ['/'] : ['/inicio'], {
         replaceUrl: true,
       });
     } catch (failure: unknown) {

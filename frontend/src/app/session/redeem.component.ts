@@ -81,7 +81,8 @@ export class RedeemComponent {
 
       this.session.establish(issued);
       const eventId = issued.event?.id ?? null;
-      await this.router.navigate(eventId === null ? ['/'] : ['/captura']);
+      // Corte D13: la sesión privada aterriza en la bienvenida, que pide la primera foto.
+      await this.router.navigate(eventId === null ? ['/'] : ['/inicio']);
     } catch (error: unknown) {
       this.error.set(
         apiErrorCode(error) === INVITATION_INVALID
