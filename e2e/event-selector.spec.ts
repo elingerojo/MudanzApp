@@ -4,17 +4,18 @@ import type { CreatedEvent, CreatedInvitation, IssuedSession } from '@mudanzapp/
 import { ADMIN_TOKEN, BACKEND_URL, FRONTENDS, frontendUrl } from './support/harness.js';
 
 /**
- * Evidencia del corte D2 (`event-selector`).
+ * Evidencia de los cortes D2 (`event-selector`) y D15 (`evento-recordado`).
  *
  * La hipótesis es la elección: una cuenta con dos o más membresías **no** aterriza en silencio en la
  * más reciente. Al entrar llega a `/eventos`, elige una mudanza y el resto de la superficie privada
- * —captura y Cuenta— habla de la elegida; una recarga vuelve a preguntar porque la elección vive en
- * memoria.
+ * —captura y Cuenta— habla de la elegida. Desde D15 la elección se recuerda en este navegador, así
+ * que una recarga conserva la mudanza y el cambio se hace desde la Cuenta; solo un navegador sin un
+ * recordado válido vuelve a ver el selector.
  *
  * **Límite declarado.** El verificador `fake` fija un sujeto, así que todas las cuentas del arnés son
  * la misma y la lista acumula los eventos de las corridas anteriores. Por eso el caso crea **dos**
- * membresías propias, afirma que hay al menos dos opciones y elige la primera de la lista —la más
- * antigua—: si la superficie usara la más reciente, el título de captura no coincidiría.
+ * membresías propias, afirma que hay al menos dos opciones y elige por su trayecto —no por su
+ * posición—: si la superficie usara la más reciente, el título de captura no coincidiría.
  */
 const adminHeaders = { Authorization: `Bearer ${ADMIN_TOKEN}` };
 
@@ -65,7 +66,7 @@ async function linkAccountToEvent(
   expect(claimed.status()).toBe(201);
 }
 
-test('an account with two moves chooses where to work instead of landing on the newest', async ({
+test('an account with two moves chooses once and the browser remembers where it works', async ({
   request,
   page,
 }, testInfo) => {
@@ -102,7 +103,28 @@ test('an account with two moves chooses where to work instead of landing on the 
   await expect(page.getByTestId('cuenta-event-title')).toHaveText(firstTitle);
   await expect(page.getByTestId('cuenta-events-link')).toBeVisible();
 
-  // 5. La elección vive en memoria: una recarga de un destino privado vuelve a preguntar.
+  // 5. Desde D15 la elección se recuerda: recargar un destino privado ya no vuelve a preguntar.
+  await page.goto(`${FRONTEND_URL}/capturados`);
+  await expect(page).toHaveURL(/\/capturados$/);
+  await page.getByTestId('shell-nav-account').click();
+  await expect(page.getByTestId('cuenta-event-title')).toHaveText(firstTitle);
+
+  // 6. El cambio de mudanza se hace desde la Cuenta y también queda recordado.
+  await page.getByTestId('cuenta-events-link').click();
+  await expect(page).toHaveURL(/\/eventos$/);
+  await expect(page.getByTestId('event-selector-title')).toBeVisible();
+
+  // La base acumula eventos de corridas anteriores; el recién creado es el último con ese trayecto.
+  await page.getByTestId('event-choice').filter({ hasText: 'Tena → Esmeraldas' }).last().click();
+  await expect(page).toHaveURL(/\/inicio$/);
+  await expect(page.getByTestId('event-title')).toHaveText('Tena → Esmeraldas');
+  expect(await page.evaluate(() => localStorage.getItem('mudanzapp.event'))).toBe(second.id);
+
+  await page.goto(`${FRONTEND_URL}/cuenta`);
+  await expect(page.getByTestId('cuenta-event-title')).toHaveText('Tena → Esmeraldas');
+
+  // 7. Un navegador sin un evento recordado válido vuelve a ver el selector una vez.
+  await page.evaluate(() => localStorage.removeItem('mudanzapp.event'));
   await page.goto(`${FRONTEND_URL}/capturados`);
   await expect(page).toHaveURL(/\/eventos$/);
   await expect(page.getByTestId('event-selector-title')).toBeVisible();

@@ -19,8 +19,14 @@ import { API_BASE_URL } from '../api-base-url.token';
  *
  * La credencial vive en `localStorage` (decisión §27) y **nunca** se expone como señal pública: el
  * único que la lee es el interceptor, por `token()`, para que ninguna plantilla pueda enlazarla.
+ *
+ * Desde D15 el navegador también recuerda el último evento usado (`mudanzapp.event`). No sustituye a
+ * la lista del borde: se valida contra ella en cada lectura de identidad.
  */
 const TOKEN_STORAGE_KEY = 'mudanzapp.session';
+
+/** El último evento usado en este navegador (corte D15). */
+const EVENT_STORAGE_KEY = 'mudanzapp.event';
 
 function browserStorage(): Storage | null {
   try {
@@ -54,29 +60,31 @@ export class SessionStore {
   readonly events = computed<readonly EventSummary[]>(() => this.identity()?.events ?? []);
 
   /**
-   * La membresía que el usuario eligió en `/eventos` (corte D2).
+   * El último evento usado en este navegador (corte D15).
    *
-   * Vive en memoria mientras dura la visita: persistirla en `localStorage` sería un estado en disco
-   * con vida propia, y D8 §2 ya había dejado fuera esa decisión. Se limpia al establecer o cerrar
-   * sesión, porque una cuenta nueva es una elección nueva.
+   * Vive en `localStorage` para que una recarga o una visita posterior no vuelvan a preguntar por la
+   * mudanza. No es un hecho del borde: en cada lectura de identidad se valida contra `events()` y un
+   * identificador que la sesión ya no alcanza se ignora. Cerrar sesión no lo borra —es una
+   * preferencia del navegador—, y una identidad distinta lo usa solo si lo alcanza.
    */
-  private readonly selectedEventId = signal<string | null>(null);
+  private readonly rememberedEventId = signal<string | null>(null);
 
   /**
-   * El evento que la superficie privada trata como activo (cortes D8 y D2).
+   * El evento que la superficie privada trata como activo (cortes D8, D2 y D15).
    *
    * `listEventsForUser` ordena por `created_at` ascendente, así que la última es la más reciente. La
    * regla de D8 —usar la más reciente— solo se conserva cuando la cuenta tiene **una** membresía:
-   * con dos o más, el evento activo es `null` hasta que el usuario elige en `/eventos`. Ninguna
-   * pantalla usa en silencio una membresía que el usuario no eligió.
+   * con dos o más, el evento activo es el recordado en este navegador (D15) y, si no hay uno válido,
+   * `null` hasta que el usuario elige en `/eventos`. Ninguna pantalla usa en silencio una membresía
+   * que el usuario no eligió.
    */
   readonly activeEvent = computed<EventSummary | null>(() => {
     const events = this.events();
-    const selectedId = this.selectedEventId();
-    const chosen =
-      selectedId === null ? null : (events.find((event) => event.id === selectedId) ?? null);
-    if (chosen !== null) {
-      return chosen;
+    const rememberedId = this.rememberedEventId();
+    const remembered =
+      rememberedId === null ? null : (events.find((event) => event.id === rememberedId) ?? null);
+    if (remembered !== null) {
+      return remembered;
     }
 
     return events.length === 1 ? (events[0] ?? null) : null;
@@ -85,8 +93,9 @@ export class SessionStore {
   readonly activeEventId = computed(() => this.activeEvent()?.id ?? null);
 
   /**
-   * La cuenta tiene una decisión pendiente: dos o más membresías y ninguna elegida. La guarda de los
-   * destinos privados la usa para mandar a `/eventos` en vez de adivinar.
+   * La cuenta tiene una decisión pendiente: dos o más membresías y ningún evento activo —ni siquiera
+   * uno recordado que la sesión todavía alcance—. La guarda de los destinos privados la usa para
+   * mandar a `/eventos` en vez de adivinar.
    */
   readonly requiresEventChoice = computed(
     () => this.events().length > 1 && this.activeEvent() === null,
@@ -128,14 +137,21 @@ export class SessionStore {
       if (stored !== null && stored.length > 0) {
         this.credential.set(stored);
       }
+
+      const storedEvent = storage.getItem(EVENT_STORAGE_KEY);
+      if (storedEvent !== null && storedEvent.length > 0) {
+        this.rememberedEventId.set(storedEvent);
+      }
     } catch {
       // Un almacenamiento ilegible degrada a «sin sesión», que tiene salida por el enlace.
     }
   }
 
-  /** Establece la sesión recién canjeada: memoria primero, disco después. */
+  /**
+   * Establece la sesión recién canjeada: memoria primero, disco después. El evento recordado del
+   * navegador no se toca (D15): la identidad nueva lo valida y solo lo usa si lo alcanza.
+   */
   establish(session: IssuedSession): void {
-    this.selectedEventId.set(null);
     this.credential.set(session.sessionToken);
 
     const storage = browserStorage();
@@ -150,9 +166,11 @@ export class SessionStore {
     }
   }
 
-  /** Cierra la sesión local. No hay endpoint: el token deja de viajar en la próxima petición. */
+  /**
+   * Cierra la sesión local. No hay endpoint: el token deja de viajar en la próxima petición. El
+   * evento recordado del navegador se conserva (D15); la identidad siguiente lo valida.
+   */
   clear(): void {
-    this.selectedEventId.set(null);
     this.credential.set(null);
 
     const storage = browserStorage();
@@ -173,15 +191,31 @@ export class SessionStore {
   }
 
   /**
-   * Fija la elección del selector (corte D2). Solo acepta una membresía que la sesión alcance: una
-   * identidad vieja o un identificador inventado no crean un evento que el borde no publicó.
+   * Fija la elección del selector (cortes D2 y D15). Solo acepta una membresía que la sesión alcance:
+   * una identidad vieja o un identificador inventado no crean un evento que el borde no publicó.
+   * La elección queda en memoria y, cuando el navegador lo permite, en `localStorage`.
    */
   selectEvent(eventId: string): boolean {
     if (!this.events().some((event) => event.id === eventId)) {
       return false;
     }
 
-    this.selectedEventId.set(eventId);
+    this.rememberedEventId.set(eventId);
+    this.writeRememberedEvent(eventId);
     return true;
+  }
+
+  /** Escribe la elección en el disco; un almacenamiento negado deja la memoria como respaldo. */
+  private writeRememberedEvent(eventId: string): void {
+    const storage = browserStorage();
+    if (storage === null) {
+      return;
+    }
+
+    try {
+      storage.setItem(EVENT_STORAGE_KEY, eventId);
+    } catch {
+      // La elección ya vive en memoria; el arranque no depende del disco.
+    }
   }
 }

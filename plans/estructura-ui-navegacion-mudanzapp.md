@@ -253,9 +253,16 @@ hace falta inventar entradas para pantallas que no existen.
 > `requireEventChoice` devuelve ahí a los destinos privados —`/captura`, `/capturados`,
 > `/articulos/:itemId` y `/cuenta/evento`— mientras no haya una elección explícita. El evento activo
 > es la elección, o la única membresía; con varias y sin elección no hay evento activo. La elección
-> vive en memoria mientras dura la visita (persistirla es una decisión propia), la Cuenta enlaza al
-> selector y la barra marca `Cuenta` en `/eventos`. El detalle vive en
+> vivía en memoria mientras duraba la visita; desde D15 se recuerda en este navegador, la Cuenta
+> enlaza al selector y la barra marca `Cuenta` en `/eventos`. El detalle vive en
 > [`plan-ciclo-d2-selector-evento`](plan-ciclo-d2-selector-evento.md:1).
+>
+> **Nota (corte D15, 2026-11-10):** el evento activo es el recordado válido de este navegador
+> (`mudanzapp.event`) o, si no hay uno, la única membresía. `/eventos` aparece solo cuando el
+> navegador no tiene un evento recordado que la sesión todavía alcance; después el cambio de mudanza
+> se hace desde la Cuenta con `Cambiar de mudanza`. Cerrar sesión no borra la preferencia del
+> navegador. Sin backend, sin contrato, sin dependencia y sin migración. El detalle vive en
+> [`plan-ciclo-d15-evento-recordado`](plan-ciclo-d15-evento-recordado.md:1).
 >
 > **Nota (corte B8, 2026-11-07):** el renglón de `Solicitudes` conserva su instantánea y su total.
 > Cuando algún artículo ya no coincide con el catálogo —despublicado, vendido, eliminado o precio

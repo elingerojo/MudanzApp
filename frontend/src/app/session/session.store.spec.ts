@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../api-base-url.token';
 import { SessionStore } from './session.store';
 
 const STORAGE_KEY = 'mudanzapp.session';
+const EVENT_STORAGE_KEY = 'mudanzapp.event';
 const IDENTITY_URL = '/api/auth/session';
 
 function issuedSession(token: string): IssuedSession {
@@ -43,6 +44,9 @@ function tick(): Promise<void> {
 /**
  * La sesión del dispositivo: una sola fuente y tres transiciones. La identidad que viaja al backend
  * se prueba en `auth.interceptor.spec.ts`, donde el `Bearer` es observable.
+ *
+ * Desde D15 el evento activo también puede venir de un recordado en `localStorage`, siempre que la
+ * sesión lo siga publicando en `events()`.
  */
 describe('SessionStore', () => {
   let store: SessionStore;
@@ -96,13 +100,21 @@ describe('SessionStore', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe('fresh-token');
   });
 
-  it('clears both memory and disk when signing out', () => {
+  it('clears the credential from memory and disk when signing out', () => {
     store.establish(issuedSession('fresh-token'));
 
     store.clear();
 
     expect(store.hasSession()).toBe(false);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('keeps the remembered event when the session is cleared', () => {
+    localStorage.setItem(EVENT_STORAGE_KEY, 'event-b');
+
+    store.clear();
+
+    expect(localStorage.getItem(EVENT_STORAGE_KEY)).toBe('event-b');
   });
 
   it('finds the event the session can see', () => {
@@ -141,7 +153,58 @@ describe('SessionStore', () => {
     expect(store.requiresEventChoice()).toBe(true);
   });
 
-  it('makes the chosen membership the active event and clears the pending choice', async () => {
+  it('restores the remembered event when the session still reaches it', async () => {
+    localStorage.setItem(STORAGE_KEY, 'stored-token');
+    localStorage.setItem(EVENT_STORAGE_KEY, 'event-b');
+
+    store.restore();
+    TestBed.tick();
+    httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a'), event('event-b')]));
+    await tick();
+
+    expect(store.activeEventId()).toBe('event-b');
+    expect(store.activeEvent()?.role).toBe('member');
+    expect(store.requiresEventChoice()).toBe(false);
+  });
+
+  it('ignores a remembered event the session no longer reaches', async () => {
+    localStorage.setItem(STORAGE_KEY, 'stored-token');
+    localStorage.setItem(EVENT_STORAGE_KEY, 'event-retired');
+
+    store.restore();
+    TestBed.tick();
+    httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a'), event('event-b')]));
+    await tick();
+
+    expect(store.activeEvent()).toBeNull();
+    expect(store.requiresEventChoice()).toBe(true);
+  });
+
+  it('falls back to the only membership when the remembered event is stale', async () => {
+    localStorage.setItem(STORAGE_KEY, 'stored-token');
+    localStorage.setItem(EVENT_STORAGE_KEY, 'event-retired');
+
+    store.restore();
+    TestBed.tick();
+    httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-1')]));
+    await tick();
+
+    expect(store.activeEventId()).toBe('event-1');
+    expect(store.requiresEventChoice()).toBe(false);
+  });
+
+  it('ignores an empty remembered event', async () => {
+    localStorage.setItem(EVENT_STORAGE_KEY, '');
+    store.establish(issuedSession('fresh-token'));
+    TestBed.tick();
+    httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a'), event('event-b')]));
+    await tick();
+
+    expect(store.activeEvent()).toBeNull();
+    expect(store.requiresEventChoice()).toBe(true);
+  });
+
+  it('makes the chosen membership active, clears the pending choice and remembers it on disk', async () => {
     store.establish(issuedSession('fresh-token'));
     TestBed.tick();
     httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a'), event('event-b')]));
@@ -152,9 +215,10 @@ describe('SessionStore', () => {
     expect(store.activeEventId()).toBe('event-b');
     expect(store.activeEvent()?.role).toBe('member');
     expect(store.requiresEventChoice()).toBe(false);
+    expect(localStorage.getItem(EVENT_STORAGE_KEY)).toBe('event-b');
   });
 
-  it('refuses a choice the session cannot see', async () => {
+  it('refuses a choice the session cannot see and does not remember it', async () => {
     store.establish(issuedSession('fresh-token'));
     TestBed.tick();
     httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a'), event('event-b')]));
@@ -164,17 +228,21 @@ describe('SessionStore', () => {
 
     expect(store.activeEvent()).toBeNull();
     expect(store.requiresEventChoice()).toBe(true);
+    expect(localStorage.getItem(EVENT_STORAGE_KEY)).toBeNull();
   });
 
-  it('forgets the choice when the session is cleared', async () => {
-    store.establish(issuedSession('fresh-token'));
+  it('replaces the remembered event with a new valid choice', async () => {
+    localStorage.setItem(STORAGE_KEY, 'stored-token');
+    localStorage.setItem(EVENT_STORAGE_KEY, 'event-a');
+
+    store.restore();
     TestBed.tick();
     httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a'), event('event-b')]));
     await tick();
-    store.selectEvent('event-b');
 
-    store.clear();
-
-    expect(store.activeEvent()).toBeNull();
+    expect(store.activeEventId()).toBe('event-a');
+    expect(store.selectEvent('event-b')).toBe(true);
+    expect(store.activeEventId()).toBe('event-b');
+    expect(localStorage.getItem(EVENT_STORAGE_KEY)).toBe('event-b');
   });
 });

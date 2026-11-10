@@ -114,8 +114,9 @@
         disponible sin seleccionar, seleccionado y deshabilitado ·
         <code class="font-mono">/cuenta/evento</code> es la administración del evento, hija de la
         Cuenta y con guarda de administración de evento · <code class="font-mono">/eventos</code> es
-        el selector de mudanza de una cuenta con dos o más membresías, y los destinos privados
-        devuelven ahí mientras no haya una elección ·
+        el selector de mudanza de una cuenta con dos o más membresías: aparece la primera vez en
+        cada navegador y los destinos privados devuelven ahí mientras el navegador no tenga un
+        evento recordado que la sesión todavía alcance ·
         <code class="font-mono">/articulos/:itemId</code> es una pantalla de detalle fuera de la
         barra. Las rutas <code class="font-mono">/eventos/:eventId...</code> y
         <code class="font-mono">/dashboard</code> se conservan como redirecciones a sus equivalentes
@@ -144,15 +145,16 @@
     </dl>
     <p>
       Con una sola membresía el evento activo es esa membresía; con dos o más, es la que el usuario
-      elige en el selector, y hasta entonces no hay evento activo. La elección vive en memoria
-      mientras dura la visita: recargar un destino privado vuelve a preguntar en vez de caer en una
-      mudanza que el usuario no eligió.
+      eligió en el selector y quedó recordada en este navegador. Un navegador que nunca usó un
+      evento —o cuyo recordado ya no está en la lista— ve <code class="font-mono">/eventos</code>
+      una vez; después el cambio de mudanza se hace desde la Cuenta y una recarga conserva la
+      elegida.
     </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">frontend/src/app/app.routes.ts</code>,
       <code class="font-mono">frontend/src/app/app.ts</code> y
-      <code class="font-mono">frontend/src/app/session/session.store.ts</code> (cortes D8, D10 y
-      D2); el botón de cámara y su buzón viven en
+      <code class="font-mono">frontend/src/app/session/session.store.ts</code> (cortes D8, D10, D2 y
+      D15); el botón de cámara y su buzón viven en
       <code class="font-mono">frontend/src/app/app.ts</code> y
       <code class="font-mono">frontend/src/app/events/photo-inbox.store.ts</code> (corte D12); el
       aterrizaje <code class="font-mono">/inicio</code> y la guarda
