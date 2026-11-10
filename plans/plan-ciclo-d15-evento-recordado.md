@@ -171,7 +171,7 @@ recordado dejó de ser visible.
 
 ## 13. Cierre
 
-Ejecutado el 2026-11-10. Evidencia en verde: `npm run typecheck`, `npm run lint`,
+Cerrado en `9fe1b14` el 2026-11-10. Evidencia en verde: `npm run typecheck`, `npm run lint`,
 `npm run format:check`, `npm run test:web:frontend` (32 archivos, 216 pruebas),
 `npm run build:web:frontend`, `npm run test:web:wiki` (13 pruebas), `npm run build:web:wiki`,
 `npm run typecheck:e2e`, `npm run db:migrate:test` y `npm run test:e2e` (24 pasaron, 42 omitidas
@@ -185,5 +185,6 @@ la membresía; `clear` retira la credencial y conserva la preferencia del navega
 cambio desde `Cuenta → Cambiar de mudanza` navega a la nueva y que una segunda recarga la mantiene;
 sin un recordado válido, el navegador vuelve a ver el selector.
 
-Pendiente: el commit convencional y la revisión `live` del dueño. El árbol de trabajo mezcla cambios
-ajenos a D15, así que el commit del ciclo requiere separar esos cambios primero.
+Revisión `live` del dueño: **confirmada en remoto el 2026-11-10**. La recarga de un destino privado
+conservó la mudanza elegida, el cambio desde `Cuenta → Cambiar de mudanza` se aplicó y sobrevivió a
+otra recarga; un navegador sin el evento recordado volvió a ver el selector una vez.

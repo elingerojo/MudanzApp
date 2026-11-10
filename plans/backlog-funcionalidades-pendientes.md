@@ -11,7 +11,7 @@
 > §4; [`shop/README`](../shop/README.md:1); [`wiki/README`](../wiki/README.md:1);
 > [`indicador-carga-componente`](../.plans/indicador-carga-componente.md:1).
 >
-> **Última revisión:** 2026-11-07, B1 (`cart-total`) cerrado en `93e5aac`; E1 (`platform-admin`)
+> **Última revisión:** 2026-11-10, B1 (`cart-total`) cerrado en `93e5aac`; E1 (`platform-admin`)
 > cerrado en `0e917e6`; D8 (`shell-nav`) cerrada en `2bbc7cb` y revisada `live` en remoto el
 > 2026-11-06; D9 (`cuenta-ruta`) cerrada en `b63a9db` y revisada `live` en remoto el 2026-11-06;
 > D10 (`cuenta-evento`) cerrada en `cb9cae5` y revisada `live` en remoto el 2026-11-07; D2
@@ -23,8 +23,9 @@
 > `backlog-vendedor-solicitud` se retiró; D12 (`nav-foto`) cerrada en `b7e67aa` y revisada `live` en
 > remoto por el dueño el 2026-11-09; D13 (`inicio-captura`) cerrada en `1092f45` el 2026-11-09 y
 > pendiente de revisión `live`; D14 (`barra-estados-cierre`) cerrada en `254ccf2` el 2026-11-09 como
-> corrección de D13 pedida por el dueño y revisada `live` en remoto por el dueño el mismo día; workflow
-> de ciclos en vigor.
+> corrección de D13 pedida por el dueño y revisada `live` en remoto por el dueño el mismo día; D15
+> (`evento-recordado`) cerrada en `9fe1b14` el 2026-11-10 y revisada `live` en remoto por el dueño
+> el mismo día; workflow de ciclos en vigor.
 
 ## 0. Reglas de uso
 
@@ -140,6 +141,12 @@ Lo que §39 reservaba para 4f y la revisión `live` de 4e dejaron como hecho pen
 | **D12** | `nav-foto` | `cerrada b7e67aa 2026-11-09` — Barra de cinco posiciones: `Captura`, `Capturados`, botón redondo `Foto` al centro, hueco inerte con la leyenda `Ayuda` y `Cuenta`. `Foto` abre la cámara del móvil desde cualquier pantalla privada; cancelar no navega, y una captura abre el panel `Captura` actual con esa foto, sin cambiar su contenido ni sus rótulos. El hueco `Ayuda` solo sostiene la simetría e insinúa una ayuda futura; hoy no es enlace ni funcionalidad. `Captura` sigue siendo el enlace al panel y el renombre `Asistente IA` se descartó. Revisada `live` en remoto por el dueño el 2026-11-09. | Input de cámara oculto en la shell que entrega el archivo al panel por un store compartido; el panel queda intacto y la foto se procesa igual que una elegida en él. Sin backend, `shared`, base ni dependencias. | S | Decisión del dueño 2026-11-09; [`plan-ciclo-d12`](plan-ciclo-d12-nav-foto.md:1) |
 | **D13** | `inicio-captura` | `cerrada 1092f45 2026-11-09` — Pantalla nueva `/inicio` como aterrizaje privado: cabecera del evento —trayecto, `Documenta cada artículo…` y enlace público— y un card `Toma una foto del artículo que quieres publicar` que deja la foto en la sesión de captura y abre el panel. `Captura` deja de ser el destino por defecto: inicia deshabilitada, se habilita con la foto, se mantiene con o sin borrador de IA y se deshabilita al publicar o guardar. `/captura` sin foto redirige a `/inicio`; el botón interno del panel es siempre `Repetir la foto`; volver al panel reutiliza la misma foto. D14 le retiró la cámara propia —la toma el botón central `Foto`— y le añadió el cierre hacia `Capturados`. Sin backend, `shared`, base ni dependencias. Revisión `live` pendiente del dueño. | Sesión de captura en `PhotoInboxStore` —la foto no se consume al entrar—, guarda `requireCaptureSession`, pantalla `InicioComponent`, aterrizajes de canje, proveedor y selector a `/inicio`, y la barra leyendo la sesión. Sin migración. | M | Decisión del dueño 2026-11-09; [`plan-ciclo-d13`](plan-ciclo-d13-inicio-captura.md:1) |
 | **D14** | `barra-estados-cierre` | `cerrada 254ccf2 2026-11-09` — La barra inferior distingue por el fondo sus cuatro destinos —disponible sin seleccionar, seleccionado y deshabilitado—; `/inicio` no monta cámara propia y nombra el botón central `Foto`; publicar o guardar cierra la captura y navega a `/capturados` después del destello del indicador de progreso, y un error se queda en `Captura`. Sin backend, `shared/s`, base ni dependencias. Revisada `live` en remoto por el dueño el 2026-11-09. | Tokens de estado en `shared/src/theme.css`, `data-nav-state` en la barra, `InicioComponent` solo con cabecera y guía, `onSaved` de `CaptureComponent` refrescando y navegando, y el aviso `capture-saved` retirado. Sin migración. | S | Decisión del dueño 2026-11-09; [`plan-ciclo-d14`](plan-ciclo-d14-barra-estados-cierre.md:1) |
+| **D15** | `evento-recordado` | `cerrada 9fe1b14 2026-11-10` — Antes de D15 la elección de mudanza vivía en memoria (D2): cada recarga de un destino privado volvía a preguntar por la mudanza. El corte deseado es que el último evento usado sea el default de este navegador y que la Cuenta sea el único lugar donde se cambia; el navegador que nunca usó un evento conserva el selector de `/eventos` una vez. Sin backend, sin contrato y sin migración. Revisada `live` en remoto por el dueño el 2026-11-10. | `SessionStore` recuerda el evento en `localStorage` (`mudanzapp.event`) y lo valida contra `events()`; `activeEvent` = recordado válido o la única membresía; `requireEventChoice` se conserva para la primera visita de cada navegador y la Cuenta conserva `Cambiar de mudanza`. Persistir la elección era el disparador declarado en D2 §11. | S | [`plan-ciclo-d15`](plan-ciclo-d15-evento-recordado.md:1); [`plan-ciclo-d2`](plan-ciclo-d2-selector-evento.md:195) §11 |
+
+> **D15 corrige un cierre de D2.** La fila D2 conserva `cerrada 1cf135d` y su §13; lo que deja de ser
+> cierto es la cláusula «la elección vive en memoria mientras dura la visita»: desde D15 el evento
+> recordado se guarda en `localStorage` de este navegador y se valida contra la lista de membresías en
+> cada lectura de identidad. Persistir la elección era el disparador declarado en `plan-ciclo-d2` §11.
 
 ---
 
