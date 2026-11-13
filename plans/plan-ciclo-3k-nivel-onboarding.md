@@ -202,13 +202,16 @@ Gate proporcional (uno por invocación, una corrida a la vez):
 
 ## 9. Rama, base y entrega
 
-- **Rama:** `_branch` (una sola dev branch de base de datos, local y remota).
+- **Rama:** la experimentación vive en la dev branch de base de datos `_branch`; **la entrega es
+  `main`, porque el despliegue solo sale de `main`**.
 - **Base local:** `mudanzapp_branch`; pruebas `mudanzapp_branch_test`.
-- **Migraciones:** a mano, nunca en el arranque.
-  `npm run db:migrate:branch`, `npm run db:migrate:branch:test`, y en remoto
-  `npm run db:migrate:remote:branch` antes de que el despliegue de la rama sirva el código nuevo.
-- **Si la revisión contradice la hipótesis:** el corte se queda en la dev branch, sin integrar. El
-  hallazgo va a la bandeja y el nivel no se consume en 3i hasta que la promoción se decida de nuevo.
+- **Migraciones:** a mano, nunca en el arranque. En local `npm run db:migrate:branch` y
+  `npm run db:migrate:branch:test`. En remoto el destino es **`main`**: `npm run db:migrate:remote`
+  con `backend/.env.migration.local`, **antes** de desplegar `main`. `db:migrate:remote:branch` no se
+  usa: no hay despliegue desde la rama.
+- **Si la revisión contradice la hipótesis:** el corte se queda en la dev branch, sin integrar a
+  `main`. El hallazgo va a la bandeja y el nivel no se consume en 3i hasta que la promoción se decida
+  de nuevo.
 - **Commit:** `feat(web)` con hipótesis, corte y evidencia en el cuerpo, más la línea de wiki.
 
 ## 10. Correcciones de fuente que el corte exige
@@ -256,10 +259,11 @@ responde `400 validation_failed` fuera de rango o con una clave de más, `404 no
 que la sesión no alcanza y publica el efectivo aunque el piso guardado sea menor. El e2e
 `onboarding-level` confirma el estilo promovido a nivel 0, la fila de `Cuenta` nombrando el umbral,
 la subida desde `Cuenta` y su persistencia tras recargar, y los dos botones iguales a nivel 1. La
-migración `014` se aplicó a mano en `branch` y `branch_test` locales.
+migración `014` se aplicó a mano en `branch` y `branch_test` locales; **la remota de `main` sigue
+pendiente** y va antes del despliegue.
 
-Revisión `live` del dueño: **pendiente**. Su disparador es la prueba manual del §14 en remoto, con
-la migración del esquema antes del despliegue.
+Revisión `live` del dueño: **pendiente**. Su disparador es la prueba manual del §14 en producción,
+con `npm run db:migrate:remote` sobre `main` antes de desplegar.
 
 Pendiente con su disparador: la restricción de la escritura a `requireEventAdministrator` si un
 co-dispositivo molesta al dueño (primera queja en `live`); el contador monótono si la evidencia
@@ -271,11 +275,12 @@ borrador pesa más).
 
 Orden importa: **primero el esquema, después el despliegue.**
 
-1. `npm run db:migrate:remote:branch` con `backend/.env.migration.local` resuelto por el script. Sin
-   esta columna, la lectura del evento falla después del despliegue.
-2. Desplegar la rama según `Man-3.4` (el servicio ya define `PORT=3000`).
-3. En el teléfono, con un evento de la rama que tenga **0 a 2** artículos publicados, abrir `/captura`
-   con una foto: el botón `Borrador con IA` debe liderar y `Repetir la foto` verse discreto.
+1. `npm run db:migrate:remote` con `backend/.env.migration.local` resuelto por el script: el destino
+   remoto es **`main`**, porque el despliegue solo sale de `main`. Sin esta columna, la lectura del
+   evento falla después del despliegue.
+2. Desplegar `main` según `Man-3.4` (el servicio ya define `PORT=3000`).
+3. En el teléfono, con un evento de producción que tenga **0 a 2** artículos publicados, abrir
+   `/captura` con una foto: el botón `Borrador con IA` debe liderar y `Repetir la foto` verse discreto.
 4. Abrir `/cuenta`: la fila debe decir `El borrador de IA usa 1 foto. Publica 3 artículos para usar 2.`
    con la acción `Subir de nivel`.
 5. Pulsar `Subir de nivel`, **recargar** y comprobar dos cosas: la fila dice `2 fotos` y los dos botones
