@@ -31,8 +31,9 @@
     <p>
       Publicar o solo guardar cierra la sesión y, cuando el indicador de progreso termina, la
       pantalla navega sola a <code class="font-mono text-xs">Capturados</code>, donde el artículo se
-      ve con su estado y su enlace. Un error no navega: el mensaje y el reintento de foto se quedan
-      en <code class="font-mono text-xs">Captura</code>.
+      ve con su estado y su enlace. Un error no navega: el mensaje se queda en
+      <code class="font-mono text-xs">Captura</code> y, desde 3f, cada foto que no subió conserva su
+      propio <code class="font-mono text-xs">Reintentar</code> en la tira.
     </p>
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">frontend/src/app/events/photo-inbox.store.ts</code>,
@@ -103,6 +104,32 @@
       Evidencia: <code class="font-mono">shared/src/capture.ts</code>,
       <code class="font-mono">backend/src/routes/captures-router.ts</code>;
       <code class="font-mono">decisiones</code> §45.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">Cada foto dice en qué está</h3>
+    <p>
+      La tira publica el estado de <strong>cada</strong> foto —optimizando, en el teléfono,
+      subiendo, subida o fallida— y el contador las cuenta sin dar un porcentaje de la galería:
+      <code class="font-mono text-xs">4 listas, 2 en el teléfono</code>. La foto que falló lo dice
+      en su casilla y ofrece ahí mismo <code class="font-mono text-xs">Reintentar</code>; el
+      reintento reenvía los <strong>mismos bytes</strong> ya optimizados —si el ticket caducó pide
+      uno nuevo con esos bytes— y no vuelve a codificar ni reenvía a las que ya subieron.
+    </p>
+    <p>
+      Las fotos se adjuntan <strong>de a una</strong>, así que el fallo de una no arrastra a las
+      demás. Publicar exige la <strong>portada subida</strong>, porque la miniatura de la lista y la
+      ficha pública leen la posición 0; un fallo en una foto posterior no impide publicar, pero
+      queda visible y reintentable, y la captura no se cierra hasta que todas están en el artículo.
+      El estado vive en la visita: se pierde al recargar y no se guarda en la base.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">frontend/src/app/items/photo-pipeline.ts</code>,
+      <code class="font-mono">frontend/src/app/items/photo-gallery.component.ts</code>,
+      <code class="font-mono">frontend/src/app/items/item-form.component.ts</code>,
+      <code class="font-mono">e2e/photos.spec.ts</code>;
+      <code class="font-mono">plan-ciclo-3f</code> §5.
     </p>
   </section>
 

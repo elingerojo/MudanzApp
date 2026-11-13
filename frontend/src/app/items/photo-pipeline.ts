@@ -24,6 +24,10 @@ import { PHOTO_UPLOADER } from './photo-upload.token';
  * Nace de extraer el camino que 4g dejó dentro del formulario de captura: la **misma** tubería sirve
  * a la captura y a la edición, así que una foto no puede subirse de dos maneras distintas según la
  * pantalla. El cuerpo de la foto sigue sin cruzar el API.
+ *
+ * Desde 3f la tubería también compone el camino de **una** foto (`attachPhoto`) y la máquina de
+ * estados que la tira usa para decir en qué está cada una. La máquina es pura y vive aquí, al lado de
+ * la costura que la ejercita, para que el panel no tenga que fiarse de sí mismo.
  */
 
 /** La foto que viaja a un `slot` del artículo: el ticket puede venir ya pedido o pedirse aquí. */
@@ -33,6 +37,59 @@ export interface PendingPhotoUpload {
   readonly slot: number;
   /** Ticket vivo (la captura lo pide al optimizar); `null` lo pide esta tubería. */
   readonly ticket: CaptureTicket | null;
+}
+
+/**
+ * El estado de una foto en la tira del panel de captura (`plan-ciclo-3f` §5).
+ *
+ * Vive en el componente y muere con la pestaña: no es un hecho del producto, no se persiste y no
+ * toca el contrato. `local` es la foto que ya está optimizada en el teléfono pero todavía no viajó.
+ */
+export type PhotoUploadState = 'optimizing' | 'local' | 'uploading' | 'uploaded' | 'failed';
+
+/** El hecho que mueve una foto; el nombre es el hecho, no el estado al que lleva. */
+export type PhotoUploadEvent = 'optimized' | 'start' | 'done' | 'fail';
+
+/** Transición que la máquina no admite: es un defecto del cliente, no del borde. */
+export class PhotoStateError extends Error {
+  constructor(
+    readonly from: PhotoUploadState,
+    readonly event: PhotoUploadEvent,
+  ) {
+    super(`photo-state-invalid:${from}:${event}`);
+    this.name = 'PhotoStateError';
+  }
+}
+
+/**
+ * La tabla de transiciones, y con ella las dos invariantes que la tira declara:
+ *
+ * - `uploaded` solo se alcanza desde `uploading`: una foto no está subida porque alguien lo diga,
+ *   sino porque la adjunción la confirmó;
+ * - una foto no puede empezar dos subidas a la vez, porque `start` desde `uploading` no existe.
+ */
+const PHOTO_TRANSITIONS: Record<
+  PhotoUploadState,
+  Partial<Record<PhotoUploadEvent, PhotoUploadState>>
+> = {
+  optimizing: { optimized: 'local' },
+  local: { start: 'uploading' },
+  uploading: { done: 'uploaded', fail: 'failed' },
+  uploaded: {},
+  failed: { start: 'uploading' },
+};
+
+/** El siguiente estado, o un error si el paso no existe en la máquina. */
+export function advancePhotoState(
+  from: PhotoUploadState,
+  event: PhotoUploadEvent,
+): PhotoUploadState {
+  const next = PHOTO_TRANSITIONS[from][event];
+  if (next === undefined) {
+    throw new PhotoStateError(from, event);
+  }
+
+  return next;
 }
 
 /** Un ticket sirve hasta un minuto antes de caducar; pasado eso se pide otro. */
@@ -72,6 +129,9 @@ export class PhotoPipeline {
    * Se sube foto por foto y el progreso se pondera por foto y por bytes: una tanda de seis no puede
    * mentir con el porcentaje. La adjunción va después de que todas existan, porque el borde verifica
    * cada objeto con `HEAD`.
+   *
+   * Es el camino de la **edición**, que añade un lote y no necesita estado por foto. El panel de
+   * captura usa [`attachPhoto`](#attachPhoto), que adjunta de a una (`plan-ciclo-3f` §4).
    */
   async attach(input: {
     readonly eventId: string;
@@ -121,6 +181,56 @@ export class PhotoPipeline {
       this.http.post<AttachedPhotos>(
         `${this.apiBaseUrl}/events/${input.eventId}/items/${input.itemId}/photos`,
         { captures },
+      ),
+    );
+
+    return payload.photos;
+  }
+
+  /**
+   * Sube las tres variantes de **una** foto y la adjunta al artículo en su `slot`.
+   *
+   * Es la adjunción de a una del corte 3f: el estado es por foto, así que el fallo de una no puede
+   * arrastrar a las demás ni obligar a reenviar los bytes de las que ya están en el artículo. El
+   * progreso que reporta es el de esa foto —ponderado por bytes entre sus tres variantes—; el
+   * agregado de la tanda lo compone quien llama, porque solo él sabe cuántas faltan.
+   */
+  async attachPhoto(input: {
+    readonly eventId: string;
+    readonly itemId: string;
+    readonly photo: PendingPhotoUpload;
+    readonly onProgress?: (percent: number) => void;
+  }): Promise<readonly ItemPhoto[]> {
+    const ticket = await this.ensureTicket(input.eventId, input.photo);
+
+    const tasks: UploadTask[] = input.photo.optimized.map((entry) => ({
+      variant: entry.variant,
+      blob: entry.blob,
+      widthPx: entry.widthPx,
+      heightPx: entry.heightPx,
+      url: this.uploadUrl(ticket.uploads[entry.variant].url),
+    }));
+
+    await this.sendPhoto(tasks, ticket.contentType, (percent) => {
+      input.onProgress?.(percent);
+    });
+
+    const payload = await firstValueFrom(
+      this.http.post<AttachedPhotos>(
+        `${this.apiBaseUrl}/events/${input.eventId}/items/${input.itemId}/photos`,
+        {
+          captures: [
+            {
+              captureId: ticket.captureId,
+              slot: input.photo.slot,
+              variants: input.photo.optimized.map((entry) => ({
+                variant: entry.variant,
+                widthPx: entry.widthPx,
+                heightPx: entry.heightPx,
+              })),
+            },
+          ],
+        },
       ),
     );
 

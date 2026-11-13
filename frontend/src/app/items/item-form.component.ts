@@ -10,6 +10,7 @@ import {
   output,
   signal,
   untracked,
+  type WritableSignal,
 } from '@angular/core';
 import {
   CAPTURE_LIMITS,
@@ -49,7 +50,12 @@ import {
 } from '../ui/ui-progress-button/ui-progress-button';
 import { sizeLabel } from './photo-encoding';
 import { PhotoGalleryComponent, type GalleryPhoto } from './photo-gallery.component';
-import { PhotoPipeline, type PendingPhotoUpload } from './photo-pipeline';
+import {
+  PhotoPipeline,
+  advancePhotoState,
+  type PhotoUploadEvent,
+  type PhotoUploadState,
+} from './photo-pipeline';
 import type { OptimizedPhoto } from './photo-optimizer';
 
 /** Error de la ficha, para distinguirlo de un fallo de red al capturarlo. */
@@ -100,19 +106,19 @@ interface PreparedPhoto {
   readonly optimized: readonly OptimizedPhoto[];
   readonly ticket: CaptureTicket;
   readonly previewUrl: string | null;
-  /** Ya se escribió en el artículo: un reintento de publicación no la vuelve a subir. */
-  readonly attached: boolean;
 }
 
-/** Una foto de la sesión de captura, con su preparación si ya terminó. */
+/** Una foto de la sesión de captura, con su preparación y el estado en el que está. */
 interface FormPhoto {
   readonly file: File;
   readonly prepared: PreparedPhoto | null;
+  readonly state: PhotoUploadState;
 }
 
 /**
  * Captura de un artículo con borrador de la IA y publicación en la misma pantalla (`ai-draft`, 3d;
- * subida directa al almacén desde 4g; galería privada desde 3e; borrador multifoto desde 3i).
+ * subida directa al almacén desde 4g; galería privada desde 3e; borrador multifoto desde 3i; estado
+ * por foto desde 3f).
  *
  * El recorrido sigue siendo el del plan §6: la persona toma una o varias fotos, **pide** el borrador
  * con un toque, edita sin prisa y decide entre **Publicar** y **Solo guardar**. Tres reglas ordenan
@@ -127,6 +133,10 @@ interface FormPhoto {
  *
  * El cuerpo de la foto **no cruza el backend**: la tubería de [`photo-pipeline`](./photo-pipeline.ts)
  * pide el ticket, sube las tres variantes por sus URL prefirmadas y adjunta las capturas al artículo.
+ *
+ * Desde 3f cada foto dice en qué está —optimizando, en el teléfono, subiendo, subida o fallida— y se
+ * adjunta **de a una**: el fallo se ve y se reintenta en su propia casilla, sin reenviar los bytes de
+ * las que ya subieron y sin volver a codificar nada (`plan-ciclo-3f` §5).
  */
 @Component({
   selector: 'app-item-form',
@@ -170,11 +180,17 @@ export class ItemFormComponent implements OnDestroy {
   /** El trabajo terminó y el botón está en su destello de cierre. */
   private readonly flashing = signal(false);
 
-  /** La última subida falló: el artículo existe y las fotos se pueden reintentar. */
-  protected readonly photoFailed = signal(false);
+  /** El artículo existe y alguna foto sigue sin subir: se arregla en la casilla, no aquí. */
+  protected readonly photoNotice = signal<string | null>(null);
 
   /** Cada foto ya preparada, por archivo; el efecto no repite el trabajo de la misma foto. */
   private readonly prepared = signal<ReadonlyMap<File, PreparedPhoto>>(new Map());
+
+  /** El estado de cada foto (`3f` §5); una foto sin entrada es la que todavía se optimiza. */
+  private readonly states = signal<ReadonlyMap<File, PhotoUploadState>>(new Map());
+
+  /** El avance de la subida en curso de cada foto, de 0 a 99; solo se pinta en `uploading`. */
+  private readonly percents = signal<ReadonlyMap<File, number>>(new Map());
 
   /** Fotografías que están siendo optimizadas ahora mismo. */
   private readonly preparing = new Set<File>();
@@ -189,23 +205,46 @@ export class ItemFormComponent implements OnDestroy {
   /** Artículo ya creado en este formulario: evita un alta doble al reintentar. */
   private readonly createdItemId = signal<string | null>(null);
 
+  /** El artículo ya se publicó: un reintento de foto ya no vuelve a publicar. */
+  private readonly publishedSlug = signal<string | null>(null);
+
   /** Si el intento en curso pedía publicar, el reintento de la foto también publica. */
   private readonly pendingPublish = signal(false);
 
-  /** La tira completa, en el orden de la sesión de captura. */
-  protected readonly photos = computed<readonly FormPhoto[]>(() =>
-    this.inbox.photos().map((file) => ({ file, prepared: this.prepared().get(file) ?? null })),
-  );
+  /** La tira completa, en el orden de la sesión de captura y con el estado de cada foto. */
+  protected readonly photos = computed<readonly FormPhoto[]>(() => {
+    const prepared = this.prepared();
+    const states = this.states();
+
+    // Una foto sin estado escrito es la que el efecto acaba de recoger: se está optimizando. Es el
+    // único estado posible antes de que la tubería diga lo contrario.
+    return this.inbox.photos().map((file) => ({
+      file,
+      prepared: prepared.get(file) ?? null,
+      state: states.get(file) ?? 'optimizing',
+    }));
+  });
 
   /** La portada: la foto que abre la ficha y alimenta el borrador. */
   private readonly cover = computed<PreparedPhoto | null>(() => this.photos()[0]?.prepared ?? null);
 
   /** ¿Hay alguna foto todavía optimizándose? Es la compuerta visible de la tira. */
   protected readonly optimizing = computed(() =>
-    this.photos().some((photo) => photo.prepared === null),
+    this.photos().some((photo) => photo.state === 'optimizing'),
   );
 
-  protected readonly busy = computed(() => this.optimizing() || this.publishing());
+  /** Cuántas fotos siguen sin estar en el artículo: es lo que se puede reintentar. */
+  protected readonly pendingPhotos = computed(
+    () => this.photos().filter((photo) => photo.state !== 'uploaded').length,
+  );
+
+  /**
+   * La tira se congela cuando el artículo existe: el `slot` de cada foto ya está escrito y mover una
+   * casilla después de adjuntar cambiaría la posición del servidor sin decir nada en la pantalla.
+   */
+  protected readonly stripLocked = computed(
+    () => this.publishing() || this.createdItemId() !== null,
+  );
 
   /** Sin fotos preparadas no hay borrador ni hay artículo: es la compuerta de las tres acciones. */
   protected readonly ready = computed(() => this.photos().length > 0 && !this.optimizing());
@@ -289,7 +328,9 @@ export class ItemFormComponent implements OnDestroy {
       key: this.keyOf(photo.file),
       photoId: null,
       previewUrl: photo.prepared?.previewUrl ?? null,
-      pending: photo.prepared === null,
+      pending: photo.state === 'optimizing',
+      state: photo.state,
+      percent: this.percents().get(photo.file) ?? null,
     })),
   );
 
@@ -342,6 +383,19 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
+   * Quita una foto que todavía vive solo en el teléfono. Descarta su ticket y su vista previa: nada
+   * de esa foto llegó al almacén. Una foto ya subida no se quita desde la captura.
+   */
+  protected onRemoved(index: number): void {
+    const photo = this.photos()[index];
+    if (photo === undefined || this.stripLocked() || photo.state !== 'local') {
+      return;
+    }
+
+    this.inbox.remove(photo.file);
+  }
+
+  /**
    * Prepara una foto: la valida, la optimiza en el dispositivo y pide su ticket.
    *
    * Es el camino **único** de una foto: la elegida en la tira y la tomada con el botón `Foto` de la
@@ -374,8 +428,9 @@ export class ItemFormComponent implements OnDestroy {
       const previewUrl = this.previewFor(file, optimized);
 
       this.prepared.update((current) =>
-        new Map(current).set(file, { optimized, ticket, previewUrl, attached: false }),
+        new Map(current).set(file, { optimized, ticket, previewUrl }),
       );
+      this.advance(file, 'optimized');
 
       // Una foto nueva invalida el borrador anterior: el texto que ya hay se queda, pero el aviso
       // deja de prometer que describe la tira.
@@ -401,11 +456,53 @@ export class ItemFormComponent implements OnDestroy {
       this.prepared.set(next);
     }
 
+    this.dropEntry(this.states, file);
+    this.dropEntry(this.percents, file);
+
     const url = this.previews.get(file);
     if (url !== undefined) {
       URL.revokeObjectURL(url);
       this.previews.delete(file);
     }
+  }
+
+  /** El estado de una foto; sin entrada es `optimizing`, que es donde nace toda foto. */
+  private stateOf(file: File): PhotoUploadState {
+    return this.states().get(file) ?? 'optimizing';
+  }
+
+  /**
+   * Mueve el estado de la foto con la máquina de [`photo-pipeline`](./photo-pipeline.ts). Una
+   * transición imposible lanza: es un defecto del cliente y se arregla aquí, no se disimula.
+   */
+  private advance(file: File, event: PhotoUploadEvent): void {
+    const next = advancePhotoState(this.stateOf(file), event);
+    this.states.update((current) => new Map(current).set(file, next));
+  }
+
+  /** Escribe el avance de una subida; `null` lo borra al terminar el intento. */
+  private setPercent(file: File, percent: number | null): void {
+    this.percents.update((current) => {
+      const next = new Map(current);
+      if (percent === null) {
+        next.delete(file);
+      } else {
+        next.set(file, percent);
+      }
+      return next;
+    });
+  }
+
+  /** Quita una entrada por archivo sin recrear el mapa cuando no estaba. */
+  private dropEntry<T>(source: WritableSignal<ReadonlyMap<File, T>>, file: File): void {
+    const current = source();
+    if (!current.has(file)) {
+      return;
+    }
+
+    const next = new Map(current);
+    next.delete(file);
+    source.set(next);
   }
 
   /**
@@ -477,30 +574,31 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Reintenta las fotos de un artículo que ya se creó. La ficha no se pierde y, si el intento pedía
-   * publicar, se publica al terminar.
+   * Reintenta **una** foto de un artículo que ya se creó: reenvía sus mismos `Blob` y, si el ticket
+   * caducó, pide uno nuevo con esos mismos bytes. Nunca vuelve a optimizar y nunca toca las demás.
    */
-  protected async retryPhoto(): Promise<void> {
+  protected async retryPhoto(index: number): Promise<void> {
     const itemId = this.createdItemId();
-    if (itemId === null || this.publishing()) {
+    const photo = this.photos()[index];
+    if (itemId === null || photo === undefined || photo.state !== 'failed' || this.publishing()) {
       return;
     }
 
     this.publishing.set(true);
     this.error.set(null);
+    this.photoNotice.set(null);
     this.activeAction.set(this.pendingPublish() ? 'publish' : 'save');
     this.progress.set(0);
 
     try {
-      await this.upload(itemId);
-      this.photoFailed.set(false);
-      const slug = this.pendingPublish() ? await this.publishItem(itemId) : null;
-      await this.finish(slug);
-    } catch (error: unknown) {
+      await this.uploadOne(itemId, photo, index, (percent) => {
+        this.progress.set(percent);
+      });
+      await this.settle(itemId);
+    } catch {
+      // Solo `settle` lanza: es el fallo de publicación, con las fotos ya en el artículo.
       this.error.set(
-        apiErrorCode(error) === PHOTO_INVALID
-          ? 'El servidor rechazó alguna foto. Vuelve a elegirla e inténtalo de nuevo.'
-          : 'No se pudieron subir las fotos. Inténtalo de nuevo.',
+        'El artículo se guardó, pero no se pudo publicar. Inténtalo desde «Capturados».',
       );
     } finally {
       this.publishing.set(false);
@@ -523,6 +621,7 @@ export class ItemFormComponent implements OnDestroy {
     this.publishing.set(true);
     this.error.set(null);
     this.notice.set(null);
+    this.photoNotice.set(null);
     this.activeAction.set(mode);
     this.progress.set(0);
     this.pendingPublish.set(mode === 'publish');
@@ -533,23 +632,20 @@ export class ItemFormComponent implements OnDestroy {
       const itemId = this.createdItemId() ?? (await this.create(body));
 
       step = 'photo';
-      await this.upload(itemId);
+      await this.uploadPhotos(itemId);
 
       step = 'publish';
-      const slug = this.pendingPublish() ? await this.publishItem(itemId) : null;
-
-      await this.finish(slug);
+      await this.settle(itemId);
     } catch (error: unknown) {
       const code = apiErrorCode(error);
 
-      if (step === 'photo') {
-        // La quinta petición no se intenta: sin fotos no hay publicación posible.
-        this.photoFailed.set(true);
-        this.error.set('El artículo se guardó, pero las fotos no. Reinténtalas.');
-      } else if (step === 'publish') {
+      if (step === 'publish') {
         this.error.set(
           'El artículo se guardó, pero no se pudo publicar. Inténtalo desde «Capturados».',
         );
+      } else if (step === 'photo') {
+        // Las subidas no lanzan por foto: aquí solo cae una foto que dejó de estar preparada.
+        this.error.set('No se pudieron preparar las fotos. Vuelve a elegirlas e inténtalo.');
       } else {
         this.error.set(
           code === PHOTO_INVALID
@@ -599,49 +695,101 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Sube y adjunta la tira completa, con el **slot** de cada foto tomado de su orden: la primera es
-   * la portada y las siguientes la acompañan, sin cambiar el contrato de 4g.
+   * Sube y adjunta las fotos que faltan, **de a una**, con el `slot` de su orden: la primera es la
+   * portada y las siguientes la acompañan.
+   *
+   * Una foto que falla no detiene a las demás: queda `failed`, se ve en su casilla y se reintenta
+   * sola. Las ya subidas no se reenvían —su captura dejó de existir en el staging y volver a
+   * adjuntarla fallaría con `capture_incomplete`—. El agregado de la tanda se compone aquí porque
+   * cada foto solo reporta su propio avance.
    */
-  private async upload(itemId: string): Promise<void> {
-    const photos = this.photos();
+  private async uploadPhotos(itemId: string): Promise<void> {
+    const total = this.photos().length;
 
-    // Un reintento que solo publica no reenvía bytes que ya están en el artículo: las capturas
-    // consumidas dejaron de existir en el staging y volver a adjuntarlas fallaría con
-    // `capture_incomplete`.
-    if (photos.every((photo) => photo.prepared?.attached === true)) {
+    for (const [slot, photo] of this.photos().entries()) {
+      if (photo.state === 'uploaded') {
+        continue;
+      }
+
+      await this.uploadOne(itemId, photo, slot, (percent) => {
+        // El tope es 99: el 100 lo pone la confirmación de la adjunción, no el transporte.
+        this.progress.set(Math.min(99, Math.round(((slot + percent / 100) / total) * 100)));
+      });
+    }
+  }
+
+  /**
+   * Un intento de una foto: `uploading` → `uploaded`, o `uploading` → `failed`.
+   *
+   * No lanza por el fallo de la subida —ese fallo es un estado de la tira, no una excepción del
+   * formulario— y por eso las demás fotos siguen su camino. Solo lanza si la foto dejó de estar
+   * preparada, que es un defecto del cliente.
+   */
+  private async uploadOne(
+    itemId: string,
+    photo: FormPhoto,
+    slot: number,
+    onProgress: (percent: number) => void,
+  ): Promise<void> {
+    const prepared = photo.prepared;
+    if (prepared === null) {
+      throw new Error('photo-not-ready');
+    }
+
+    this.advance(photo.file, 'start');
+
+    try {
+      await this.pipeline.attachPhoto({
+        eventId: this.eventId(),
+        itemId,
+        photo: { optimized: prepared.optimized, slot, ticket: prepared.ticket },
+        onProgress: (percent) => {
+          this.setPercent(photo.file, percent);
+          onProgress(percent);
+        },
+      });
+
+      this.advance(photo.file, 'done');
+    } catch {
+      this.advance(photo.file, 'fail');
+    } finally {
+      this.setPercent(photo.file, null);
+    }
+  }
+
+  /**
+   * Cierra el intento con lo que haya: publica si se pidió y la portada está subida, y termina la
+   * captura solo cuando **todas** las fotos están en el artículo.
+   *
+   * Con una foto pendiente la tira se queda: el fallo se ve y se reintenta en su casilla, también
+   * después de publicar (inclinaciones 9 y 11). `settle` es lo único que puede lanzar, y solo por la
+   * publicación.
+   */
+  private async settle(itemId: string): Promise<void> {
+    const photos = this.photos();
+    let slug = this.publishedSlug();
+
+    if (this.pendingPublish() && slug === null) {
+      // La portada es la miniatura de la lista y la foto de la ficha pública: sin ella no se publica.
+      if (photos[0]?.state !== 'uploaded') {
+        this.error.set('No se publicó: la portada no subió. Reinténtala y vuelve a publicar.');
+        return;
+      }
+
+      slug = await this.publishItem(itemId);
+      this.publishedSlug.set(slug);
+    }
+
+    if (this.pendingPhotos() === 0) {
+      await this.finish(slug);
       return;
     }
 
-    const uploads: PendingPhotoUpload[] = [];
-
-    for (const [slot, photo] of photos.entries()) {
-      if (photo.prepared === null) {
-        throw new Error('photo-not-ready');
-      }
-
-      uploads.push({
-        optimized: photo.prepared.optimized,
-        slot,
-        ticket: photo.prepared.ticket,
-      });
-    }
-
-    await this.pipeline.attach({
-      eventId: this.eventId(),
-      itemId,
-      photos: uploads,
-      onProgress: (percent) => {
-        this.progress.set(percent);
-      },
-    });
-
-    this.prepared.update((current) => {
-      const next = new Map<File, PreparedPhoto>();
-      for (const [file, entry] of current) {
-        next.set(file, { ...entry, attached: true });
-      }
-      return next;
-    });
+    this.photoNotice.set(
+      slug === null
+        ? 'La ficha se guardó. Reintenta las fotos que no subieron.'
+        : 'El artículo se publicó. Reintenta las fotos que no subieron.',
+    );
   }
 
   /** Construye el cuerpo o deja el mensaje de la ficha. `null` significa «no envíes». */
@@ -718,6 +866,8 @@ export class ItemFormComponent implements OnDestroy {
 
   private clearPhoto(): void {
     this.prepared.set(new Map());
+    this.states.set(new Map());
+    this.percents.set(new Map());
 
     for (const url of this.previews.values()) {
       URL.revokeObjectURL(url);
@@ -734,8 +884,9 @@ export class ItemFormComponent implements OnDestroy {
     this.weightKg.set('');
     this.clearPhoto();
     this.createdItemId.set(null);
+    this.publishedSlug.set(null);
     this.pendingPublish.set(false);
-    this.photoFailed.set(false);
+    this.photoNotice.set(null);
     this.error.set(null);
     this.notice.set(null);
     this.progress.set(null);

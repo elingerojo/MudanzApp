@@ -14,13 +14,16 @@ import { uploadVariants, type UploadTask } from './photo-upload';
 import { PHOTO_UPLOADER } from './photo-upload.token';
 
 /**
- * La captura en la interfaz (`plan-ciclo-4g-direct-upload` §3, §5 y §8; borrador multifoto desde 3i):
- * el ticket que firma las subidas, las tres variantes que viajan **directo** al almacén con su
- * progreso ponderado, la adjunción al artículo y las reglas que no cambian desde 3d —
+ * La captura en la interfaz (`plan-ciclo-4g-direct-upload` §3, §5 y §8; borrador multifoto desde 3i;
+ * estado por foto desde 3f): el ticket que firma las subidas, las tres variantes que viajan
+ * **directo** al almacén con su progreso ponderado, la adjunción de a una y las reglas que no cambian
+ * desde 3d —
  *
  * 1. el borrador solo se pide con un toque y no bloquea a nadie;
  * 2. el borrador lee las primeras medianas de la tira, en el orden de captura, dentro de un bundle;
- * 3. el cuerpo de la foto no cruza el API.
+ * 3. el cuerpo de la foto no cruza el API;
+ * 4. una foto que falla se ve y se reintenta en su casilla, sin reenviar a las que ya subieron y sin
+ *    volver a codificar nada (`plan-ciclo-3f` §5 y §7).
  */
 
 const blobs = {
@@ -77,11 +80,17 @@ function tick(): Promise<void> {
 describe('ItemFormComponent', () => {
   let httpTesting: HttpTestingController;
   let uploads: { tasks: readonly UploadTask[]; contentType: string }[];
+  /**
+   * Índice de la llamada al transporte que falla, contando desde cero (`plan-ciclo-3f` §7). `null` es
+   * «todas pasan»; así el fallo se inyecta en la foto que la prueba decide, no en la primera.
+   */
+  let failAt: number | null;
   const onboardingLevel = signal<0 | 1>(0);
 
   beforeEach(async () => {
     localStorage.clear();
     uploads = [];
+    failAt = null;
     onboardingLevel.set(0);
 
     await TestBed.configureTestingModule({
@@ -105,7 +114,8 @@ describe('ItemFormComponent', () => {
             ]),
         },
         {
-          // Doble del transporte: ninguna prueba abre un `XMLHttpRequest` real.
+          // Doble del transporte: ninguna prueba abre un `XMLHttpRequest` real. Falla las subidas que
+          // la prueba pida, para que el estado `failed` se ejerza sin red.
           provide: PHOTO_UPLOADER,
           useValue: ((
             tasks: readonly UploadTask[],
@@ -113,6 +123,11 @@ describe('ItemFormComponent', () => {
             onProgress: (percent: number) => void,
           ) => {
             uploads.push({ tasks, contentType });
+
+            if (failAt === uploads.length - 1) {
+              return Promise.reject(new Error('photo-upload-failed:0'));
+            }
+
             onProgress(42);
             onProgress(99);
 
@@ -189,6 +204,23 @@ describe('ItemFormComponent', () => {
 
     await settle(fixture);
     httpTesting.expectOne(TICKET_URL).flush(TICKET);
+    await settle(fixture);
+  }
+
+  /** Deposita varias fotos en la sesión de captura y resuelve el ticket de cada una. */
+  async function addSessionPhotos(fixture: Fixture, names: readonly string[]): Promise<void> {
+    TestBed.inject(PhotoInboxStore).addFiles(
+      names.map((name) => new File([name], name, { type: 'image/webp' })),
+    );
+    await settle(fixture);
+
+    // Los tickets se piden en paralelo: se resuelven todos, no uno por vuelta.
+    const tickets = httpTesting.match(TICKET_URL);
+    expect(tickets).toHaveLength(names.length);
+    tickets.forEach((ticket) => {
+      ticket.flush(TICKET);
+    });
+
     await settle(fixture);
   }
 
@@ -469,10 +501,11 @@ describe('ItemFormComponent', () => {
     httpTesting.expectNone(LISTING_URL);
   });
 
-  it('keeps the ficha and offers a photo retry when the attach fails', async () => {
+  it('marks the photo that failed and keeps the ficha usable', async () => {
     const fixture = render();
     await attachPhoto(fixture);
     fill(fixture, 'item-title-input', 'Mesa');
+    failAt = 0;
 
     (query(fixture, 'item-form-save-only') as HTMLButtonElement).click();
     await settle(fixture);
@@ -480,15 +513,13 @@ describe('ItemFormComponent', () => {
     httpTesting.expectOne(ITEMS_URL).flush(CREATED);
     await settle(fixture);
 
-    httpTesting
-      .expectOne(PHOTOS_URL)
-      .flush({ error: 'r2_unavailable' }, { status: 503, statusText: 'Unavailable' });
-    await settle(fixture);
-
-    expect(errorText(fixture)).toContain('las fotos no');
-    expect(query(fixture, 'item-form-photo-failed')).not.toBeNull();
-    // La ficha no se pierde: el título sigue donde el humano lo dejó.
+    // La subida falló: la foto lo dice en su casilla y la ficha no se pierde.
+    expect(query(fixture, 'photo-gallery-state-0')?.getAttribute('data-state')).toBe('failed');
+    expect(query(fixture, 'item-form-photo-notice')?.textContent).toContain('se guardó');
+    expect(query(fixture, 'photo-gallery-retry-0')).not.toBeNull();
     expect((query(fixture, 'item-title-input') as HTMLInputElement).value).toBe('Mesa');
+    // Sin subida no hay adjunción: no se escribe una foto que no existe en el almacén.
+    httpTesting.expectNone(PHOTOS_URL);
   });
 
   it('retries only the photo, without creating the article twice', async () => {
@@ -498,6 +529,7 @@ describe('ItemFormComponent', () => {
 
     await attachPhoto(fixture);
     fill(fixture, 'item-title-input', 'Mesa');
+    failAt = 0;
 
     (query(fixture, 'item-form-save-only') as HTMLButtonElement).click();
     await settle(fixture);
@@ -505,12 +537,7 @@ describe('ItemFormComponent', () => {
     httpTesting.expectOne(ITEMS_URL).flush(CREATED);
     await settle(fixture);
 
-    httpTesting
-      .expectOne(PHOTOS_URL)
-      .flush({ error: 'r2_unavailable' }, { status: 503, statusText: 'Unavailable' });
-    await settle(fixture);
-
-    (query(fixture, 'item-form-retry-photo') as HTMLButtonElement).click();
+    (query(fixture, 'photo-gallery-retry-0') as HTMLButtonElement).click();
     await settle(fixture);
 
     // No hay segundo alta: el artículo ya existía.
@@ -520,6 +547,90 @@ describe('ItemFormComponent', () => {
     await flash(fixture);
 
     expect(saved).toHaveBeenCalledWith(null);
+  });
+
+  it('keeps the photos that already uploaded when another one fails', async () => {
+    const fixture = render();
+    await addSessionPhotos(fixture, ['una.webp', 'dos.webp']);
+    fill(fixture, 'item-title-input', 'Juego de comedor');
+    // Falla la **segunda** foto: la primera tiene que quedar en el artículo.
+    failAt = 1;
+
+    (query(fixture, 'item-form-save-only') as HTMLButtonElement).click();
+    await settle(fixture);
+
+    httpTesting.expectOne(ITEMS_URL).flush(CREATED);
+    await settle(fixture);
+
+    // La primera foto se adjuntó sola; la segunda nunca llegó al almacén.
+    httpTesting.expectOne(PHOTOS_URL).flush({ photos: [] });
+    await settle(fixture);
+
+    expect(query(fixture, 'photo-gallery-state-0')?.getAttribute('data-state')).toBe('uploaded');
+    expect(query(fixture, 'photo-gallery-state-1')?.getAttribute('data-state')).toBe('failed');
+    expect(query(fixture, 'photo-gallery-count')?.textContent?.trim()).toBe(
+      '1 lista, 1 en el teléfono',
+    );
+    // `Reintentar` se ofrece solo en la que falló.
+    expect(query(fixture, 'photo-gallery-retry-0')).toBeNull();
+    expect(query(fixture, 'photo-gallery-retry-1')).not.toBeNull();
+
+    (query(fixture, 'photo-gallery-retry-1') as HTMLButtonElement).click();
+    await settle(fixture);
+
+    httpTesting.expectOne(PHOTOS_URL).flush({ photos: [] });
+    await settle(fixture);
+    await flash(fixture);
+
+    // El reintento reenvía **los mismos** `Blob`: no se recodifica ni se vuelve a leer el archivo.
+    const firstAttempt = uploads[1]?.tasks.map((task) => task.blob);
+    const retried = uploads[2]?.tasks.map((task) => task.blob);
+    expect(retried).toEqual(firstAttempt);
+    expect(retried?.[0]).toBe(firstAttempt?.[0]);
+  });
+
+  it('refuses to publish while the cover is not in the article', async () => {
+    const fixture = render();
+    await attachPhoto(fixture);
+    fill(fixture, 'item-title-input', 'Mesa');
+    failAt = 0;
+
+    formOf(fixture).dispatchEvent(new Event('submit'));
+    await settle(fixture);
+
+    httpTesting.expectOne(ITEMS_URL).flush(CREATED);
+    await settle(fixture);
+
+    // Sin portada no hay miniatura de lista ni ficha pública: no se adjunta ni se publica.
+    httpTesting.expectNone(PHOTOS_URL);
+    httpTesting.expectNone(LISTING_URL);
+    expect(errorText(fixture)).toContain('portada');
+    expect(query(fixture, 'photo-gallery-state-0')?.textContent?.trim()).toBe(
+      'No subió: sin portada no se publica',
+    );
+  });
+
+  it('reads the phone state in the strip and removes a photo that never travelled', async () => {
+    const fixture = render();
+    await attachPhoto(fixture, 'una.webp');
+    await attachPhoto(fixture, 'dos.webp');
+
+    expect(query(fixture, 'photo-gallery-count')?.textContent?.trim()).toBe(
+      '0 listas, 2 en el teléfono',
+    );
+    expect(query(fixture, 'photo-gallery-state-0')?.textContent?.trim()).toBe('En el teléfono');
+
+    (query(fixture, 'photo-gallery-remove-1') as HTMLButtonElement).click();
+    await settle(fixture);
+
+    // El ticket de la foto retirada se descarta: su staging no se queda abierto.
+    httpTesting.expectOne(`${TICKET_URL}/${TICKET.captureId}`).flush(null);
+    await settle(fixture);
+
+    expect(query(fixture, 'photo-gallery-count')?.textContent?.trim()).toBe(
+      '0 listas, 1 en el teléfono',
+    );
+    expect(query(fixture, 'photo-gallery-state-1')).toBeNull();
   });
 
   it('reuses the photo of the capture session without losing what is written', async () => {

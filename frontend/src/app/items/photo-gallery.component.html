@@ -40,9 +40,7 @@
       {{ chooseLabel() }}
     </label>
 
-    <span class="text-xs text-slate-500" data-testid="photo-gallery-count">
-      {{ photos().length }} de {{ max() }}
-    </span>
+    <span class="text-xs text-slate-500" data-testid="photo-gallery-count">{{ countLabel() }}</span>
 
     @if (draftCountLabel(); as count) {
       <span class="text-xs text-slate-600" data-testid="photo-gallery-draft-count">{{
@@ -83,6 +81,41 @@
               </span>
             }
           </div>
+
+          @if (photo.state; as state) {
+            <p
+              class="mt-1 text-center text-[0.65rem]"
+              [class]="stateTone(state)"
+              [attr.data-testid]="'photo-gallery-state-' + index"
+              [attr.data-state]="state"
+            >
+              {{ stateLabel(photo, index) }}
+            </p>
+
+            @if (state === 'failed') {
+              <button
+                type="button"
+                class="mt-1 w-full rounded border border-red-300 px-2 py-0.5 text-xs text-red-700 disabled:opacity-40"
+                [disabled]="retryDisabled()"
+                [attr.data-testid]="'photo-gallery-retry-' + index"
+                (click)="retry(index)"
+              >
+                Reintentar
+              </button>
+            }
+
+            @if (state === 'local') {
+              <button
+                type="button"
+                class="mt-1 w-full rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 disabled:opacity-40"
+                [disabled]="disabled()"
+                [attr.data-testid]="'photo-gallery-remove-' + index"
+                (click)="remove(index)"
+              >
+                Quitar
+              </button>
+            }
+          }
 
           @if (orderVisible(photos().length)) {
             <div class="mt-1 flex justify-center gap-1">

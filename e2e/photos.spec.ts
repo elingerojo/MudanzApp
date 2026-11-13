@@ -37,6 +37,14 @@ const JPEG = Buffer.from(
   'base64',
 );
 
+/** Un archivo elegido en la galería del dispositivo; el contenido es el JPEG de la prueba. */
+function fileOf(name: string): { name: string; mimeType: string; buffer: Buffer } {
+  return { name, mimeType: 'image/jpeg', buffer: JPEG };
+}
+
+/** La ruta del doble del almacén: lo que sube el navegador por su cuenta (`plan-ciclo-4g` §5). */
+const FAKE_PUT_PATH = '/__fake-r2/put';
+
 function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
@@ -441,8 +449,9 @@ test('the capture strip reorders two photos and attaches them in that order', as
     { name: 'tres.jpg', mimeType: 'image/jpeg', buffer: JPEG },
   ]);
 
-  // 1. Contador «n de 6», portada marcada y controles de orden por haber dos o más fotos.
-  await expect(page.getByTestId('photo-gallery-count')).toHaveText('3 de 6');
+  // 1. Contador por estado —ninguna subida todavía—, portada marcada y controles de orden por haber
+  //    dos o más fotos.
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('0 listas, 3 en el teléfono');
   await expect(page.getByTestId('photo-gallery-cover')).toBeVisible();
   await expect(page.getByTestId('photo-gallery-strip')).toBeVisible();
   await expect(page.getByTestId('photo-gallery-up-0')).toBeDisabled();
@@ -456,18 +465,25 @@ test('the capture strip reorders two photos and attaches them in that order', as
 
   await page.getByTestId('item-title-input').fill('Juego de comedor');
 
-  const attach = page.waitForRequest(
-    (candidate) => candidate.method() === 'POST' && candidate.url().includes('/photos'),
-  );
+  // Desde 3f la captura adjunta **de a una**: tres fotos son tres peticiones, cada una con su `slot`.
+  const attaches: { captures: { readonly slot: number }[] }[] = [];
+  page.on('request', (candidate) => {
+    if (candidate.method() === 'POST' && candidate.url().endsWith('/photos')) {
+      attaches.push(
+        JSON.parse(candidate.postData() ?? '{}') as { captures: { readonly slot: number }[] },
+      );
+    }
+  });
+
   await page.getByTestId('item-form-save-only').click();
-  const attachBody = JSON.parse((await attach).postData() ?? '{}') as {
-    captures: { readonly slot: number }[];
-  };
+  await expect(page).toHaveURL(/\/capturados$/);
 
   // 3. La tira define el `slot` de cada captura: tres fotos, sin compartir posición.
-  expect(attachBody.captures.map((capture) => capture.slot).sort()).toEqual([0, 1, 2]);
-
-  await expect(page).toHaveURL(/\/capturados$/);
+  expect(attaches).toHaveLength(3);
+  expect(attaches.every((body) => body.captures.length === 1)).toBe(true);
+  expect(attaches.flatMap((body) => body.captures.map((capture) => capture.slot))).toEqual([
+    0, 1, 2,
+  ]);
   await expect(page.getByTestId('item-title')).toHaveText('Juego de comedor');
 
   // 4. El artículo quedó con las tres fotos y la portada es la primera del orden guardado.
@@ -477,4 +493,173 @@ test('the capture strip reorders two photos and attaches them in that order', as
   const items = ((await list.json()) as { items: readonly ItemSummary[] }).items;
   const stored = items.find((entry) => entry.title === 'Juego de comedor');
   expect(stored?.photos).toHaveLength(3);
+});
+
+/**
+ * Evidencia del corte 3f (`plan-ciclo-3f` §7): un rechazo del almacén deja **una** foto señalada y
+ * las demás subidas; el reintento manda los tres cuerpos de esa foto —los mismos bytes— y no vuelve a
+ * enviar los de las otras. La publicación no espera a la foto que falló, pero sí exige la portada.
+ */
+test('a failed photo keeps its own state and retries without resending the others', async ({
+  page,
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'the strip suite opens the private surface');
+
+  const own = await eventWithSession(request, 'Cúcuta', 'Bucaramanga');
+
+  await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
+  await page.getByTestId('redeem-submit').click();
+  await expect(page).toHaveURL(/\/inicio$/);
+
+  // Cada cuerpo que viaja se cuenta: es la prueba de que las fotos ya subidas no se reenvían.
+  const puts: string[] = [];
+  page.on('request', (candidate) => {
+    if (candidate.method() === 'PUT' && candidate.url().includes(`${FAKE_PUT_PATH}?token=`)) {
+      puts.push(candidate.url());
+    }
+  });
+
+  // El fallo se inyecta en la **segunda** foto: se dejan pasar los tres cuerpos de la primera y se
+  // abortan los tres de la segunda. Las variantes de una foto viajan en paralelo y las fotos se
+  // adjuntan de a una, así que el conteo es determinista.
+  let passed = 3;
+  let aborted = 3;
+  await page.route(
+    (url) => url.pathname.includes(FAKE_PUT_PATH),
+    async (route) => {
+      if (passed > 0) {
+        passed -= 1;
+        await route.continue();
+        return;
+      }
+
+      if (aborted > 0) {
+        aborted -= 1;
+        await route.abort('failed');
+        return;
+      }
+
+      await route.continue();
+    },
+  );
+
+  await page.setInputFiles('[data-testid="shell-photo-input"]', fileOf('uno.jpg'));
+  await expect(page).toHaveURL(/\/captura$/);
+  await page.setInputFiles('[data-testid="item-photo-input"]', [
+    fileOf('dos.jpg'),
+    fileOf('tres.jpg'),
+  ]);
+
+  // La tira nombra el estado de cada foto y no un porcentaje de la galería.
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('0 listas, 3 en el teléfono');
+  await page.getByTestId('item-title-input').fill('Juego de sala');
+
+  await page.getByTestId('item-form-publish').click();
+
+  // 1. La segunda queda `No subió` con su `Reintentar`; las otras dos, `Subida`.
+  await expect(page.getByTestId('photo-gallery-state-0')).toHaveText('Subida');
+  await expect(page.getByTestId('photo-gallery-state-1')).toHaveText('No subió');
+  await expect(page.getByTestId('photo-gallery-state-2')).toHaveText('Subida');
+  await expect(page.getByTestId('photo-gallery-retry-1')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-retry-0')).toHaveCount(0);
+  await expect(page.getByTestId('photo-gallery-retry-2')).toHaveCount(0);
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('2 listas, 1 en el teléfono');
+
+  // 2. El fallo no navega ni cierra la sesión: vive en la foto, dentro del panel.
+  await expect(page).toHaveURL(/\/captura$/);
+  await expect(page.getByTestId('shell-nav-capture')).toBeVisible();
+
+  // 3. La portada subió, así que la publicación se completó aunque falte la segunda foto.
+  await expect(page.getByTestId('item-form-photo-notice')).toContainText('publicó');
+  await expect.poll(() => puts.length).toBe(9);
+
+  const listed = await request.get(`${BACKEND_URL}/events/${own.event.id}/items`, {
+    headers: bearer(own.session.sessionToken),
+  });
+  const published = ((await listed.json()) as { items: readonly ItemSummary[] }).items.find(
+    (entry) => entry.title === 'Juego de sala',
+  );
+  expect(published?.publishedSlug).not.toBeNull();
+  expect(published?.photos).toHaveLength(2);
+
+  // 4. Reintentar manda **solo** los tres cuerpos de la foto que falló.
+  await page.getByTestId('photo-gallery-retry-1').click();
+  await expect(page).toHaveURL(/\/capturados$/);
+  expect(puts).toHaveLength(12);
+
+  // 5. El reintento completa la galería del artículo, sin republicar nada.
+  const reread = await request.get(`${BACKEND_URL}/events/${own.event.id}/items`, {
+    headers: bearer(own.session.sessionToken),
+  });
+  const complete = ((await reread.json()) as { items: readonly ItemSummary[] }).items.find(
+    (entry) => entry.title === 'Juego de sala',
+  );
+  expect(complete?.photos).toHaveLength(3);
+
+  // 6. El fallo no viaja con la sesión: en el aterrizaje no hay nada que reintentar.
+  await page.goto('/inicio');
+  await expect(page.getByTestId('inicio-card')).toBeVisible();
+  await expect(page.getByText('No subió')).toHaveCount(0);
+});
+
+/**
+ * La otra mitad de la regla de `plan-ciclo-3f` §5: **publicar exige la portada subida**, porque la
+ * miniatura de la lista y la ficha pública leen la posición 0. El fallo se queda en la foto y el
+ * artículo ya creado no se pierde: reintentar la portada publica.
+ */
+test('publishing waits for the cover, and retrying it publishes', async ({
+  page,
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'the strip suite opens the private surface');
+
+  const own = await eventWithSession(request, 'Ibagué', 'Armenia');
+
+  await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
+  await page.getByTestId('redeem-submit').click();
+  await expect(page).toHaveURL(/\/inicio$/);
+
+  const listings: string[] = [];
+  page.on('request', (candidate) => {
+    if (candidate.method() === 'POST' && candidate.url().endsWith('/listing')) {
+      listings.push(candidate.url());
+    }
+  });
+
+  // La portada es la primera foto: se abortan sus tres variantes y se dejan pasar las demás.
+  let aborted = 3;
+  await page.route(
+    (url) => url.pathname.includes(FAKE_PUT_PATH),
+    async (route) => {
+      if (aborted > 0) {
+        aborted -= 1;
+        await route.abort('failed');
+        return;
+      }
+
+      await route.continue();
+    },
+  );
+
+  await page.setInputFiles('[data-testid="shell-photo-input"]', fileOf('uno.jpg'));
+  await expect(page).toHaveURL(/\/captura$/);
+  await page.setInputFiles('[data-testid="item-photo-input"]', [fileOf('dos.jpg')]);
+  await page.getByTestId('item-title-input').fill('Mesa de centro');
+
+  await page.getByTestId('item-form-publish').click();
+
+  // Sin portada no hay publicación: la foto lo dice con todas las letras y la ficha se queda.
+  await expect(page.getByTestId('photo-gallery-state-0')).toHaveText(
+    'No subió: sin portada no se publica',
+  );
+  await expect(page.getByTestId('photo-gallery-state-1')).toHaveText('Subida');
+  await expect(page.getByTestId('item-error')).toContainText('portada');
+  await expect(page).toHaveURL(/\/captura$/);
+  expect(listings).toHaveLength(0);
+
+  // Reintentar la portada publica: el artículo ya existía y el reintento no lo vuelve a crear.
+  await page.getByTestId('photo-gallery-retry-0').click();
+  await expect(page).toHaveURL(/\/capturados$/);
+  expect(listings).toHaveLength(1);
 });

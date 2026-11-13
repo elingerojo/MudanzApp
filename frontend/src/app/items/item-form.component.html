@@ -8,9 +8,12 @@
         [max]="maxPhotos"
         [draftMax]="draftMax()"
         [actionClasses]="retryClasses()"
-        [disabled]="publishing()"
+        [disabled]="stripLocked()"
+        [retryDisabled]="publishing()"
         (picked)="onPicked($event)"
         (moved)="onMoved($event)"
+        (retried)="retryPhoto($event)"
+        (removed)="onRemoved($event)"
       />
     </div>
 
@@ -24,6 +27,10 @@
         originales no se envían.
       }
     </p>
+
+    @if (photoNotice(); as text) {
+      <p class="mt-1 text-xs text-amber-800" data-testid="item-form-photo-notice">{{ text }}</p>
+    }
 
     @if (sizes().length > 0) {
       <ul class="mt-2 space-y-1" data-testid="item-photo-sizes">
@@ -155,45 +162,27 @@
     </div>
   </fieldset>
 
-  @if (photoFailed()) {
-    <div class="flex flex-wrap items-center gap-3" data-testid="item-form-photo-failed">
-      <span class="text-xs text-amber-800">
-        La ficha se guardó. Solo falta la foto para poder compartirla.
-      </span>
+  <div class="flex flex-wrap items-center gap-3">
+    <app-ui-progress-button
+      type="submit"
+      label="Publicar"
+      testId="item-form-publish"
+      [progress]="progress()"
+      [state]="stateFor('publish')"
+      [disabled]="!canSubmit()"
+    />
 
-      <button
-        type="button"
-        [class]="secondaryClasses"
-        [disabled]="busy()"
-        (click)="retryPhoto()"
-        data-testid="item-form-retry-photo"
-      >
-        {{ publishing() ? 'Reintentando…' : 'Reintentar la foto' }}
-      </button>
-    </div>
-  } @else {
-    <div class="flex flex-wrap items-center gap-3">
-      <app-ui-progress-button
-        type="submit"
-        label="Publicar"
-        testId="item-form-publish"
-        [progress]="progress()"
-        [state]="stateFor('publish')"
-        [disabled]="!canSubmit()"
-      />
+    <app-ui-progress-button
+      label="Solo guardar"
+      testId="item-form-save-only"
+      [progress]="progress()"
+      [state]="stateFor('save')"
+      [disabled]="!canSubmit()"
+      (click)="saveOnly()"
+    />
 
-      <app-ui-progress-button
-        label="Solo guardar"
-        testId="item-form-save-only"
-        [progress]="progress()"
-        [state]="stateFor('save')"
-        [disabled]="!canSubmit()"
-        (click)="saveOnly()"
-      />
-
-      <span class="text-xs text-slate-500">La foto se guarda solo para este evento.</span>
-    </div>
-  }
+    <span class="text-xs text-slate-500">La foto se guarda solo para este evento.</span>
+  </div>
 
   @if (error(); as message) {
     <p class="text-sm text-red-600" data-testid="item-error">{{ message }}</p>

@@ -99,11 +99,15 @@ function putVariant(
 }
 
 /**
- * Sube las tres variantes **en paralelo** y reporta el porcentaje ponderado por bytes.
+ * Sube las tres variantes **en paralelo** y reporta el porcentaje ponderado por bytes de la foto.
  *
  * En paralelo y no en serie porque el reloj lo fija la `large`: encadenarlas sumaría las tres
- * esperas. Cualquier fallo rechaza la tanda; las que ya viajaron no se cancelan y el cliente las
+ * esperas. Cualquier fallo rechaza la foto; las que ya viajaron no se cancelan y el cliente las
  * descarta con el `DELETE` del ticket.
+ *
+ * Desde 3f esta función se llama una vez **por foto**, así que el porcentaje que publica es el de esa
+ * casilla de la tira; el agregado de la tanda lo compone el formulario. La ponderación por bytes no
+ * cambia: la `large` sigue pesando lo que pesa.
  */
 export async function uploadVariants(
   tasks: readonly UploadTask[],
