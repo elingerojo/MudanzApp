@@ -219,7 +219,7 @@ Gate proporcional (uno por invocación, una corrida a la vez):
 
 ## 13. Cierre
 
-**Fecha:** 2026-11-13 (04:50 UTC). **Sha:** este commit (`feat(ai)`) en `main`. **Migraciones:**
+**Fecha:** 2026-11-13 (04:50 UTC). **Sha:** `827fcc2` (`feat(ai)`) en `main`. **Migraciones:**
 ninguna.
 
 Evidencia observada (gate local, una corrida por comando):
