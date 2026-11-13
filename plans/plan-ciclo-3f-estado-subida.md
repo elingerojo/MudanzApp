@@ -1,7 +1,7 @@
 # Plan del ciclo 3f — `photo-upload-state`: cada foto dice en qué estado está y se reintenta sin recodificar
 
-> **Estado:** **plan ejecutable, sin ejecutar.** Ninguna rama abierta, ninguna migración aplicada y
-> ningún commit.
+> **Estado:** **cerrado el 2026-11-13 en `9dba4cb`.** Sin migración, sin contrato nuevo y sin
+> worker: su disparador `live` no quedó registrado y el corte se cierra sin él (§13).
 > **Hipótesis:** con seis fotos, el panel puede decir por foto qué está en el teléfono, qué ya subió y
 > qué falló, y reintentar solo la que falló reenviando los mismos bytes.
 > **Fuentes:** [`resumen-funcional`](../.plans/resumen-funcional-app-mudanzapp.md:66) §3 y §4 (fila por
@@ -164,8 +164,26 @@ Gate proporcional (uno por invocación, una corrida a la vez):
 
 ## 13. Cierre
 
-Se escribe al cerrar: fecha, sha corto, evidencia observada, resultado de la medición y lo que quede
-pendiente con su disparador.
+- **Fecha:** 2026-11-13.
+- **Commit:** `9dba4cb feat(web): give each photo its own upload state and retry`, sobre `main`.
+- **Evidencia observada:** `typecheck` (todos los workspaces), `typecheck:e2e`, `lint`,
+  `format:check`, `build:web:frontend` y `build:web:wiki`; unitarias `test:web:frontend` 248 —siete de
+  la máquina de estados y cuatro nuevas del panel— y `test:web:wiki` 13; `test:e2e:branch` 31 passed,
+  56 skipped y 0 failed, con el `PUT` de la segunda foto de una tira de tres abortado con
+  `page.route`. Las dos suites nuevas afirman: la segunda foto en `No subió` con las otras dos en
+  `Subida`, `Reintentar` solo en la fallida, el contador `2 listas, 1 en el teléfono`, el recuento de
+  cuerpos de 9 a 12 al reintentar —las ya subidas no se reenvían—, la publicación completa con una
+  foto posterior fallida y la publicación bloqueada mientras la portada no suba.
+- **Hallazgo del gate:** el primer `test:e2e:branch` falló en la suite de 3e porque afirmaba **una**
+  petición de adjunción con tres `slot`; desde 3f son tres peticiones de un `slot` cada una. La prueba
+  se corrigió para afirmar lo mismo de la forma nueva; nada del corte cambió por ese rojo.
+- **Medición del worker:** **no registrada.** La revisión `live` de 3e quedó anotada como `OK` sin la
+  congelación que era su disparador, así que el optimizador se queda en el hilo principal y no se
+  abre el commit `perf(web)`.
+- **Revisión `live`:** pendiente del dueño (§14).
+- **Pendiente con su disparador:** el optimizador en `Web Worker` espera una captura `live` de seis
+  fotos que congele la interfaz, anotada con el momento en que se siente; borrar una foto ya subida y
+  arrastrar y soltar siguen esperando un pedido explícito del dueño.
 
 ## 14. Prueba `live` en remoto (paso manual del dueño)
 
