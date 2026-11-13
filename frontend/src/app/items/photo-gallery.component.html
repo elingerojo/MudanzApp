@@ -1,0 +1,111 @@
+<div class="space-y-2" data-testid="photo-gallery">
+  <input
+    id="photo-gallery-camera"
+    data-testid="photo-gallery-camera-input"
+    type="file"
+    [attr.accept]="accept"
+    capture="environment"
+    class="sr-only"
+    [disabled]="disabled()"
+    (change)="onCamera($event)"
+  />
+
+  <input
+    id="photo-gallery-library"
+    data-testid="item-photo-input"
+    type="file"
+    [attr.accept]="accept"
+    multiple
+    class="sr-only"
+    [disabled]="disabled()"
+    (change)="onLibrary($event)"
+  />
+
+  <div class="flex flex-wrap items-center gap-3">
+    <label
+      for="photo-gallery-camera"
+      [class]="actionClasses()"
+      data-testid="item-photo-label"
+      class="cursor-pointer"
+    >
+      {{ cameraLabel() }}
+    </label>
+
+    <label
+      for="photo-gallery-library"
+      [class]="actionClasses()"
+      data-testid="photo-gallery-library-label"
+      class="cursor-pointer"
+    >
+      {{ chooseLabel() }}
+    </label>
+
+    <span class="text-xs text-slate-500" data-testid="photo-gallery-count">
+      {{ photos().length }} de {{ max() }}
+    </span>
+  </div>
+
+  @if (photos().length > 0) {
+    <ol class="flex gap-2 overflow-x-auto pb-1" data-testid="photo-gallery-strip">
+      @for (photo of photos(); track photo.key; let index = $index) {
+        <li class="shrink-0" [attr.data-testid]="'photo-gallery-item-' + index">
+          <div class="relative">
+            @if (photo.photoId; as photoId) {
+              <app-item-photo [photoId]="photoId" />
+            } @else if (photo.previewUrl; as src) {
+              <img
+                [src]="src"
+                alt="Foto del artículo"
+                class="h-16 w-16 rounded object-cover"
+                data-testid="photo-gallery-preview"
+              />
+            } @else {
+              <span
+                class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
+                data-testid="photo-gallery-placeholder"
+              >
+                …
+              </span>
+            }
+
+            @if (index === 0) {
+              <span
+                class="absolute top-0 left-0 rounded-br bg-slate-900 px-1 text-[0.6rem] font-semibold text-white"
+                data-testid="photo-gallery-cover"
+              >
+                Portada
+              </span>
+            }
+          </div>
+
+          @if (orderVisible(photos().length)) {
+            <div class="mt-1 flex justify-center gap-1">
+              <button
+                type="button"
+                class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40"
+                [disabled]="disabled() || index === 0"
+                [attr.data-testid]="'photo-gallery-up-' + index"
+                (click)="move(index, -1)"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                class="rounded border border-slate-300 px-2 py-0.5 text-xs disabled:opacity-40"
+                [disabled]="disabled() || index === photos().length - 1"
+                [attr.data-testid]="'photo-gallery-down-' + index"
+                (click)="move(index, 1)"
+              >
+                ↓
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ol>
+
+    <p class="text-xs text-slate-500" data-testid="photo-gallery-legend">{{ legend() }}</p>
+  } @else {
+    <p class="text-xs text-slate-500" data-testid="photo-gallery-empty">{{ legend() }}</p>
+  }
+</div>

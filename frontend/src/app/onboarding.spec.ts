@@ -3,6 +3,7 @@ import {
   ONBOARDING_MAX_LEVEL,
   onboardingLevelCopy,
   onboardingLevelFor,
+  orderControlsVisible,
   photosForLevel,
   promotionFor,
 } from '@mudanzapp/shared';
@@ -62,5 +63,21 @@ describe('onboardingLevelCopy', () => {
 
   it('publishes only the current photos at the highest level', () => {
     expect(onboardingLevelCopy(ONBOARDING_MAX_LEVEL)).toBe('El borrador de IA usa 2 fotos.');
+  });
+});
+
+/**
+ * La regla del corte 3e (`gallery`): los controles de orden solo existen con dos fotos o más, y es
+ * la misma regla en la captura y en la edición.
+ */
+describe('orderControlsVisible', () => {
+  it('hides the order controls with zero or one photo', () => {
+    expect(orderControlsVisible(0)).toBe(false);
+    expect(orderControlsVisible(1)).toBe(false);
+  });
+
+  it('shows the order controls from two photos', () => {
+    expect(orderControlsVisible(2)).toBe(true);
+    expect(orderControlsVisible(6)).toBe(true);
   });
 });

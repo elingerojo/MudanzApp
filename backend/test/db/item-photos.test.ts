@@ -26,7 +26,12 @@ afterAll(async () => {
   await database.close();
 });
 
-const TOKEN = 'attach-test-token';
+/**
+ * Credencial única por corrida: la base `_test` es un sandbox que se reaplica sin borrar filas, y un
+ * token fijo choca con el hash de la corrida anterior (`session_token_hash_key`). La prueba no cambia:
+ * lo que se ejerce es el efecto de la adjunción, no el valor de la credencial.
+ */
+const TOKEN = `attach-test-${randomUUID()}`;
 const CONTENT_TYPE = 'image/webp';
 
 const VARIANTS = [
@@ -111,9 +116,11 @@ describe('POST /events/:eventId/items/:itemId/photos', () => {
       expect(payload.photos[0]?.sizes['large']?.widthPx).toBe(1_440);
       expect(payload.photos[0]?.sizes['thumb']?.widthPx).toBe(320);
 
-      // La fila del artículo ya apunta a su foto: la adjunción escribió las cuatro filas.
+      // La galería del artículo ya contiene su foto en la posición 0: la adjunción escribió las
+      // cuatro filas y la lectura ordenada las publica.
       const stored = await findItem(database, event.id, item.id);
-      expect(stored?.photoId).not.toBeNull();
+      expect(stored?.photos).toHaveLength(1);
+      expect(stored?.photos[0]?.id).toBe(payload.photos[0]?.id);
 
       // El staging ya cumplió: no queda objeto bajo `captures/`.
       for (const key of seeded.keys) {
@@ -238,7 +245,7 @@ describe('POST /events/:eventId/items/:itemId/photos', () => {
       await expect(response.json()).resolves.toEqual({ error: 'capture_incomplete' });
 
       const stored = await findItem(database, event.id, item.id);
-      expect(stored?.photoId).toBeNull();
+      expect(stored?.photos).toEqual([]);
     } finally {
       await app.close();
     }

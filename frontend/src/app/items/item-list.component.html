@@ -17,7 +17,7 @@
         @for (item of store.items(); track item.id) {
           <li class="py-3" [attr.data-testid]="'item-' + item.id">
             <div class="flex flex-wrap items-center gap-3">
-              @if (item.photo; as photo) {
+              @if (coverOf(item); as photo) {
                 <app-item-photo [photoId]="photo.id" />
               } @else {
                 <span
@@ -52,7 +52,7 @@
                   <p class="truncate text-xs text-slate-500">{{ note }}</p>
                 }
 
-                @if (item.photo === null) {
+                @if (item.photos.length === 0) {
                   <p class="text-xs text-amber-700" data-testid="item-photo-pending">
                     Falta la foto: sin ella no se puede publicar.
                   </p>

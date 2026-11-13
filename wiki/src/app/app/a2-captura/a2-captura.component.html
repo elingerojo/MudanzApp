@@ -4,7 +4,7 @@
     title="Cuenta y captura"
     route="app/a2-captura"
     status="current"
-    verified="a6df36e · 2026-11-13"
+    verified="2026-11-13 · este ciclo"
     [areas]="areas"
     [decisions]="decisions"
   />
@@ -24,8 +24,9 @@
       Desde el corte D14 la foto se toma solo con el botón <strong>Foto</strong> de la barra: la
       bienvenida lo nombra y no monta una cámara propia. La <strong>sesión de captura</strong> vive
       en memoria: el panel nunca se abre vacío —sin foto, la guarda devuelve a la bienvenida—,
-      volver la reutiliza reoptimizando el archivo y el control interno es siempre
-      <code class="font-mono text-xs">Repetir la foto</code>.
+      volver la reutiliza reoptimizando el archivo y la tira ofrece desde 3e las dos entradas,
+      <code class="font-mono text-xs">Tomar foto</code> y
+      <code class="font-mono text-xs">Elegir de la galería</code>.
     </p>
     <p>
       Publicar o solo guardar cierra la sesión y, cuando el indicador de progreso termina, la
@@ -89,8 +90,9 @@
         El ticket y sus URL viven {{ ticketMinutes }} minutos: quien se tarda vuelve a pedir uno.
       </li>
       <li>
-        Una captura es <strong>una</strong> fotografía con sus tres variantes; el tope del artículo
-        es de {{ photosPerItem }} fotos.
+        Una captura es <strong>una</strong> fotografía con sus tres variantes; desde 3e el artículo
+        es una <strong>galería ordenada</strong> de hasta {{ photosPerItem }} fotos y la primera es
+        la portada.
       </li>
       <li>
         Nada se escribe en el almacén antes de que el humano decida: el ticket solo firma una
@@ -101,6 +103,28 @@
       Evidencia: <code class="font-mono">shared/src/capture.ts</code>,
       <code class="font-mono">backend/src/routes/captures-router.ts</code>;
       <code class="font-mono">decisiones</code> §45.
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">La galería está ordenada</h3>
+    <p>
+      Un artículo lleva hasta {{ photosPerItem }} fotos. El orden se decide durante la captura —la
+      tira reordena y la primera es la <strong>portada</strong>, la que abre la ficha y alimenta el
+      borrador— y se corrige después desde
+      <code class="font-mono text-xs">Editar artículo</code> con
+      <code class="font-mono text-xs">PUT /events/:eventId/items/:itemId/photos/order</code>. Si el
+      conjunto cambió en otro dispositivo, el borde responde
+      <code class="font-mono text-xs">409 photo_order_mismatch</code> en vez de reordenar a ciegas,
+      y un artículo vendido responde <code class="font-mono text-xs">409 item_sold</code>. Con una
+      sola foto no hay controles de orden. La ficha pública sigue mostrando solo la portada hasta
+      3g.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/capture.ts</code>,
+      <code class="font-mono">backend/src/routes/items-router.ts</code>,
+      <code class="font-mono">frontend/src/app/items/photo-gallery.component.ts</code>;
+      <code class="font-mono">plan-ciclo-3e</code> §4.
     </p>
   </section>
 

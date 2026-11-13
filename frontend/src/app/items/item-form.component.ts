@@ -9,22 +9,19 @@ import {
   OnDestroy,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import {
+  CAPTURE_LIMITS,
   ITEM_LIMITS,
   ITEM_PHOTO_CONTENT_TYPES,
-  ITEM_PHOTO_ENCODING,
-  ITEM_PHOTO_VARIANTS,
-  ITEM_PHOTO_VARIANT_CONTENT_TYPES,
   onboardingLevelCopy,
   promotionFor,
   type AiDraftResult,
-  type AttachedPhotos,
   type CaptureTicket,
   type CreateItemRequest,
   type CreatedItem,
   type ItemPhotoVariant,
-  type ItemPhotoVariantContentType,
   type OnboardingLevel,
   type PublishedListing,
 } from '@mudanzapp/shared';
@@ -47,10 +44,9 @@ import {
   type UiProgressState,
 } from '../ui/ui-progress-button/ui-progress-button';
 import { sizeLabel } from './photo-encoding';
+import { PhotoGalleryComponent, type GalleryPhoto } from './photo-gallery.component';
+import { PhotoPipeline, type PendingPhotoUpload } from './photo-pipeline';
 import type { OptimizedPhoto } from './photo-optimizer';
-import { PHOTO_OPTIMIZER } from './photo-optimizer.token';
-import type { UploadTask } from './photo-upload';
-import { PHOTO_UPLOADER } from './photo-upload.token';
 
 /** Error de la ficha, para distinguirlo de un fallo de red al capturarlo. */
 class DraftError extends Error {}
@@ -88,12 +84,6 @@ function draftMessage(code: string | null): string {
   }
 }
 
-/** Tipos admitidos para el `accept` del input; la lista vive en el contrato compartido. */
-const ACCEPT_ATTRIBUTE = ITEM_PHOTO_CONTENT_TYPES.join(',');
-
-/** Un ticket sirve hasta un minuto antes de caducar; pasado eso se pide otro. */
-const TICKET_MARGIN_MS = 60_000;
-
 /** Espera del destello de cierre antes de limpiar la ficha. */
 function flashDelay(): Promise<void> {
   return new Promise((resolve) => {
@@ -101,34 +91,48 @@ function flashDelay(): Promise<void> {
   });
 }
 
+/** Una foto ya preparada en el dispositivo: sus tres variantes, su ticket y su vista previa. */
+interface PreparedPhoto {
+  readonly optimized: readonly OptimizedPhoto[];
+  readonly ticket: CaptureTicket;
+  readonly previewUrl: string | null;
+  /** Ya se escribió en el artículo: un reintento de publicación no la vuelve a subir. */
+  readonly attached: boolean;
+}
+
+/** Una foto de la sesión de captura, con su preparación si ya terminó. */
+interface FormPhoto {
+  readonly file: File;
+  readonly prepared: PreparedPhoto | null;
+}
+
 /**
  * Captura de un artículo con borrador de la IA y publicación en la misma pantalla (`ai-draft`, 3d;
- * subida directa al almacén desde 4g).
+ * subida directa al almacén desde 4g; galería privada desde 3e).
  *
- * El recorrido sigue siendo el del plan §6: la persona toma la foto, **pide** el borrador con un
- * toque, edita sin prisa y decide entre **Publicar** y **Solo guardar**. Dos reglas ordenan el
- * componente:
+ * El recorrido sigue siendo el del plan §6: la persona toma una o varias fotos, **pide** el borrador
+ * con un toque, edita sin prisa y decide entre **Publicar** y **Solo guardar**. Tres reglas ordenan
+ * el componente:
  *
  * 1. El borrador nunca arranca solo: sin toque no hay llamada.
- * 2. Nada de lo que hace el humano espera a la IA: `Publicar` y `Solo guardar` dependen de la foto y
+ * 2. Nada de lo que hace el humano espera a la IA: `Publicar` y `Solo guardar` dependen de las fotos y
  *    del título, no de que el borrador haya vuelto.
+ * 3. El orden lo decide la persona **durante la captura**: la primera foto es la portada, abre la
+ *    ficha y alimenta el borrador, y el orden en que se adjuntan es el de la tira.
  *
- * Desde 4g el cuerpo de la foto **no cruza el backend**: al optimizar se pide un ticket con las tres
- * URL prefirmadas y, al pulsar, las tres variantes suben en paralelo al almacén con su progreso
- * ponderado; el API sólo recibe la adjunción (`plan-ciclo-4g-direct-upload` §3 y §5). La mediana del
- * borrador sigue yendo a Railway, que la convierte a base64 y no la guarda.
+ * El cuerpo de la foto **no cruza el backend**: la tubería de [`photo-pipeline`](./photo-pipeline.ts)
+ * pide el ticket, sube las tres variantes por sus URL prefirmadas y adjunta las capturas al artículo.
  */
 @Component({
   selector: 'app-item-form',
-  imports: [UiProgressButtonComponent],
+  imports: [PhotoGalleryComponent, UiProgressButtonComponent],
   templateUrl: './item-form.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemFormComponent implements OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly apiBaseUrl = inject(API_BASE_URL);
-  private readonly optimize = inject(PHOTO_OPTIMIZER);
-  private readonly sendPhoto = inject(PHOTO_UPLOADER);
+  private readonly pipeline = inject(PhotoPipeline);
   private readonly inbox = inject(PhotoInboxStore);
   private readonly session = inject(SessionStore);
 
@@ -137,7 +141,7 @@ export class ItemFormComponent implements OnDestroy {
   /** `null` cuando solo se guardó; el `slug` cuando se publicó. */
   readonly saved = output<string | null>();
 
-  protected readonly accept = ACCEPT_ATTRIBUTE;
+  protected readonly maxPhotos = CAPTURE_LIMITS.photos;
   protected readonly maxPhotoMiB = ITEM_LIMITS.photoBytes / (1024 * 1024);
 
   protected readonly title = signal('');
@@ -147,10 +151,6 @@ export class ItemFormComponent implements OnDestroy {
   protected readonly depthCm = signal('');
   protected readonly weightKg = signal('');
 
-  protected readonly photo = signal<File | null>(null);
-  protected readonly preview = signal<string | null>(null);
-  protected readonly sizes = signal<readonly SizeEntry[]>([]);
-  protected readonly optimizing = signal(false);
   protected readonly drafting = signal(false);
   protected readonly publishing = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -165,15 +165,45 @@ export class ItemFormComponent implements OnDestroy {
   /** El trabajo terminó y el botón está en su destello de cierre. */
   private readonly flashing = signal(false);
 
-  /** La última subida falló: el artículo existe y la foto se puede reintentar sin reescribir nada. */
+  /** La última subida falló: el artículo existe y las fotos se pueden reintentar. */
   protected readonly photoFailed = signal(false);
+
+  /** Cada foto ya preparada, por archivo; el efecto no repite el trabajo de la misma foto. */
+  private readonly prepared = signal<ReadonlyMap<File, PreparedPhoto>>(new Map());
+
+  /** Fotografías que están siendo optimizadas ahora mismo. */
+  private readonly preparing = new Set<File>();
+
+  /** Vistas previas vivas, para revocarlas al salir o al descartar la foto. */
+  private readonly previews = new Map<File, string>();
+
+  /** Llave estable por archivo: el orden de la tira cambia y el `track` no debe perderse. */
+  private readonly keys = new WeakMap<File, string>();
+  private nextKey = 0;
+
+  /** Artículo ya creado en este formulario: evita un alta doble al reintentar. */
+  private readonly createdItemId = signal<string | null>(null);
+
+  /** Si el intento en curso pedía publicar, el reintento de la foto también publica. */
+  private readonly pendingPublish = signal(false);
+
+  /** La tira completa, en el orden de la sesión de captura. */
+  protected readonly photos = computed<readonly FormPhoto[]>(() =>
+    this.inbox.photos().map((file) => ({ file, prepared: this.prepared().get(file) ?? null })),
+  );
+
+  /** La portada: la foto que abre la ficha y alimenta el borrador. */
+  private readonly cover = computed<PreparedPhoto | null>(() => this.photos()[0]?.prepared ?? null);
+
+  /** ¿Hay alguna foto todavía optimizándose? Es la compuerta visible de la tira. */
+  protected readonly optimizing = computed(() =>
+    this.photos().some((photo) => photo.prepared === null),
+  );
 
   protected readonly busy = computed(() => this.optimizing() || this.publishing());
 
-  /** Sin foto optimizada no hay borrador ni hay artículo: es la compuerta de las tres acciones. */
-  protected readonly ready = computed(
-    () => this.photo() !== null && this.optimized().length > 0 && !this.optimizing(),
-  );
+  /** Sin fotos preparadas no hay borrador ni hay artículo: es la compuerta de las tres acciones. */
+  protected readonly ready = computed(() => this.photos().length > 0 && !this.optimizing());
 
   /** `Publicar` y `Solo guardar` no miran `drafting()`: la IA nunca bloquea al humano. */
   protected readonly canSubmit = computed(
@@ -215,36 +245,55 @@ export class ItemFormComponent implements OnDestroy {
     return promotionFor(level).draft === 'promoted' ? onboardingLevelCopy(level) : null;
   });
 
-  /** Los tres blobs ya optimizados en el dispositivo; el peso no se envía como dato. */
-  private readonly optimized = signal<readonly OptimizedPhoto[]>([]);
-
-  /** La variante que viaja al borrador: la misma que después se sube a R2, sin recodificar. */
+  /** La variante que viaja al borrador: la `medium` de la portada, sin recodificar. */
   protected readonly medium = computed(
-    () => this.optimized().find((entry) => entry.variant === 'medium')?.blob ?? null,
+    () => this.cover()?.optimized.find((entry) => entry.variant === 'medium')?.blob ?? null,
   );
 
-  /** Artículo ya creado en este formulario: evita un alta doble al reintentar. */
-  private readonly createdItemId = signal<string | null>(null);
+  /** Los tres pesos de la portada: la tarjeta que demuestra la optimización en el dispositivo. */
+  protected readonly sizes = computed<readonly SizeEntry[]>(() => {
+    const cover = this.cover();
+    if (cover === null) {
+      return [];
+    }
 
-  /** Si el intento en curso pedía publicar, el reintento de la foto también publica. */
-  private readonly pendingPublish = signal(false);
+    return cover.optimized.map((entry) => ({
+      variant: entry.variant,
+      widthPx: entry.widthPx,
+      heightPx: entry.heightPx,
+      byteSize: entry.blob.size,
+      label: sizeLabel(entry, entry.blob.size),
+    }));
+  });
 
-  /** Ticket vivo: sus tres URL y el `captureId` con el que se adjunta. */
-  private readonly capture = signal<CaptureTicket | null>(null);
-
-  private objectUrl: string | null = null;
-
-  /** La última foto procesada por esta instancia: el efecto no repite el trabajo. */
-  private lastAccepted: File | null = null;
+  /** La tira tal como la pinta la pieza compartida. */
+  protected readonly galleryPhotos = computed<readonly GalleryPhoto[]>(() =>
+    this.photos().map((photo) => ({
+      key: this.keyOf(photo.file),
+      photoId: null,
+      previewUrl: photo.prepared?.previewUrl ?? null,
+      pending: photo.prepared === null,
+    })),
+  );
 
   constructor() {
-    // La foto vive en la sesión de captura (cortes D12 y D13), no en el formulario: al montarse se
-    // procesa la vigente —aunque ya se hubiera procesado en una visita anterior—, y si vuelve a
-    // cambiar la referencia la procesa de nuevo.
+    // La sesión de captura es la fuente del orden (cortes D12 y D13; lista ordenada desde 3e): el
+    // efecto prepara las fotos nuevas y reconoce el orden que la persona eligió en la tira.
     effect(() => {
-      const pending = this.inbox.photo();
-      if (pending !== null && pending !== this.lastAccepted) {
-        void this.acceptPhoto(pending);
+      const files = this.inbox.photos();
+      const prepared = untracked(this.prepared);
+
+      for (const file of files) {
+        if (!prepared.has(file) && !this.preparing.has(file)) {
+          void this.prepare(file);
+        }
+      }
+
+      const alive = new Set(files);
+      for (const file of prepared.keys()) {
+        if (!alive.has(file)) {
+          this.forget(file);
+        }
       }
     });
   }
@@ -265,100 +314,85 @@ export class ItemFormComponent implements OnDestroy {
     return this.flashing() ? 'done' : 'working';
   }
 
-  /**
-   * Acepta la foto elegida en el panel. El input se vacía siempre para que la misma foto pueda
-   * elegirse dos veces seguidas; el procesamiento es el único de `acceptPhoto`.
-   */
-  protected async onPhoto(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const [file] = Array.from(input.files ?? []);
-    input.value = '';
-    if (file === undefined) {
-      return;
-    }
+  /** Deposita las fotos elegidas o tomadas; la sesión las pone al final de la tira. */
+  protected onPicked(files: readonly File[]): void {
+    this.inbox.addFiles(files);
+  }
 
-    // Retomar reemplaza la foto de la sesión (corte D13): volver al panel usa la misma.
-    this.inbox.stage(file);
-    await this.acceptPhoto(file);
+  /** El orden de la tira es el de captura: mover cambia el orden en que se adjuntan. */
+  protected onMoved(event: { readonly index: number; readonly direction: -1 | 1 }): void {
+    this.inbox.move(event.index, event.direction);
   }
 
   /**
-   * Acepta la foto, la optimiza en el dispositivo, la previsualiza y pide el ticket.
+   * Prepara una foto: la valida, la optimiza en el dispositivo y pide su ticket.
    *
-   * Es el camino **único** de una foto: la elegida en el panel y la tomada con el botón `Foto` de la
+   * Es el camino **único** de una foto: la elegida en la tira y la tomada con el botón `Foto` de la
    * barra (corte D12) pasan por aquí, así que las dos tienen los mismos mensajes, el mismo orden y el
-   * mismo ticket. Además, la foto del buzón reemplaza solo la foto: no borra lo que ya está escrito.
-   *
-   * Un archivo rechazado no reemplaza al que ya estaba: el mensaje explica el motivo y la captura
-   * sigue siendo válida. El ticket se pide **aquí** y no al pulsar, para que el tap no pague un viaje
-   * de ida y vuelta; no escribe nada en el almacén.
+   * mismo ticket. Un archivo rechazado no reemplaza la tira: se retira y el mensaje explica el motivo.
    */
-  private async acceptPhoto(file: File): Promise<void> {
-    this.lastAccepted = file;
-
-    const typeAccepted = (ITEM_PHOTO_CONTENT_TYPES as readonly string[]).includes(file.type);
-    if (!typeAccepted) {
-      this.error.set('La foto debe ser JPEG, PNG o WebP.');
-      this.endEmptySession(file);
-      return;
-    }
-
-    // El tope es del **archivo de la cámara**, no de lo que viaja: la original nunca sale del
-    // dispositivo. Un archivo mayor se rechaza aquí, sin tocar la red.
-    if (file.size > ITEM_LIMITS.photoBytes) {
-      this.error.set(`La foto supera el límite de ${String(this.maxPhotoMiB)} MB.`);
-      this.endEmptySession(file);
-      return;
-    }
-
-    this.error.set(null);
-    this.notice.set(null);
-    this.optimizing.set(true);
-
-    // La foto anterior y su staging dejan de servir en cuanto llega la nueva.
-    this.discardCapture();
+  private async prepare(file: File): Promise<void> {
+    this.preparing.add(file);
 
     try {
-      const optimized = await this.optimize(file);
+      const typeAccepted = (ITEM_PHOTO_CONTENT_TYPES as readonly string[]).includes(file.type);
+      if (!typeAccepted) {
+        this.error.set('La foto debe ser JPEG, PNG o WebP.');
+        this.inbox.remove(file);
+        return;
+      }
 
-      this.optimized.set(optimized);
-      this.photo.set(file);
-      this.sizes.set(
-        optimized.map((entry) => ({
-          variant: entry.variant,
-          widthPx: entry.widthPx,
-          heightPx: entry.heightPx,
-          byteSize: entry.blob.size,
-          label: sizeLabel(entry, entry.blob.size),
-        })),
+      // El tope es del **archivo de la cámara**, no de lo que viaja: la original nunca sale del
+      // dispositivo. Un archivo mayor se rechaza aquí, sin tocar la red.
+      if (file.size > ITEM_LIMITS.photoBytes) {
+        this.error.set(`La foto supera el límite de ${String(this.maxPhotoMiB)} MB.`);
+        this.inbox.remove(file);
+        return;
+      }
+
+      this.error.set(null);
+
+      const optimized = await this.pipeline.optimize(file);
+      const ticket = await this.pipeline.openTicket(this.eventId(), optimized);
+      const previewUrl = this.previewFor(file, optimized);
+
+      this.prepared.update((current) =>
+        new Map(current).set(file, { optimized, ticket, previewUrl, attached: false }),
       );
-      this.replacePreview(optimized);
 
       // Una foto nueva invalida el borrador anterior: el texto que ya hay se queda, pero el aviso
-      // deja de prometer que describe esta foto.
+      // deja de prometer que describe la tira.
       if (this.notice() !== null) {
         this.notice.set('El borrador era de la foto anterior. Revísalo antes de publicar.');
       }
-
-      await this.ensureTicket();
     } catch {
-      this.clearPhoto();
-      this.endEmptySession(file);
+      this.inbox.remove(file);
       this.error.set('No se pudo procesar esta foto. Elige otra o toma una nueva.');
     } finally {
-      this.optimizing.set(false);
+      this.preparing.delete(file);
     }
   }
 
-  /** Una foto rechazada sin foto anterior deja la sesión sin nada que capturar: se cierra. */
-  private endEmptySession(file: File): void {
-    if (this.photo() === null && this.inbox.photo() === file) {
-      this.inbox.clear();
+  /** Olvida una foto que salió de la sesión: descarta su ticket y revoca su vista previa. */
+  private forget(file: File): void {
+    const current = this.prepared();
+    const entry = current.get(file);
+    if (entry !== undefined) {
+      this.pipeline.discardTicket(this.eventId(), entry.ticket.captureId);
+      const next = new Map(current);
+      next.delete(file);
+      this.prepared.set(next);
+    }
+
+    const url = this.previews.get(file);
+    if (url !== undefined) {
+      URL.revokeObjectURL(url);
+      this.previews.delete(file);
     }
   }
 
   /**
-   * Pide el borrador con la variante `medium` ya codificada y rellena **solo los campos vacíos**: si
+   * Pide el borrador con la variante `medium` de la portada y rellena **solo los campos vacíos**: si
    * la persona ya escribió, no se sobrescribe y el aviso lo dice.
    */
   protected async draft(): Promise<void> {
@@ -401,7 +435,7 @@ export class ItemFormComponent implements OnDestroy {
     }
   }
 
-  /** El tap primario: crea el artículo, sube las tres variantes, las adjunta y publica. */
+  /** El tap primario: crea el artículo, sube las variantes, las adjunta y publica. */
   protected publish(event: Event): void {
     event.preventDefault();
     void this.send('publish');
@@ -413,7 +447,7 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Reintenta la foto de un artículo que ya se creó. La ficha no se pierde y, si el intento pedía
+   * Reintenta las fotos de un artículo que ya se creó. La ficha no se pierde y, si el intento pedía
    * publicar, se publica al terminar.
    */
   protected async retryPhoto(): Promise<void> {
@@ -435,8 +469,8 @@ export class ItemFormComponent implements OnDestroy {
     } catch (error: unknown) {
       this.error.set(
         apiErrorCode(error) === PHOTO_INVALID
-          ? 'El servidor rechazó la foto. Vuelve a elegirla e inténtalo de nuevo.'
-          : 'No se pudo subir la foto. Inténtalo de nuevo.',
+          ? 'El servidor rechazó alguna foto. Vuelve a elegirla e inténtalo de nuevo.'
+          : 'No se pudieron subir las fotos. Inténtalo de nuevo.',
       );
     } finally {
       this.publishing.set(false);
@@ -479,9 +513,9 @@ export class ItemFormComponent implements OnDestroy {
       const code = apiErrorCode(error);
 
       if (step === 'photo') {
-        // La quinta petición no se intenta: sin foto no hay publicación posible.
+        // La quinta petición no se intenta: sin fotos no hay publicación posible.
         this.photoFailed.set(true);
-        this.error.set('El artículo se guardó, pero la foto no. Reinténtala.');
+        this.error.set('El artículo se guardó, pero las fotos no. Reinténtalas.');
       } else if (step === 'publish') {
         this.error.set(
           'El artículo se guardó, pero no se pudo publicar. Inténtalo desde «Capturados».',
@@ -489,7 +523,7 @@ export class ItemFormComponent implements OnDestroy {
       } else {
         this.error.set(
           code === PHOTO_INVALID
-            ? 'El servidor rechazó la foto. Vuelve a elegirla e inténtalo de nuevo.'
+            ? 'El servidor rechazó alguna foto. Vuelve a elegirla e inténtalo de nuevo.'
             : 'No se pudo guardar el artículo. Inténtalo de nuevo.',
         );
       }
@@ -511,7 +545,6 @@ export class ItemFormComponent implements OnDestroy {
     // Guardar o publicar termina la captura (corte D13): la barra deshabilita `Captura` y volver
     // exige una foto nueva.
     this.inbox.clear();
-    this.lastAccepted = null;
   }
 
   /** Crea el artículo una sola vez por formulario y recuerda su identificador. */
@@ -536,100 +569,49 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Resuelve la URL de subida.
-   *
-   * En `live` el ticket trae una URL absoluta al almacén y se usa tal cual. En `fake` trae una ruta
-   * relativa al API, y el prefijo lo pone el cliente: así el doble se sirve por el mismo proxy que el
-   * resto del contrato y ninguna prueba depende de un host.
-   */
-  private uploadUrl(raw: string): string {
-    return raw.startsWith('http') ? raw : `${this.apiBaseUrl}${raw}`;
-  }
-
-  /**
-   * Sube las tres variantes **en paralelo** al almacén y adjunta la captura al artículo.
-   *
-   * El progreso es ponderado por bytes: la `large` manda y el porcentaje lo dice. La adjunción va
-   * después de que las tres existan, porque el borde las verifica con `HEAD`.
+   * Sube y adjunta la tira completa, con el **slot** de cada foto tomado de su orden: la primera es
+   * la portada y las siguientes la acompañan, sin cambiar el contrato de 4g.
    */
   private async upload(itemId: string): Promise<void> {
-    const ticket = await this.ensureTicket();
-    const optimized = this.optimized();
+    const photos = this.photos();
 
-    const tasks: UploadTask[] = optimized.map((entry) => ({
-      variant: entry.variant,
-      blob: entry.blob,
-      widthPx: entry.widthPx,
-      heightPx: entry.heightPx,
-      url: this.uploadUrl(ticket.uploads[entry.variant].url),
-    }));
-
-    await this.sendPhoto(tasks, ticket.contentType, (percent) => {
-      this.progress.set(percent);
-    });
-
-    const body = {
-      captures: [
-        {
-          captureId: ticket.captureId,
-          slot: 0,
-          variants: optimized.map((entry) => ({
-            variant: entry.variant,
-            widthPx: entry.widthPx,
-            heightPx: entry.heightPx,
-          })),
-        },
-      ],
-    };
-
-    await firstValueFrom(
-      this.http.post<AttachedPhotos>(
-        `${this.apiBaseUrl}/events/${this.eventId()}/items/${itemId}/photos`,
-        body,
-      ),
-    );
-
-    // Ya está adjunta: el staging lo borró el borde y no hay nada que descartar.
-    this.capture.set(null);
-  }
-
-  /** El ticket vivo si aún sirve; si no, uno nuevo. */
-  private async ensureTicket(): Promise<CaptureTicket> {
-    const current = this.capture();
-    if (current !== null && Date.parse(current.expiresAt) - Date.now() > TICKET_MARGIN_MS) {
-      return current;
-    }
-
-    const contentType = this.uploadContentType();
-    const ticket = await firstValueFrom(
-      this.http.post<CaptureTicket>(`${this.apiBaseUrl}/events/${this.eventId()}/captures`, {
-        contentType,
-      }),
-    );
-
-    this.capture.set(ticket);
-    return ticket;
-  }
-
-  /** El tipo que el codificador produjo, o su tipo por defecto si el navegador no lo declara. */
-  private uploadContentType(): ItemPhotoVariantContentType {
-    const type = this.optimized()[0]?.blob.type ?? '';
-    const accepted = (ITEM_PHOTO_VARIANT_CONTENT_TYPES as readonly string[]).includes(type);
-
-    return accepted ? (type as ItemPhotoVariantContentType) : ITEM_PHOTO_ENCODING.type;
-  }
-
-  /** Descarta el staging de una captura que no se va a adjuntar. Mejor esfuerzo y sin ruido. */
-  private discardCapture(): void {
-    const ticket = this.capture();
-    if (ticket === null) {
+    // Un reintento que solo publica no reenvía bytes que ya están en el artículo: las capturas
+    // consumidas dejaron de existir en el staging y volver a adjuntarlas fallaría con
+    // `capture_incomplete`.
+    if (photos.every((photo) => photo.prepared?.attached === true)) {
       return;
     }
 
-    this.capture.set(null);
-    this.http
-      .delete(`${this.apiBaseUrl}/events/${this.eventId()}/captures/${ticket.captureId}`)
-      .subscribe({ error: () => undefined });
+    const uploads: PendingPhotoUpload[] = [];
+
+    for (const [slot, photo] of photos.entries()) {
+      if (photo.prepared === null) {
+        throw new Error('photo-not-ready');
+      }
+
+      uploads.push({
+        optimized: photo.prepared.optimized,
+        slot,
+        ticket: photo.prepared.ticket,
+      });
+    }
+
+    await this.pipeline.attach({
+      eventId: this.eventId(),
+      itemId,
+      photos: uploads,
+      onProgress: (percent) => {
+        this.progress.set(percent);
+      },
+    });
+
+    this.prepared.update((current) => {
+      const next = new Map<File, PreparedPhoto>();
+      for (const [file, entry] of current) {
+        next.set(file, { ...entry, attached: true });
+      }
+      return next;
+    });
   }
 
   /** Construye el cuerpo o deja el mensaje de la ficha. `null` significa «no envíes». */
@@ -668,45 +650,49 @@ export class ItemFormComponent implements OnDestroy {
    * Vista previa de la **mediana**, que es el tamaño que se ve en la mayoría de los casos. Se pinta
    * desde el blob optimizado, no desde la original: lo que el usuario ve es lo que se guarda.
    */
-  private replacePreview(optimized: readonly OptimizedPhoto[]): void {
-    const medium =
-      optimized.find((entry) => entry.variant === 'medium') ??
-      optimized.find((entry) => entry.variant === ITEM_PHOTO_VARIANTS[0]);
-
-    if (this.objectUrl !== null) {
-      URL.revokeObjectURL(this.objectUrl);
-    }
+  private previewFor(file: File, optimized: readonly OptimizedPhoto[]): string | null {
+    const medium = optimized.find((entry) => entry.variant === 'medium') ?? optimized[0];
 
     if (medium === undefined) {
-      this.objectUrl = null;
-      this.preview.set(null);
-      return;
+      return null;
+    }
+
+    const previous = this.previews.get(file);
+    if (previous !== undefined) {
+      URL.revokeObjectURL(previous);
+      this.previews.delete(file);
     }
 
     try {
-      this.objectUrl = URL.createObjectURL(medium.blob);
-      this.preview.set(this.objectUrl);
+      const url = URL.createObjectURL(medium.blob);
+      this.previews.set(file, url);
+      return url;
     } catch {
       // Sin vista previa la captura sigue sirviendo: la foto ya está optimizada.
-      this.objectUrl = null;
-      this.preview.set(null);
+      return null;
     }
+  }
+
+  /** Una llave estable por archivo, para que reordenar no recree la tira entera. */
+  private keyOf(file: File): string {
+    const existing = this.keys.get(file);
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    const key = `photo-${String(this.nextKey)}`;
+    this.nextKey += 1;
+    this.keys.set(file, key);
+    return key;
   }
 
   private clearPhoto(): void {
-    this.discardCapture();
-    this.optimized.set([]);
-    this.photo.set(null);
-    this.sizes.set([]);
-    this.releasePreview();
-  }
+    this.prepared.set(new Map());
 
-  private releasePreview(): void {
-    if (this.objectUrl !== null) {
-      URL.revokeObjectURL(this.objectUrl);
-      this.objectUrl = null;
+    for (const url of this.previews.values()) {
+      URL.revokeObjectURL(url);
     }
-    this.preview.set(null);
+    this.previews.clear();
   }
 
   private reset(): void {
@@ -727,12 +713,15 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Salir del formulario no termina la captura (corte D13): la foto sigue en la sesión y volver al
-   * panel la reutiliza. Solo se descartan el staging y la vista previa, que son de esta instancia.
+   * Salir del formulario no termina la captura (corte D13): las fotos siguen en la sesión y volver al
+   * panel las re-prepara. Solo se descartan los tickets y las vistas previas, que son de esta
+   * instancia.
    */
   ngOnDestroy(): void {
-    this.discardCapture();
-    this.releasePreview();
+    for (const entry of this.prepared().values()) {
+      this.pipeline.discardTicket(this.eventId(), entry.ticket.captureId);
+    }
+    this.clearPhoto();
   }
 }
 

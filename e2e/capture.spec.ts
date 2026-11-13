@@ -156,7 +156,7 @@ test('a co-device captures an article and only its event can read the photo', as
   expect(item.eventId).toBe(own.event.id);
   expect(item.title).toBe('Bicicleta');
   expect(item.weightKg).toBe(12.5);
-  expect(item.photo).toBeNull();
+  expect(item.photos).toEqual([]);
 
   // 2. La lista del evento lo devuelve.
   const listResponse = await request.get(`${BACKEND_URL}/events/${own.event.id}/items`, {
@@ -318,9 +318,9 @@ test('a co-device captures an article and only its event can read the photo', as
   });
   const afterList = (await afterRejections.json()) as ItemList;
   const [stored] = afterList.items.filter((entry) => entry.id === item.id);
-  expect(stored?.photo?.sizes.large).toEqual({ widthPx: 1_440, heightPx: 960 });
-  expect(stored?.photo?.sizes.medium).toEqual({ widthPx: 768, heightPx: 512 });
-  expect(stored?.photo?.sizes.thumb).toEqual({ widthPx: 320, heightPx: 213 });
+  expect(stored?.photos[0]?.sizes.large).toEqual({ widthPx: 1_440, heightPx: 960 });
+  expect(stored?.photos[0]?.sizes.medium).toEqual({ widthPx: 768, heightPx: 512 });
+  expect(stored?.photos[0]?.sizes.thumb).toEqual({ widthPx: 320, heightPx: 213 });
 
   // 8. La base guarda el evento, la foto y sus tres variantes, y ningún token en claro.
   const client = new Client({ connectionString: testDatabaseUrl() });
@@ -391,18 +391,18 @@ test('a co-device opens the link and captures the first article from the browser
   expect(stored).not.toBeNull();
   expect(page.url()).not.toContain(own.invitation.token);
 
-  // 2. La captura: foto por el input de archivo —optimizada en el dispositivo— y ficha mínima.
+  // 2. La captura: la foto que entró por la barra ya está optimizada en el dispositivo y la ficha es
+  //    mínima. Desde 3e el input del panel **añade** a la tira, así que no se elige otra aquí: el
+  //    caso de una sola foto es el que demuestra la regresión que importa.
   await page.getByTestId('item-title-input').fill('Mesa de comedor');
   await page.getByTestId('item-weight-input').fill('35');
-  await page.setInputFiles('[data-testid="item-photo-input"]', {
-    name: 'mesa.png',
-    mimeType: 'image/png',
-    buffer: PNG,
-  });
 
-  await expect(page.getByTestId('item-photo-preview')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-preview')).toBeVisible();
   await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
   await expect(page.getByTestId('item-photo-size-large')).toBeVisible();
+  // Con una sola foto no hay controles de orden: una permutación de una foto no es un acto (3e).
+  await expect(page.getByTestId('photo-gallery-down-0')).toHaveCount(0);
+  await expect(page.getByTestId('photo-gallery-up-0')).toHaveCount(0);
 
   // 3. El botón dice cuánto falta: la escritura directa se retrasa para que el progreso sea visible.
   await page.route('**/__fake-r2/**', async (route) => {
@@ -466,17 +466,19 @@ test('the welcome screen starts the capture and the bar keeps it while a photo i
 
   await expect(page).toHaveURL(/\/captura$/);
   await expect(page.getByTestId('shell-nav-capture')).toHaveAttribute('href', '/captura');
-  await expect(page.getByTestId('item-photo-preview')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-preview')).toBeVisible();
   await expect(page.getByTestId('item-photo-sizes')).toBeVisible();
-  // El panel nunca se abre vacío: el control interno siempre es «Repetir la foto».
-  await expect(page.getByTestId('item-photo-label')).toHaveText('Repetir la foto');
+  // El panel nunca se abre vacío: la tira tiene sus dos entradas y la portada ya marcada.
+  await expect(page.getByTestId('item-photo-label')).toHaveText('Tomar foto');
+  await expect(page.getByTestId('photo-gallery-library-label')).toHaveText('Elegir de la galería');
+  await expect(page.getByTestId('photo-gallery-cover')).toBeVisible();
 
   // 4. Salir y volver reutiliza la foto de la sesión de captura.
   await page.getByTestId('shell-nav-captured').click();
   await expect(page).toHaveURL(/\/capturados$/);
   await page.getByTestId('shell-nav-capture').click();
   await expect(page).toHaveURL(/\/captura$/);
-  await expect(page.getByTestId('item-photo-preview')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-preview')).toBeVisible();
 
   // 5. Guardar termina la captura y navega solo a `Capturados`: `Captura` se deshabilita y pedir el
   //    panel otra vez vuelve a la bienvenida, porque la sesión de foto ya no existe.

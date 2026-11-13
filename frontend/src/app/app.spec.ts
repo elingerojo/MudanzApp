@@ -107,7 +107,9 @@ describe('App with session', () => {
 
   it('enables Captura while a photo is in the capture session', () => {
     const fixture = render('/inicio');
-    TestBed.inject(PhotoInboxStore).stage(new File(['foto'], 'foto.png', { type: 'image/png' }));
+    TestBed.inject(PhotoInboxStore).addFiles([
+      new File(['foto'], 'foto.png', { type: 'image/png' }),
+    ]);
     fixture.detectChanges();
 
     const capture = navItem(fixture, 'shell-nav-capture');
@@ -209,7 +211,7 @@ describe('App with session', () => {
     input.dispatchEvent(new Event('change'));
 
     expect(navigate).not.toHaveBeenCalled();
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
+    expect(TestBed.inject(PhotoInboxStore).peek()).toEqual([]);
   });
 
   it('stages the captured photo, opens the panel and enables Captura', () => {
@@ -223,7 +225,7 @@ describe('App with session', () => {
     fixture.detectChanges();
 
     expect(navigate).toHaveBeenCalledWith('/captura');
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBe(file);
+    expect(TestBed.inject(PhotoInboxStore).peek()).toEqual([file]);
     expect(navItem(fixture, 'shell-nav-capture')?.getAttribute('aria-disabled')).toBeNull();
   });
 });

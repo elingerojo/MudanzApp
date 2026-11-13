@@ -11,19 +11,21 @@ import {
 } from './item.js';
 
 /**
- * Contrato del ticket de captura y de la adjunción de la foto al artículo (ciclo 4g,
- * `direct-upload`).
+ * Contrato del ticket de captura, de la adjunción de la foto al artículo (ciclo 4g, `direct-upload`)
+ * y del orden de la galería privada (ciclo 3e, `gallery`).
  *
  * El navegador no manda bytes al backend: pide un **ticket** con una URL prefirmada por variante, sube
  * `thumb`, `medium` y `large` al almacén y, cuando las tres existen, **adjunta** la captura al
  * artículo. El borde verifica cada objeto con `HEAD`, lo copia a su clave definitiva y escribe las
  * filas; el objeto de staging se borra.
  *
- * Tres reglas que este módulo no negocia:
+ * Cuatro reglas que este módulo no negocia:
  * - **nada se escribe en el almacén antes de que el humano decida**; el ticket solo firma una
  *   intención y no toca el bucket;
  * - una captura es **una** fotografía con sus tres variantes, así que la galería de 3e es «varias
  *   capturas» y no un cambio de contrato;
+ * - el **orden es el arreglo**: no se publica `position`, porque un segundo campo que dice lo mismo
+ *   que el índice es una fuente duplicada;
  * - las dimensiones las declara el cliente, igual que antes de 4g, y el borde las acota con
  *   `ITEM_PHOTO_SIZES`; el peso real lo pone el `HEAD`, no el cliente.
  */
@@ -159,11 +161,30 @@ export type CaptureAttach = z.infer<typeof attachPhotosSchema>['captures'][numbe
 export type AttachPhotosRequest = z.infer<typeof attachPhotosSchema>;
 
 /**
- * Respuesta de la adjunción: las fotos ya con su dirección estable, en el orden recibido.
+ * Respuesta de la adjunción y del nuevo orden: las fotos ya con su dirección estable, en el orden
+ * recibido.
  *
- * Es un arreglo desde el primer día aunque hoy se mande una captura: la galería de 3e añade
- * elementos y no cambia la forma de la respuesta.
+ * Es la misma forma en las dos rutas —adjuntar y reordenar—, porque ambas devuelven la galería tal
+ * como quedó y una segunda forma para el mismo hecho sería una fuente duplicada. Es un arreglo desde
+ * el primer día aunque la adjunción mande una sola captura.
  */
 export interface AttachedPhotos {
   readonly photos: readonly ItemPhoto[];
 }
+
+/**
+ * `PUT /events/:eventId/items/:itemId/photos/order`: la galería completa, ya permutada.
+ *
+ * Exige **dos fotos o más**: una permutación de una sola foto es un no-op y se rechaza en la frontera
+ * (`plan-ciclo-3e` §4). Los identificadores no se repiten y son exactamente los del artículo; un
+ * conjunto que ya no coincide responde `photo_order_mismatch` y no reordena nada.
+ */
+export const photoOrderSchema = z.strictObject({
+  photoIds: z
+    .array(z.uuid())
+    .min(2)
+    .max(CAPTURE_LIMITS.photos)
+    .refine((ids) => new Set(ids).size === ids.length, { message: 'a photo appears twice' }),
+});
+
+export type PhotoOrderRequest = z.infer<typeof photoOrderSchema>;

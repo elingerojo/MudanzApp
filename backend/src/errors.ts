@@ -104,6 +104,15 @@ export const ERROR_CATALOG = {
     status: 409,
     message: 'The capture is missing one of its variants',
   },
+  /**
+   * El conjunto de fotos enviado para reordenar ya no coincide con el del artículo (ciclo 3e): otro
+   * dispositivo añadió o borró una foto. Es honesto y no se «repara» reordenando lo que haya.
+   */
+  photo_order_mismatch: {
+    code: 'photo_order_mismatch',
+    status: 409,
+    message: 'The photo order no longer matches the item gallery',
+  },
   r2_mode_invalid: {
     code: 'r2_mode_invalid',
     status: 500,

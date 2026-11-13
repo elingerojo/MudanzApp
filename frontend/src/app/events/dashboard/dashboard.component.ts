@@ -15,6 +15,7 @@ import {
   type CartRequestItemState,
   type CartRequestSummary,
   type InvitationSummary,
+  type ItemPhoto,
   type ItemSummary,
   type SessionSummary,
 } from '@mudanzapp/shared';
@@ -196,6 +197,11 @@ export class DashboardComponent {
   /** Estado visible del artículo y su color: la misma regla que `Capturados`. */
   protected readonly statusLabel = itemStatusLabel;
   protected readonly statusClasses = itemStatusClasses;
+
+  /** La portada del artículo: el índice 0 de la galería, o `null` mientras no tenga fotos. */
+  protected coverOf(item: ItemSummary): ItemPhoto | null {
+    return item.photos[0] ?? null;
+  }
 
   /** Sesión cuyo botón ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingRevokeId = signal<string | null>(null);

@@ -4,15 +4,20 @@ import { PRICE_LIMITS } from './price.js';
 
 /**
  * Contrato del corte de captura del ciclo 3a (`capture`, `resumen-funcional` §4), del corte de
- * optimización del ciclo 3c-optimizar y de la edición del ciclo 4b (`item-edit`).
+ * optimización del ciclo 3c-optimizar, de la galería privada del ciclo 3e y de la edición del ciclo
+ * 4b (`item-edit`).
  *
  * Un artículo es la ficha mínima que un co-dispositivo documenta desde el teléfono: título, nota y
- * medidas opcionales. La foto es una capacidad aparte y su lectura exige sesión del evento en este
+ * medidas opcionales. Las fotos son una capacidad aparte y su lectura exige sesión del evento en este
  * corte, así que el contrato **no** publica una URL: entrega el identificador con el que el cliente
- * la pide (`decisiones` §26 revisará la lectura pública en `publish`).
+ * las pide (`decisiones` §26 revisará la lectura pública en `publish`).
  *
- * Desde 3c-optimizar la foto se guarda en **tres tamaños estándar** y el peso no viaja en ningún
+ * Desde 3c-optimizar cada foto se guarda en **tres tamaños estándar** y el peso no viaja en ningún
  * contrato: la optimización ocurre en el dispositivo antes de la primera petición.
+ *
+ * Desde 3e la foto deja de ser una capacidad singular: el artículo publica una **galería ordenada** y
+ * el índice 0 es la portada, la que abre la ficha y alimenta el borrador. El orden no se publica como
+ * campo aparte: el arreglo **es** el orden (`plan-ciclo-3e` §4).
  */
 
 /**
@@ -168,10 +173,10 @@ export interface ItemPhoto {
 /**
  * Artículo tal como lo lee la superficie privada.
  *
- * `photo` es `null` mientras no se subió. `publishedSlug` es `null` mientras el artículo no está
- * publicado y, cuando existe, es la dirección pública con la que se comparte: se lee de
- * `app.listing`, no de la memoria de la visita, así que recargar no lo pierde
- * (`plan-ciclo-3d` §5).
+ * `photos` es la galería **ordenada** desde 3e: vacía mientras no se subió ninguna y, cuando existe,
+ * el índice 0 es la portada. `publishedSlug` es `null` mientras el artículo no está publicado y,
+ * cuando existe, es la dirección pública con la que se comparte: se lee de `app.listing`, no de la
+ * memoria de la visita, así que recargar no lo pierde (`plan-ciclo-3d` §5).
  *
  * Desde F3 un artículo despublicado **conserva** su `publishedSlug` —la URL no se destruye— y
  * publica además `unpublishedAt`. La UI distingue `publicado` de `despublicado` con los dos hechos:
@@ -190,7 +195,8 @@ export interface ItemSummary {
   readonly priceCents: number | null;
   /** Instante de la venta; `null` mientras el artículo no está vendido (ciclo 4b, §40). */
   readonly soldAt: string | null;
-  readonly photo: ItemPhoto | null;
+  /** Galería ordenada; el índice 0 es la portada y el arreglo vacío es «sin foto». */
+  readonly photos: readonly ItemPhoto[];
   readonly publishedSlug: string | null;
   /** Instante de la última despublicación; `null` mientras la ficha está a la vista o nunca se publicó. */
   readonly unpublishedAt: string | null;

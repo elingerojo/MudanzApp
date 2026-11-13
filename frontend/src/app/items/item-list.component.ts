@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { ItemSummary } from '@mudanzapp/shared';
+import type { ItemPhoto, ItemSummary } from '@mudanzapp/shared';
 
 import { EventContextComponent } from '../events/event-context.component';
 import { EventItemsStore } from '../events/event-items.store';
@@ -42,6 +42,11 @@ export class ItemListComponent {
 
   /** Artículo cuyo botón de venta ya se pulsó una vez y espera la confirmación. */
   protected readonly confirmingSoldId = signal<string | null>(null);
+
+  /** La portada de la galería: el índice 0, o `null` mientras el artículo no tenga fotos. */
+  protected coverOf(item: ItemSummary): ItemPhoto | null {
+    return item.photos[0] ?? null;
+  }
 
   /** Enlace público del artículo, o `null` mientras no esté publicado o esté despublicado. */
   protected linkFor(item: ItemSummary): string | null {

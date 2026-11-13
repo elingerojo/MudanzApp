@@ -30,6 +30,8 @@ export const INVITATION_INVALID = 'invitation_invalid';
 export const ADMIN_UNAUTHORIZED = 'admin_unauthorized';
 export const ADMIN_NOT_CONFIGURED = 'admin_not_configured';
 export const PHOTO_INVALID = 'photo_invalid';
+/** El conjunto de fotos ya no coincide con la galería (ciclo 3e): se recarga, no se repara. */
+export const PHOTO_ORDER_MISMATCH = 'photo_order_mismatch';
 export const ITEM_NOT_FOUND = 'item_not_found';
 /** Un artículo vendido no se borra: la venta es su evidencia (ciclo 4c-4, decisión §40). */
 export const ITEM_SOLD = 'item_sold';

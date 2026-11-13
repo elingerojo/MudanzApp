@@ -63,7 +63,12 @@ export async function uploadCaptureVariant(
   return response.status();
 }
 
-/** Adjunta la captura al artículo y devuelve el identificador de la foto. */
+/**
+ * Adjunta la captura al artículo y devuelve el identificador de la foto.
+ *
+ * `slot` es la `position` que el servidor escribirá: desde 3e las pruebas arman galerías adjuntando
+ * capturas en slots distintos, que es lo que el navegador hace con el orden de la tira.
+ */
 export async function attachCapture(
   request: APIRequestContext,
   input: {
@@ -73,6 +78,7 @@ export async function attachCapture(
     readonly body: Buffer;
     readonly variants?: readonly CaptureVariant[];
     readonly contentType?: string;
+    readonly slot?: number;
   },
 ): Promise<string> {
   const variants = input.variants ?? CAPTURE_VARIANTS;
@@ -93,7 +99,7 @@ export async function attachCapture(
     {
       headers: { ...bearer(input.token), 'Content-Type': 'application/json' },
       data: {
-        captures: [{ captureId: ticket.captureId, slot: 0, variants }],
+        captures: [{ captureId: ticket.captureId, slot: input.slot ?? 0, variants }],
       },
     },
   );

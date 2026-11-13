@@ -2,6 +2,7 @@ import {
   attachPhotosSchema,
   captureObjectKey,
   createItemSchema,
+  photoOrderSchema,
   photoVariantSchema,
   updateItemSchema,
   type AttachedPhotos,
@@ -30,6 +31,7 @@ import {
   findPhotoVariants,
   insertItem,
   listItemsForEvent,
+  reorderItemPhotos,
   updateItem,
   upsertItemPhoto,
   upsertPhotoVariant,
@@ -125,13 +127,12 @@ export function createItemsRouter(deps: IdentityDeps): Router {
         draft: normalizeItemDraft(input),
       });
 
-      // Un artículo recién creado no tiene foto ni fila en `app.listing`: todos esos hechos son `null`
-      // y la pestaña `Capturados` lo pinta como `en proceso` hasta que se publique.
+      // Un artículo recién creado no tiene galería ni fila en `app.listing`: la galería vacía es
+      // «sin foto» y la pestaña `Capturados` lo pinta como `en proceso` hasta que se publique.
       const payload: CreatedItem = {
         item: toItemSummary({
           ...item,
-          photoId: null,
-          photoVariants: null,
+          photos: [],
           publishedSlug: null,
           unpublishedAt: null,
         }),
@@ -361,6 +362,57 @@ export function createItemsRouter(deps: IdentityDeps): Router {
         }
 
         const payload: AttachedPhotos = { photos };
+        response.status(200).json(payload);
+      };
+
+      void handle().catch(next);
+    },
+  );
+
+  /**
+   * `PUT /events/:eventId/items/:itemId/photos/order` — la permutación de la galería (ciclo 3e).
+   *
+   * El cuerpo trae la galería **completa** ya permutada: dos fotos o más, sin repetir y exactamente
+   * las del artículo. El orden es el arreglo; `position` no viaja. La escritura corre en una
+   * transacción de dos pasadas en el store, porque `UNIQUE (item_id, position)` se comprueba por fila.
+   *
+   * Un conjunto que ya no coincide —otro dispositivo añadió o borró una foto— responde
+   * `photo_order_mismatch` y no reordena nada: el cliente recarga en vez de perder una foto. Un
+   * artículo vendido responde `item_sold`: su galería está congelada.
+   */
+  router.put(
+    '/events/:eventId/items/:itemId/photos/order',
+    requireSession,
+    (request, response, next) => {
+      const handle = async (): Promise<void> => {
+        const { eventId, itemId } = parseOrThrow(itemParamsSchema, request.params);
+        const identity = identityOf(request);
+
+        if (!(await canAct(identity, eventId))) {
+          throw new AppError('not_found');
+        }
+
+        const item = await findItem(deps.database, eventId, itemId);
+        if (item === null) {
+          throw new AppError('item_not_found');
+        }
+
+        if (item.soldAt !== null) {
+          throw new AppError('item_sold');
+        }
+
+        const { photoIds } = parseOrThrow(photoOrderSchema, request.body);
+        const applied = await reorderItemPhotos(deps.database, { itemId, photoIds });
+        if (!applied) {
+          throw new AppError('photo_order_mismatch');
+        }
+
+        const fresh = await findItem(deps.database, eventId, itemId);
+        if (fresh === null) {
+          throw new AppError('item_not_found');
+        }
+
+        const payload: AttachedPhotos = { photos: toItemSummary(fresh).photos };
         response.status(200).json(payload);
       };
 

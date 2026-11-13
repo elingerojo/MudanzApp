@@ -167,7 +167,8 @@ export function toItemPhoto(photoId: string, variants: readonly PhotoVariantReco
 }
 
 /**
- * El artículo con su foto opcional. `photo` es `null` mientras no se subió: el contrato no inventa
+ * El artículo con su galería ordenada. El arreglo se publica tal como llegó de la lectura —el orden
+ * es el de `position`, no el que el presentador elija— y vacío es «sin foto»: el contrato no inventa
  * una URL ni un objeto vacío, porque en este corte la lectura de la foto exige sesión del evento.
  *
  * `publishedSlug` viene de `app.listing` y no de la memoria de la visita: es lo que permite que la
@@ -185,7 +186,7 @@ export function toItemSummary(item: ItemWithPhotoRecord): ItemSummary {
     weightKg: item.weightKg,
     priceCents: item.priceCents,
     soldAt: item.soldAt?.toISOString() ?? null,
-    photo: item.photoId === null ? null : { id: item.photoId, sizes: sizesOf(item.photoVariants) },
+    photos: item.photos.map((photo) => ({ id: photo.id, sizes: sizesOf(photo.variants) })),
     publishedSlug: item.publishedSlug,
     unpublishedAt: item.unpublishedAt?.toISOString() ?? null,
     createdAt: item.createdAt.toISOString(),

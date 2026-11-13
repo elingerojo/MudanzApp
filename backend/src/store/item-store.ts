@@ -5,7 +5,7 @@ import type {
   PhotoSize,
 } from '@mudanzapp/shared';
 
-import type { Queryable } from '../db.js';
+import type { Database, Queryable } from '../db.js';
 import type { ItemDraft, ItemUpdate } from '../domain/item.js';
 
 /**
@@ -42,14 +42,22 @@ export type ItemRecord = {
 /** Las variantes presentes, por nombre: es lo que el presentador compone en los tres tamaños. */
 export type PhotoVariantSizes = Partial<Record<ItemPhotoVariant, PhotoSize>>;
 
+/** Una foto de la galería: su dirección estable y las variantes que existen, o `null`. */
+export type PhotoGalleryEntry = {
+  readonly id: string;
+  readonly variants: PhotoVariantSizes | null;
+};
+
 /**
- * El artículo con su foto de posición 0 —o con `photoId` y sus variantes en `null`—, el `slug` de su
- * fila en `app.listing` —`null` mientras no está publicado— y el instante de su despublicación, `null`
+ * El artículo con su galería **ordenada** —el índice 0 es la portada—, el `slug` de su fila en
+ * `app.listing` —`null` mientras no está publicado— y el instante de su despublicación, `null`
  * mientras la ficha está a la vista (F3).
+ *
+ * Desde 3e la lectura trae todas las fotos del artículo en una sola consulta: el orden es el de
+ * `app.item_photo.position` y no se recalcula en el presentador.
  */
 export type ItemWithPhotoRecord = ItemRecord & {
-  readonly photoId: string | null;
-  readonly photoVariants: PhotoVariantSizes | null;
+  readonly photos: readonly PhotoGalleryEntry[];
   readonly publishedSlug: string | null;
   readonly unpublishedAt: Date | null;
 };
@@ -82,8 +90,6 @@ const ITEM_COLUMNS =
   'l.sold_at AS "soldAt", i.created_at AS "createdAt", ' +
   'l.slug AS "publishedSlug", l.unpublished_at AS "unpublishedAt"';
 
-const PHOTO_JOIN = 'LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.position = 0';
-
 /**
  * El estado publicado se lee de `app.listing`, no de la memoria de la visita: publicar inserta la fila
  * y recargar la lista lo conserva (`plan-ciclo-3d` §5). Un artículo sin fila está `en proceso`.
@@ -91,15 +97,18 @@ const PHOTO_JOIN = 'LEFT JOIN app.item_photo p ON p.item_id = i.id AND p.positio
 const LISTING_JOIN = 'LEFT JOIN app.listing l ON l.item_id = i.id';
 
 /**
- * Las variantes se agregan en la misma consulta para no hacer una lectura por artículo ni por foto
- * (`plan-ciclo-3c-optimizar` §5): un artículo sin filas devuelve `NULL`, que el presentador traduce a
- * los tres tamaños en `null`.
+ * La galería completa en una sola lectura (3e): un arreglo JSON por artículo, ordenado por
+ * `position`, con las variantes de cada foto agregadas en el mismo viaje. Sin filas devuelve `[]`, y
+ * el presentador lo publica como «sin foto»: el orden se lee, no se recalcula.
  */
-const PHOTO_COLUMNS =
-  'p.id AS "photoId", ' +
-  '(SELECT jsonb_object_agg(v.variant, ' +
+const PHOTO_GALLERY =
+  '(SELECT COALESCE(jsonb_agg(jsonb_build_object(' +
+  "'id', p.id, " +
+  "'variants', (SELECT jsonb_object_agg(v.variant, " +
   "jsonb_build_object('widthPx', v.width_px, 'heightPx', v.height_px)) " +
-  '   FROM app.item_photo_variant v WHERE v.photo_id = p.id) AS "photoVariants"';
+  '   FROM app.item_photo_variant v WHERE v.photo_id = p.id)' +
+  ") ORDER BY p.position), '[]'::jsonb) " +
+  '   FROM app.item_photo p WHERE p.item_id = i.id) AS "photos"';
 
 const PHOTO_RETURNING =
   'id, item_id AS "itemId", object_key AS "objectKey", ' +
@@ -150,9 +159,8 @@ export async function findItem(
   itemId: string,
 ): Promise<ItemWithPhotoRecord | null> {
   const { rows } = await database.query<ItemWithPhotoRecord>(
-    `SELECT ${ITEM_COLUMNS}, ${PHOTO_COLUMNS}
+    `SELECT ${ITEM_COLUMNS}, ${PHOTO_GALLERY}
        FROM app.item i
-       ${PHOTO_JOIN}
        ${LISTING_JOIN}
       WHERE i.event_id = $1
         AND i.id = $2`,
@@ -235,9 +243,8 @@ export async function listItemsForEvent(
   eventId: string,
 ): Promise<ItemWithPhotoRecord[]> {
   const { rows } = await database.query<ItemWithPhotoRecord>(
-    `SELECT ${ITEM_COLUMNS}, ${PHOTO_COLUMNS}
+    `SELECT ${ITEM_COLUMNS}, ${PHOTO_GALLERY}
        FROM app.item i
-       ${PHOTO_JOIN}
        ${LISTING_JOIN}
       WHERE i.event_id = $1
       ORDER BY i.created_at DESC, i.id DESC`,
@@ -251,8 +258,8 @@ export async function listItemsForEvent(
  * Escribe la foto del artículo —el tamaño `large`— en las columnas heredadas.
  *
  * `position` es la posición de la foto en el artículo y el par `(item_id, position)` es único, así
- * que reemplazar la foto de una posición no acumula filas: la 0 es la principal y la galería de 3e
- * usa las siguientes sin migrar (ciclo 4g, `direct-upload`).
+ * que reemplazar la foto de una posición no acumula filas: la 0 es la portada y la galería de 3e usa
+ * las siguientes sin migrar (ciclo 4g, `direct-upload`).
  *
  * `byte_size` sigue siendo obligatoria y guarda el peso del tamaño `large`: desde 4g lo dicta el
  * `HEAD` del almacén, no el cliente.
@@ -342,6 +349,66 @@ export async function findPhotoVariants(
   );
 
   return rows;
+}
+
+/**
+ * La permutación de la galería (`plan-ciclo-3e` §4): el orden nuevo, ya aplicado, o `false` cuando el
+ * conjunto enviado ya no coincide con el del artículo.
+ *
+ * Corre en **una transacción y en dos pasadas**: primero todas las filas del artículo se desplazan a
+ * `position + 100`, después cada una a su índice destino. El desplazamiento es necesario porque
+ * `UNIQUE (item_id, position)` se comprueba por fila y `CHECK (position >= 0)` prohíbe los negativos;
+ * con el esquema vigente el tope real es `position 5`, así que `100..105` no puede chocar.
+ *
+ * No «repara» silenciosamente un conjunto distinto: si la lista enviada no es exactamente la del
+ * artículo —otro dispositivo añadió o borró una foto—, devuelve `false` sin escribir nada.
+ */
+export async function reorderItemPhotos(
+  database: Database,
+  input: {
+    readonly itemId: string;
+    readonly photoIds: readonly string[];
+  },
+): Promise<boolean> {
+  return database.transaction(async (client) => {
+    const { rows } = await client.query<{ readonly id: string }>(
+      `SELECT id
+         FROM app.item_photo
+        WHERE item_id = $1
+        ORDER BY position`,
+      [input.itemId],
+    );
+
+    const current = new Set(rows.map((row) => row.id));
+    if (current.size !== input.photoIds.length) {
+      return false;
+    }
+
+    if (!input.photoIds.every((photoId) => current.has(photoId))) {
+      return false;
+    }
+
+    // Primera pasada: todas fuera del rango que el segundo paso va a reutilizar.
+    await client.query(
+      `UPDATE app.item_photo
+          SET position = position + 100
+        WHERE item_id = $1`,
+      [input.itemId],
+    );
+
+    // Segunda pasada: cada foto a su índice destino, sin que ninguna quede fuera.
+    for (const [index, photoId] of input.photoIds.entries()) {
+      await client.query(
+        `UPDATE app.item_photo
+            SET position = $2
+          WHERE item_id = $1
+            AND id = $3`,
+        [input.itemId, index, photoId],
+      );
+    }
+
+    return true;
+  });
 }
 
 /**

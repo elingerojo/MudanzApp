@@ -28,7 +28,7 @@ const PENDING: ItemSummary = {
   weightKg: 35,
   priceCents: null,
   soldAt: null,
-  photo: { id: 'photo-1', sizes: { thumb: null, medium: null, large: null } },
+  photos: [{ id: 'photo-1', sizes: { thumb: null, medium: null, large: null } }],
   publishedSlug: null,
   unpublishedAt: null,
   createdAt: '2026-10-31T00:00:00.000Z',
@@ -266,7 +266,7 @@ describe('ItemListComponent', () => {
   });
 
   it('explains a missing photo on the row that cannot be published', async () => {
-    const fixture = await load([{ ...PENDING, photo: null }]);
+    const fixture = await load([{ ...PENDING, photos: [] }]);
 
     expect(
       fixture.nativeElement.querySelector('[data-testid="item-photo-pending"]'),

@@ -183,14 +183,15 @@ export class App {
    */
   protected onCameraFile(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const [file] = Array.from(input.files ?? []);
+    const files = Array.from(input.files ?? []);
     input.value = '';
 
-    if (file === undefined) {
+    if (files.length === 0) {
       return;
     }
 
-    this.inbox.stage(file);
+    // La cámara de la barra añade al final de la tira: la primera foto sigue siendo la portada.
+    this.inbox.addFiles(files);
     void this.router.navigateByUrl('/captura');
   }
 }

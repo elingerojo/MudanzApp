@@ -4,6 +4,7 @@ import {
   type CreatedInvitation,
   type CreatedItem,
   type IssuedSession,
+  type ItemSummary,
   type PublicEventIndex,
   type PublicListing,
   type PublishedListing,
@@ -189,4 +190,64 @@ test('a co-device corrects the sheet, sets the price and declares the sale', asy
   } finally {
     await soldContext.close();
   }
+});
+
+/**
+ * Evidencia de la segunda superficie del corte 3e: desde `Editar artículo` se **añaden** fotos y se
+ * corrige el **orden de publicación**. El orden de aquí no reescribe el borrador de la captura.
+ */
+test('the edit page adds a photo and reorders the publication gallery', async ({
+  request,
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'the edit gallery walks the private surface');
+
+  const own = await eventWithSession(request);
+  const article = await publishArticle(
+    request,
+    own.event.id,
+    own.session.sessionToken,
+    'Mesa de jardín',
+  );
+
+  await page.addInitScript(
+    (token) => localStorage.setItem('mudanzapp.session', token),
+    own.session.sessionToken,
+  );
+  await page.goto(`${FRONTEND_URL}/articulos/${article.itemId}`);
+  await expect(page.getByTestId('item-edit-form')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('1 de 6');
+  await expect(page.getByTestId('photo-gallery-down-0')).toHaveCount(0);
+
+  // 1. La edición añade una segunda foto con la misma tubería de la captura.
+  await page.setInputFiles('[data-testid="item-photo-input"]', {
+    name: 'segunda.jpg',
+    mimeType: 'image/jpeg',
+    buffer: JPEG,
+  });
+
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('2 de 6');
+  await expect(page.getByTestId('photo-gallery-down-0')).toBeEnabled();
+
+  const read = async (): Promise<ItemSummary> => {
+    const response = await request.get(
+      `${BACKEND_URL}/events/${own.event.id}/items/${article.itemId}`,
+      { headers: bearer(own.session.sessionToken) },
+    );
+    expect(response.status()).toBe(200);
+    return ((await response.json()) as { item: ItemSummary }).item;
+  };
+
+  await expect.poll(async () => (await read()).photos.length).toBe(2);
+  const added = (await read()).photos[1]?.id ?? '';
+  expect(added).not.toBe('');
+
+  // 2. El orden nuevo se guarda en el servidor y la portada pasa a ser la foto añadida.
+  await page.getByTestId('photo-gallery-down-0').click();
+  await expect.poll(async () => (await read()).photos[0]?.id).toBe(added);
+
+  // Recargar conserva el orden: no es una copia local.
+  await page.reload();
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('2 de 6');
+  expect((await read()).photos[0]?.id).toBe(added);
 });

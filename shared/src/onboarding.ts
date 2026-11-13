@@ -96,6 +96,17 @@ export function photosForLevel(level: OnboardingLevel): number {
   return definitionFor(level).photos;
 }
 
+/**
+ * ¿Se muestran los controles de orden de la galería? Solo con **dos fotos o más**: una permutación de
+ * una sola foto no es un acto, y con la galería vacía tampoco hay nada que ordenar
+ * (`plan-ciclo-3e` §4 y §5).
+ *
+ * La regla es la misma en la captura y en la edición, así que vive aquí y no en cada plantilla.
+ */
+export function orderControlsVisible(count: number): boolean {
+  return Number.isFinite(count) && count >= 2;
+}
+
 export interface OnboardingPromotion {
   readonly draft: PromotionEmphasis;
   readonly retry: PromotionEmphasis;

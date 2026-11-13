@@ -27,6 +27,7 @@ export {
   captureKeyPrefix,
   captureObjectKey,
   captureTicketRequestSchema,
+  photoOrderSchema,
 } from './capture.js';
 export type {
   AttachPhotosRequest,
@@ -36,6 +37,7 @@ export type {
   CaptureTicketRequest,
   CaptureUploadUrl,
   CaptureVariantDims,
+  PhotoOrderRequest,
 } from './capture.js';
 export { EVENT_CARD_LIMITS, EVENT_CARD_SIZES, cardModel, publishedLabel } from './card.js';
 export type { EventCardEntry, EventCardImage, EventCardModel, EventCardThumb } from './card.js';
@@ -101,6 +103,7 @@ export {
   onboardingLevelCopy,
   onboardingLevelFor,
   onboardingLevelSchema,
+  orderControlsVisible,
   photosForLevel,
   promotionFor,
 } from './onboarding.js';

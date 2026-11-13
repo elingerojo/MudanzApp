@@ -22,7 +22,9 @@ describe('requireCaptureSession', () => {
   }
 
   it('lets the panel open when the capture session has a photo', () => {
-    TestBed.inject(PhotoInboxStore).stage(new File(['foto'], 'foto.png', { type: 'image/png' }));
+    TestBed.inject(PhotoInboxStore).addFiles([
+      new File(['foto'], 'foto.png', { type: 'image/png' }),
+    ]);
 
     expect(run()).toBe(true);
   });

@@ -5,6 +5,7 @@ import {
   type CreatedInvitation,
   type CreatedItem,
   type IssuedSession,
+  type ItemSummary,
   type PublicListing,
   type PublishedListing,
 } from '@mudanzapp/shared';
@@ -308,4 +309,172 @@ test('the public listing paints the thumbnail and the medium, and the medium ope
   expect(await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))).toBe(
     'listing-photo-trigger',
   );
+});
+
+/**
+ * Evidencia del corte 3e (`gallery`): el orden de captura es el orden de la galería, el índice 0 es
+ * la portada y la permutación de publicación se guarda con una ruta propia.
+ *
+ * La suite de API comprueba el contrato —orden, persistencia, `photo_order_mismatch` y `item_sold`—
+ * y la de interfaz que la tira reordena y que con una sola foto no hay controles ni petición de orden.
+ */
+test('the private gallery keeps the capture order and a publication permutation', async ({
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'API-level gallery suite runs once');
+
+  const own = await eventWithSession(request, 'Quito', 'Loja');
+  const token = own.session.sessionToken;
+
+  const created = await request.post(`${BACKEND_URL}/events/${own.event.id}/items`, {
+    headers: bearer(token),
+    data: { title: 'Comedor de seis puestos' },
+  });
+  expect(created.status()).toBe(201);
+  const { item } = (await created.json()) as CreatedItem;
+
+  const ids: string[] = [];
+  for (const slot of [0, 1, 2]) {
+    ids.push(
+      await attachCapture(request, {
+        eventId: own.event.id,
+        itemId: item.id,
+        token,
+        body: JPEG,
+        slot,
+      }),
+    );
+  }
+
+  const read = async (): Promise<ItemSummary> => {
+    const response = await request.get(`${BACKEND_URL}/events/${own.event.id}/items/${item.id}`, {
+      headers: bearer(token),
+    });
+    expect(response.status()).toBe(200);
+    return ((await response.json()) as { item: ItemSummary }).item;
+  };
+
+  // 1. La galería se publica en el orden de captura y la portada es la primera.
+  expect((await read()).photos.map((photo) => photo.id)).toEqual(ids);
+
+  // 2. Una permutación válida se aplica y sobrevive a una nueva lectura.
+  const next = [ids[2], ids[0], ids[1]] as string[];
+  const orderResponse = await request.put(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos/order`,
+    { headers: bearer(token), data: { photoIds: next } },
+  );
+  expect(orderResponse.status()).toBe(200);
+  const ordered = (await orderResponse.json()) as { photos: { readonly id: string }[] };
+  expect(ordered.photos.map((photo) => photo.id)).toEqual(next);
+  expect((await read()).photos.map((photo) => photo.id)).toEqual(next);
+
+  // 3. Un conjunto que ya no coincide responde `photo_order_mismatch` y no reordena nada.
+  const mismatch = await request.put(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos/order`,
+    { headers: bearer(token), data: { photoIds: [ids[0], ids[1]] } },
+  );
+  expect(mismatch.status()).toBe(409);
+  await expect(mismatch.json()).resolves.toEqual({ error: 'photo_order_mismatch' });
+  expect((await read()).photos.map((photo) => photo.id)).toEqual(next);
+
+  // 4. Una sola foto no se permuta: la frontera la rechaza.
+  const single = await request.post(`${BACKEND_URL}/events/${own.event.id}/items`, {
+    headers: bearer(token),
+    data: { title: 'Lámpara' },
+  });
+  const singleItem = ((await single.json()) as CreatedItem).item;
+  const singlePhoto = await attachCapture(request, {
+    eventId: own.event.id,
+    itemId: singleItem.id,
+    token,
+    body: JPEG,
+  });
+  const singleOrder = await request.put(
+    `${BACKEND_URL}/events/${own.event.id}/items/${singleItem.id}/photos/order`,
+    { headers: bearer(token), data: { photoIds: [singlePhoto] } },
+  );
+  expect(singleOrder.status()).toBe(400);
+  await expect(singleOrder.json()).resolves.toEqual({ error: 'validation_failed' });
+
+  // 5. Un artículo vendido tiene la galería congelada.
+  const published = await request.post(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/listing`,
+    { headers: bearer(token) },
+  );
+  expect(published.status()).toBe(201);
+
+  const sold = await request.post(`${BACKEND_URL}/events/${own.event.id}/items/${item.id}/sold`, {
+    headers: bearer(token),
+  });
+  expect(sold.status()).toBe(200);
+
+  const frozenOrder = await request.put(
+    `${BACKEND_URL}/events/${own.event.id}/items/${item.id}/photos/order`,
+    { headers: bearer(token), data: { photoIds: [ids[0], ids[1], ids[2]] } },
+  );
+  expect(frozenOrder.status()).toBe(409);
+  await expect(frozenOrder.json()).resolves.toEqual({ error: 'item_sold' });
+});
+
+test('the capture strip reorders two photos and attaches them in that order', async ({
+  page,
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'frontend', 'the strip suite opens the private surface');
+
+  const own = await eventWithSession(request, 'Cali', 'Medellín');
+
+  await page.goto(`/invitacion?token=${encodeURIComponent(own.invitation.token)}`);
+  await page.getByTestId('redeem-submit').click();
+  await expect(page).toHaveURL(/\/inicio$/);
+
+  // La primera foto entra por la cámara de la barra; la segunda, por `Elegir de la galería`.
+  await page.setInputFiles('[data-testid="shell-photo-input"]', {
+    name: 'uno.jpg',
+    mimeType: 'image/jpeg',
+    buffer: JPEG,
+  });
+  await expect(page).toHaveURL(/\/captura$/);
+
+  await page.setInputFiles('[data-testid="item-photo-input"]', [
+    { name: 'dos.jpg', mimeType: 'image/jpeg', buffer: JPEG },
+    { name: 'tres.jpg', mimeType: 'image/jpeg', buffer: JPEG },
+  ]);
+
+  // 1. Contador «n de 6», portada marcada y controles de orden por haber dos o más fotos.
+  await expect(page.getByTestId('photo-gallery-count')).toHaveText('3 de 6');
+  await expect(page.getByTestId('photo-gallery-cover')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-strip')).toBeVisible();
+  await expect(page.getByTestId('photo-gallery-up-0')).toBeDisabled();
+  await expect(page.getByTestId('photo-gallery-down-0')).toBeEnabled();
+
+  // 2. Reordenar durante la captura: la portada pasa a la segunda miniatura.
+  await page.getByTestId('photo-gallery-down-0').click();
+  await expect(
+    page.getByTestId('photo-gallery-item-0').getByTestId('photo-gallery-cover'),
+  ).toHaveCount(1);
+
+  await page.getByTestId('item-title-input').fill('Juego de comedor');
+
+  const attach = page.waitForRequest(
+    (candidate) => candidate.method() === 'POST' && candidate.url().includes('/photos'),
+  );
+  await page.getByTestId('item-form-save-only').click();
+  const attachBody = JSON.parse((await attach).postData() ?? '{}') as {
+    captures: { readonly slot: number }[];
+  };
+
+  // 3. La tira define el `slot` de cada captura: tres fotos, sin compartir posición.
+  expect(attachBody.captures.map((capture) => capture.slot).sort()).toEqual([0, 1, 2]);
+
+  await expect(page).toHaveURL(/\/capturados$/);
+  await expect(page.getByTestId('item-title')).toHaveText('Juego de comedor');
+
+  // 4. El artículo quedó con las tres fotos y la portada es la primera del orden guardado.
+  const list = await request.get(`${BACKEND_URL}/events/${own.event.id}/items`, {
+    headers: bearer(own.session.sessionToken),
+  });
+  const items = ((await list.json()) as { items: readonly ItemSummary[] }).items;
+  const stored = items.find((entry) => entry.title === 'Juego de comedor');
+  expect(stored?.photos).toHaveLength(3);
 });

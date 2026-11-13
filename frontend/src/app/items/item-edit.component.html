@@ -7,20 +7,36 @@
     </p>
   } @else if (item(); as current) {
     <form class="space-y-4" (submit)="save($event)" data-testid="item-edit-form">
-      <div class="flex flex-wrap items-center gap-3">
-        @if (current.photo; as photo) {
-          <app-item-photo [photoId]="photo.id" />
-        } @else {
-          <span
-            class="flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-xs text-slate-500"
-            data-testid="item-photo-missing"
-          >
-            sin foto
-          </span>
+      <div>
+        <span class="block text-sm font-medium text-slate-800">Fotos</span>
+
+        <div class="mt-1">
+          <app-photo-gallery
+            [photos]="galleryPhotos()"
+            [max]="maxPhotos"
+            [actionClasses]="secondaryClasses"
+            [cameraLabel]="'Tomar foto'"
+            [chooseLabel]="'Añadir fotos'"
+            [legend]="'Aquí el orden es el de publicación: la primera foto es la portada.'"
+            [disabled]="galleryDisabled()"
+            (picked)="onPicked($event)"
+            (moved)="move($event)"
+          />
+        </div>
+
+        @if (order().length === 0) {
+          <p class="mt-1 text-xs text-amber-700" data-testid="item-photo-missing">
+            Sin fotos no se puede publicar.
+          </p>
         }
 
-        <p class="text-xs text-slate-500">
-          La foto no se reemplaza en esta pantalla; se muestra para reconocer la ficha.
+        <p class="mt-1 text-xs text-slate-500" data-testid="item-edit-photo-hint">
+          @if (adding()) {
+            Subiendo las fotos nuevas…
+          } @else {
+            Añadir fotos no reescribe el borrador de la captura; el orden de aquí es el que se
+            publica.
+          }
         </p>
       </div>
 

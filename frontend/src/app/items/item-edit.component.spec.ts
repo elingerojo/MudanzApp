@@ -20,6 +20,7 @@ import { ItemEditComponent } from './item-edit.component';
  */
 const ITEM_URL = '/api/events/event-1/items/item-1';
 const ITEMS_URL = '/api/events/event-1/items';
+const ORDER_URL = '/api/events/event-1/items/item-1/photos/order';
 
 /** Un turno de macro-tarea: deja correr la cadena de promesas del recurso. */
 function tick(): Promise<void> {
@@ -39,10 +40,19 @@ const ITEM: ItemSummary = {
   weightKg: 35,
   priceCents: 125_050,
   soldAt: null,
-  photo: null,
+  photos: [],
   publishedSlug: 'mesa-de-roble-3f9a2c',
   unpublishedAt: null,
   createdAt: '2026-10-31T00:00:00.000Z',
+};
+
+/** La misma ficha con dos fotos: la tira muestra los controles de orden desde 3e. */
+const GALLERY: ItemSummary = {
+  ...ITEM,
+  photos: [
+    { id: 'photo-a', sizes: { thumb: null, medium: null, large: null } },
+    { id: 'photo-b', sizes: { thumb: null, medium: null, large: null } },
+  ],
 };
 
 describe('ItemEditComponent', () => {
@@ -83,10 +93,10 @@ describe('ItemEditComponent', () => {
     httpTesting.verify();
   });
 
-  async function render() {
+  async function render(item: ItemSummary = ITEM) {
     const fixture = TestBed.createComponent(ItemEditComponent);
     fixture.detectChanges();
-    httpTesting.expectOne(ITEM_URL).flush({ item: ITEM });
+    httpTesting.expectOne(ITEM_URL).flush({ item });
 
     await tick();
     fixture.detectChanges();
@@ -98,7 +108,24 @@ describe('ItemEditComponent', () => {
 
     await tick();
     fixture.detectChanges();
+
+    // Cada miniatura de la tira se pide con la sesión del evento; se drena para que la verificación
+    // del final no dependa del orden de los efectos.
+    for (const request of httpTesting.match((candidate) =>
+      candidate.url.startsWith('/api/photos/'),
+    )) {
+      request.flush(new Blob([]), { status: 200, statusText: 'OK' });
+    }
+
     return fixture;
+  }
+
+  function click(fixture: { nativeElement: unknown }, testId: string): void {
+    (
+      (fixture.nativeElement as HTMLElement).querySelector(
+        `[data-testid="${testId}"]`,
+      ) as HTMLButtonElement
+    ).click();
   }
 
   function input(fixture: { nativeElement: unknown }, testId: string): HTMLInputElement {
@@ -176,5 +203,39 @@ describe('ItemEditComponent', () => {
         ?.textContent,
     ).toContain('precio');
     httpTesting.expectNone(ITEM_URL);
+  });
+
+  it('sends the new publication order to the photos/order route', async () => {
+    const fixture = await render(GALLERY);
+
+    click(fixture, 'photo-gallery-down-0');
+    fixture.detectChanges();
+
+    const request = httpTesting.expectOne(ORDER_URL);
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ photoIds: ['photo-b', 'photo-a'] });
+
+    request.flush({ photos: [GALLERY.photos[1], GALLERY.photos[0]] });
+    await tick();
+    fixture.detectChanges();
+
+    for (const reload of httpTesting.match((candidate) => candidate.url === ITEMS_URL)) {
+      reload.flush({ items: [] });
+    }
+    await tick();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="item-edit-photo-hint"]')
+        ?.textContent,
+    ).toContain('no reescribe el borrador');
+  });
+
+  it('does not offer order controls nor call the route with a single photo', async () => {
+    const fixture = await render({ ...ITEM, photos: [GALLERY.photos[0]!] });
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="photo-gallery-down-0"]'),
+    ).toBeNull();
+    httpTesting.expectNone(ORDER_URL);
   });
 });

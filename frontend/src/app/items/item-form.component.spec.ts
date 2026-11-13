@@ -59,7 +59,7 @@ const CREATED = {
     weightKg: null,
     priceCents: null,
     soldAt: null,
-    photo: null,
+    photos: [],
     publishedSlug: null,
     unpublishedAt: null,
     createdAt: '2026-10-31T00:00:00.000Z',
@@ -400,7 +400,7 @@ describe('ItemFormComponent', () => {
 
     expect(saved).toHaveBeenCalledWith(null);
     // Guardar termina la captura: la barra deshabilita `Captura` (corte D13).
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
+    expect(TestBed.inject(PhotoInboxStore).peek()).toEqual([]);
     httpTesting.expectNone(LISTING_URL);
   });
 
@@ -420,7 +420,7 @@ describe('ItemFormComponent', () => {
       .flush({ error: 'r2_unavailable' }, { status: 503, statusText: 'Unavailable' });
     await settle(fixture);
 
-    expect(errorText(fixture)).toContain('la foto no');
+    expect(errorText(fixture)).toContain('las fotos no');
     expect(query(fixture, 'item-form-photo-failed')).not.toBeNull();
     // La ficha no se pierde: el título sigue donde el humano lo dejó.
     expect((query(fixture, 'item-title-input') as HTMLInputElement).value).toBe('Mesa');
@@ -462,29 +462,32 @@ describe('ItemFormComponent', () => {
     fill(fixture, 'item-title-input', 'Bicicleta');
 
     const file = new File(['barra'], 'barra.webp', { type: 'image/webp' });
-    TestBed.inject(PhotoInboxStore).stage(file);
+    TestBed.inject(PhotoInboxStore).addFiles([file]);
     await settle(fixture);
 
     // Mismo camino que una foto elegida en el panel: optimiza, pide su ticket y no sube nada.
     httpTesting.expectOne(TICKET_URL).flush(TICKET);
     await settle(fixture);
 
-    expect(query(fixture, 'item-photo-preview')).not.toBeNull();
+    expect(query(fixture, 'photo-gallery-strip')).not.toBeNull();
+    expect(query(fixture, 'photo-gallery-preview')).not.toBeNull();
     expect((query(fixture, 'item-photo-sizes') as HTMLElement).children).toHaveLength(3);
     expect((query(fixture, 'item-title-input') as HTMLInputElement).value).toBe('Bicicleta');
     // La foto sigue en la sesión: volver al panel la reutiliza (corte D13).
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBe(file);
+    expect(TestBed.inject(PhotoInboxStore).peek()).toEqual([file]);
   });
 
   it('rejects a photo from the session with the same message and ends an empty capture', async () => {
     const fixture = render();
 
-    TestBed.inject(PhotoInboxStore).stage(new File(['gif'], 'anim.gif', { type: 'image/gif' }));
+    TestBed.inject(PhotoInboxStore).addFiles([
+      new File(['gif'], 'anim.gif', { type: 'image/gif' }),
+    ]);
     await settle(fixture);
 
     expect(errorText(fixture)).toContain('JPEG');
     httpTesting.expectNone(TICKET_URL);
-    // No había foto anterior: la sesión se cierra para que `Captura` vuelva a deshabilitarse.
-    expect(TestBed.inject(PhotoInboxStore).peek()).toBeNull();
+    // No había foto válida: la sesión se cierra para que `Captura` vuelva a deshabilitarse.
+    expect(TestBed.inject(PhotoInboxStore).peek()).toEqual([]);
   });
 });

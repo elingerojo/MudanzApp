@@ -104,9 +104,10 @@ export function createListingsRouter(deps: IdentityDeps): Router {
           return;
         }
 
-        // Republicar también exige la foto en sus tres tamaños: una ficha que perdió sus variantes no
-        // vuelve a la vista con un hueco.
-        if (item.photoId === null || !hasEveryVariant(item.photoVariants)) {
+        // Republicar también exige la portada en sus tres tamaños: una ficha que perdió sus variantes
+        // no vuelve a la vista con un hueco. Desde 3e la portada es la primera foto de la galería.
+        const cover = item.photos[0] ?? null;
+        if (cover === null || !hasEveryVariant(cover.variants)) {
           throw new AppError('listing_photo_required');
         }
 
