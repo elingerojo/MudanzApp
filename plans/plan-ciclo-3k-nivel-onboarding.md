@@ -241,8 +241,31 @@ Gate proporcional (uno por invocación, una corrida a la vez):
 
 ## 13. Cierre
 
-Se escribe al cerrar: fecha, sha corto, evidencia observada, revisión `live` del dueño y lo que quede
-pendiente con su disparador. No se reescribe lo anterior.
+Cerrado en `a6df36e` el 2026-11-13. Evidencia en verde: `npm run typecheck`, `npm run lint`,
+`npm run format:check`, `npm run test:web:frontend` (33 archivos, 230 pruebas), `npm run test:api`
+(285 pruebas), `npm run test:api:db:branch` (311 pruebas; `test/db/onboarding-level` en verde y los
+tres rojos de `item-photos` son preexistentes —token fijo sobre el sandbox reutilizado— y no ejercen
+este corte), `npm run build:web:frontend`, `npm run build:web:shop`, `npm run build:web:wiki`,
+`npm run test:web:wiki` (13 pruebas), `npm run typecheck:e2e` y `npm run test:e2e:branch` (25
+pasaron, 44 omitidas por proyecto).
+
+Lo que la evidencia demuestra: `onboardingLevelFor` deriva 0 con 0–2 publicados y 1 desde 3, un piso
+menor no desciende el efectivo y un piso fuera de tabla se recorta; `promotionFor(0)` promueve el
+borrador y deja discreto el reintento, y `promotionFor(1)` iguala las dos acciones; el `PATCH`
+responde `400 validation_failed` fuera de rango o con una clave de más, `404 not_found` a un evento
+que la sesión no alcanza y publica el efectivo aunque el piso guardado sea menor. El e2e
+`onboarding-level` confirma el estilo promovido a nivel 0, la fila de `Cuenta` nombrando el umbral,
+la subida desde `Cuenta` y su persistencia tras recargar, y los dos botones iguales a nivel 1. La
+migración `014` se aplicó a mano en `branch` y `branch_test` locales.
+
+Revisión `live` del dueño: **pendiente**. Su disparador es la prueba manual del §14 en remoto, con
+la migración del esquema antes del despliegue.
+
+Pendiente con su disparador: la restricción de la escritura a `requireEventAdministrator` si un
+co-dispositivo molesta al dueño (primera queja en `live`); el contador monótono si la evidencia
+desciende al borrar un artículo publicado (una bajada observada en `live`); y la copia de la
+promoción si se lee como un error de estilo (la primera sesión donde nadie entienda por qué el
+borrador pesa más).
 
 ## 14. Prueba `live` en remoto (paso manual del dueño)
 
