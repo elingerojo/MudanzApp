@@ -1,8 +1,8 @@
 # Plan del ciclo 3i — `borrador-multifoto`: el borrador lee hasta dos fotos, en el orden de la captura
 
-> **Estado:** **corte validado y commiteado en `main`.** Sin migración, sin dependencia nueva y con el
-> gate completo en verde, incluido `test:e2e:branch`; queda la revisión `live` del texto (§14), que la
-> paga el dueño después del despliegue.
+> **Estado:** **cerrado con el gate local.** Sin migración, sin dependencia nueva y con el gate
+> completo en verde, incluido `test:e2e:branch`. La revisión `live` (§14) quedó **descartada por
+> decisión del dueño** el 2026-11-13: la hipótesis se acepta con la evidencia local.
 > **Hipótesis:** un borrador construido con las dos primeras fotos del orden de captura describe mejor
 > el artículo que uno construido con una sola, al costo que el nivel de la mudanza permite pagar.
 > **Fuentes:** [`resumen-funcional`](../.plans/resumen-funcional-app-mudanzapp.md:66) §3 y §4 (fila por
@@ -257,13 +257,22 @@ galería (`n de m`, `m = galería`), que es lo único que explica la línea de c
 formulaciones quedaron alineadas en §5 y §7. El nivel 0 con tres fotos dice `1 de 3`; el ejemplo
 `1 de 1` de §7 suponía una galería de una foto, donde §5 no muestra contador.
 
+**Decisión del dueño (2026-11-13):** no se verifica `live` en remoto. Los resultados del gate local
+se aceptan como suficientes, así que §14 queda **no ejecutada** y aquí no se anota ninguna calidad del
+texto. El costo aceptado se declara: la hipótesis se apoya en el contrato, en la base y en el doble
+determinista, no en una llamada real al proveedor con dos partes.
+
 **Pendiente con su disparador:**
 
-- La revisión `live` de §14 (calidad del texto con dos fotos, espera percibida en un teléfono). Su
-  disparador es el despliegue del dueño; no la paga el gate. Si el texto no mejora, el corte se queda
-  y la tabla de `photosForLevel` vuelve a 1 en su propio corte (§9).
+- La latencia con dos partes en un teléfono no se midió. Disparador: la primera queja de espera en la
+  captura; se mide antes de tocar el prompt (§11).
+- Si el texto con dos fotos decepciona en uso real, el corte se queda y la tabla de `photosForLevel`
+  vuelve a 1 en su propio corte (§9); el bundle y el framing no se tiran.
 
 ## 14. Prueba `live` en remoto (paso manual del dueño)
+
+> **No ejecutada.** El dueño decidió el 2026-11-13 no verificarla en remoto y aceptar el gate local
+> (§13). Los pasos quedan como referencia para cuando se quiera pagar esa prueba.
 
 Sin migración en este corte.
 
