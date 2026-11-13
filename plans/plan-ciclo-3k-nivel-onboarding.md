@@ -259,11 +259,12 @@ responde `400 validation_failed` fuera de rango o con una clave de más, `404 no
 que la sesión no alcanza y publica el efectivo aunque el piso guardado sea menor. El e2e
 `onboarding-level` confirma el estilo promovido a nivel 0, la fila de `Cuenta` nombrando el umbral,
 la subida desde `Cuenta` y su persistencia tras recargar, y los dos botones iguales a nivel 1. La
-migración `014` se aplicó a mano en `branch` y `branch_test` locales; **la remota de `main` sigue
-pendiente** y va antes del despliegue.
+migración `014` se aplicó a mano en `branch`, `branch_test` y en remoto sobre `main` antes del
+despliegue.
 
-Revisión `live` del dueño: **pendiente**. Su disparador es la prueba manual del §14 en producción,
-con `npm run db:migrate:remote` sobre `main` antes de desplegar.
+Revisión `live` del dueño: **confirmada en remoto el 2026-11-13**. La secuencia del §14 pasó sobre
+`main` desplegado: la captura promovió el borrador en una mudanza con 0–2 publicados, la fila de
+`Cuenta` nombró el umbral y la subida sobrevivió a la recarga.
 
 Pendiente con su disparador: la restricción de la escritura a `requireEventAdministrator` si un
 co-dispositivo molesta al dueño (primera queja en `live`); el contador monótono si la evidencia
