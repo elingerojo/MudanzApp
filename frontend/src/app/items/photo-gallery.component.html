@@ -43,6 +43,12 @@
     <span class="text-xs text-slate-500" data-testid="photo-gallery-count">
       {{ photos().length }} de {{ max() }}
     </span>
+
+    @if (draftCountLabel(); as count) {
+      <span class="text-xs text-slate-600" data-testid="photo-gallery-draft-count">{{
+        count
+      }}</span>
+    }
   </div>
 
   @if (photos().length > 0) {
@@ -103,6 +109,10 @@
         </li>
       }
     </ol>
+
+    @if (draftCapLine(); as line) {
+      <p class="text-xs text-slate-500" data-testid="photo-gallery-draft-cap">{{ line }}</p>
+    }
 
     <p class="text-xs text-slate-500" data-testid="photo-gallery-legend">{{ legend() }}</p>
   } @else {

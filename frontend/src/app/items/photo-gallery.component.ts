@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { CAPTURE_LIMITS, ITEM_PHOTO_CONTENT_TYPES, orderControlsVisible } from '@mudanzapp/shared';
 
 import { ItemPhotoComponent } from './item-photo.component';
@@ -19,17 +19,21 @@ export interface GalleryPhoto {
 }
 
 /**
- * La tira de fotos compartida por la captura y la edición (`plan-ciclo-3e` §5).
+ * La tira de fotos compartida por la captura y la edición (`plan-ciclo-3e` §5; lectura del borrador
+ * desde 3i).
  *
  * Publica la galería, no la decide: las dos entradas —`Tomar foto` con la cámara y `Elegir de la
  * galería` con selección múltiple— solo emiten los archivos, y los controles de subir y bajar solo
  * emiten el movimiento. El estado, el tope y el orden viven en quien la monta.
  *
- * Tres reglas que la pieza no negocia:
+ * Cuatro reglas que la pieza no negocia:
  * - la primera foto se marca `Portada` y la leyenda dice qué significa, sin un tour que explicarlo;
  * - el contador es `n de 6`, nunca un porcentaje;
  * - con una sola foto **no** se renderizan los controles de orden: la regla viene de `shared` y es la
- *   misma en las dos superficies.
+ *   misma en las dos superficies;
+ * - el borrador **se nombra, el nivel no**: con `draftMax` la tira dice cuántas fotos va a leer el
+ *   modelo y, si el máximo no alcanza la galería, cuáles son (`plan-ciclo-3i` §5). Sin `draftMax` —la
+ *   edición— la tira no habla de la IA.
  */
 @Component({
   selector: 'app-photo-gallery',
@@ -41,6 +45,11 @@ export class PhotoGalleryComponent {
   readonly photos = input.required<readonly GalleryPhoto[]>();
   readonly max = input<number>(CAPTURE_LIMITS.photos);
   readonly legend = input<string>('La primera foto abre la ficha y alimenta el borrador');
+  /**
+   * Fotos que el borrador lee en este evento. `0` apaga el contador y la línea: la tira de la
+   * edición no tiene borrador que explicar.
+   */
+  readonly draftMax = input<number>(0);
   readonly cameraLabel = input<string>('Tomar foto');
   readonly chooseLabel = input<string>('Elegir de la galería');
   /** Clases de los dos botones de entrada: la promoción de 3k las decide quien monta la tira. */
@@ -55,6 +64,37 @@ export class PhotoGalleryComponent {
 
   protected readonly accept = ITEM_PHOTO_CONTENT_TYPES.join(',');
   protected readonly orderVisible = orderControlsVisible;
+
+  /**
+   * `2 de 3 fotos al borrador`: cuántas lee **de las que hay**. El denominador es la galería, no el
+   * tope, porque lo que la persona necesita saber es qué parte de su tira va a mirar el modelo. Con
+   * una sola foto no aparece: no hay nada que explicar y sería ruido (`plan-ciclo-3i` §5).
+   */
+  protected readonly draftCountLabel = computed<string | null>(() => {
+    const max = this.draftMax();
+    const total = this.photos().length;
+    if (max < 1 || total < 2) {
+      return null;
+    }
+
+    return `${String(Math.min(total, max))} de ${String(total)} fotos al borrador`;
+  });
+
+  /**
+   * La capacidad se nombra cuando recorta: `El borrador usa hasta 2 fotos: las 2 primeras.` Sin la
+   * palabra «nivel», sin modal y sin globo (`plan-ciclo-3i` §5).
+   */
+  protected readonly draftCapLine = computed<string | null>(() => {
+    const max = this.draftMax();
+    const total = this.photos().length;
+    if (max < 1 || max >= total) {
+      return null;
+    }
+
+    return max === 1
+      ? 'El borrador usa hasta 1 foto: la primera.'
+      : `El borrador usa hasta ${String(max)} fotos: las ${String(max)} primeras.`;
+  });
 
   protected onCamera(event: Event): void {
     this.emit(event);

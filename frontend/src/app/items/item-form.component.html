@@ -6,6 +6,7 @@
       <app-photo-gallery
         [photos]="galleryPhotos()"
         [max]="maxPhotos"
+        [draftMax]="draftMax()"
         [actionClasses]="retryClasses()"
         [disabled]="publishing()"
         (picked)="onPicked($event)"

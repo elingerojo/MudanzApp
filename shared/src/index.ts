@@ -21,6 +21,14 @@ export type {
 export { AI_DRAFT_LIMITS, aiDraftSchema } from './ai.js';
 export type { AiDraft, AiDraftResult } from './ai.js';
 export {
+  PHOTO_BUNDLE_CONTENT_TYPE,
+  PHOTO_BUNDLE_HEADER_BYTES,
+  PhotoBundleError,
+  decodePhotoBundle,
+  encodePhotoBundle,
+} from './photo-bundle.js';
+export type { PhotoBundleErrorCode, PhotoBundlePart, PhotoBundlePhoto } from './photo-bundle.js';
+export {
   CAPTURE_KEY_SEGMENT,
   CAPTURE_LIMITS,
   attachPhotosSchema,

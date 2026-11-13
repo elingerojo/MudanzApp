@@ -110,8 +110,8 @@
     <h3 class="text-base font-semibold text-slate-900">La galería está ordenada</h3>
     <p>
       Un artículo lleva hasta {{ photosPerItem }} fotos. El orden se decide durante la captura —la
-      tira reordena y la primera es la <strong>portada</strong>, la que abre la ficha y alimenta el
-      borrador— y se corrige después desde
+      tira reordena y la primera es la <strong>portada</strong>, la que abre la ficha; el borrador
+      lee las primeras de esa tira y desde 3i puede leer dos— y se corrige después desde
       <code class="font-mono text-xs">Editar artículo</code> con
       <code class="font-mono text-xs">PUT /events/:eventId/items/:itemId/photos/order</code>. Si el
       conjunto cambió en otro dispositivo, el borde responde
@@ -131,10 +131,25 @@
   <section class="flex flex-col gap-2">
     <h3 class="text-base font-semibold text-slate-900">El borrador de la IA</h3>
     <p>
-      Se le pide una sola cosa: la <strong>variante mediana</strong> de la foto, que el teléfono ya
-      preparó. Viaja como bytes binarios al borde y el adaptador la convierte a base64 solo para el
-      proveedor: no hay URL pública de por medio, el almacén no participa y la original nunca sale
-      del teléfono.
+      Se le piden las <strong>variantes medianas</strong> que el teléfono ya preparó: una o dos, las
+      primeras de la tira y en el orden de la captura, según el nivel de la mudanza. Viajan como un
+      <strong>cuerpo binario acotado</strong> —una cabecera con el tipo y el largo de cada parte, y
+      después cada foto— y el adaptador las convierte a base64 solo para el proveedor: no hay URL
+      pública de por medio, el almacén no participa y la original nunca sale del teléfono.
+    </p>
+    <p>
+      Es <strong>una sola llamada</strong> con todas las fotos como contexto, y el prompt dice que
+      son el mismo artículo desde ángulos distintos para que no lo describa como varios. La tira
+      dice cuántas va a leer el modelo —<code class="font-mono text-xs"
+        >2 de 3 fotos al borrador</code
+      >— y, si el tope recorta la galería, cuáles son: <em>las 2 primeras</em>. La capacidad se
+      nombra, el nivel no. Con una sola foto no hay contador.
+    </p>
+    <p>
+      El borde no conoce el tope del nivel: aplica el tope duro de {{ photosPerItem }} partes, el
+      tipo de cada una y el largo del cuerpo. Un sobre mal formado o una suma que no cuadra responde
+      <code class="font-mono text-xs">400 validation_failed</code>; una parte vacía, un tipo ajeno o
+      un exceso de bytes responde <code class="font-mono text-xs">400 photo_invalid</code>.
     </p>
     <p>
       Devuelve solo dos campos: un <strong>título</strong> de hasta {{ titleLimit }} caracteres y
@@ -143,10 +158,11 @@
       entraría directo a una cotización.
     </p>
     <p>
-      El borrador <strong>no es estado</strong>: no hay tabla, ni historial, ni versión. La ruta
-      solo lee y responde <code class="font-mono text-xs">200</code> —no crea recurso—; quien
-      persiste es la persona al guardar. Se valida contra un esquema estricto, y una clave de más o
-      un texto que no es JSON fallan con un código estable en vez de «repararse».
+      El borrador <strong>no es estado</strong>: no hay tabla, ni historial, ni versión, y tampoco
+      se guarda qué fotos se enviaron. La ruta solo lee y responde
+      <code class="font-mono text-xs">200</code> —no crea recurso—; quien persiste es la persona al
+      guardar. Se valida contra un esquema estricto, y una clave de más o un texto que no es JSON
+      fallan con un código estable en vez de «repararse».
     </p>
     <p>
       Una sola tentativa por clic, sin reintentos automáticos. Si el proveedor falla, el mensaje
@@ -156,8 +172,11 @@
     <p class="text-xs text-slate-500">
       Evidencia: <code class="font-mono">backend/src/routes/ai-router.ts</code>,
       <code class="font-mono">backend/src/ai/gemini-draft.ts</code>,
-      <code class="font-mono">shared/src/ai.ts</code>;
-      <code class="font-mono">decisiones</code> §34.
+      <code class="font-mono">shared/src/ai.ts</code>,
+      <code class="font-mono">shared/src/photo-bundle.ts</code>,
+      <code class="font-mono">frontend/src/app/items/item-form.component.ts</code>;
+      <code class="font-mono">decisiones</code> §34;
+      <code class="font-mono">plan-ciclo-3i</code> §4.
     </p>
   </section>
 
@@ -165,10 +184,10 @@
     <h3 class="text-base font-semibold text-slate-900">El nivel de onboarding</h3>
     <p>
       El nivel del evento se deriva de cuántos artículos publicó <strong>alguna vez</strong>: de 0 a
-      2 abre una foto al borrador y desde 3, dos. La persona puede subirlo desde
-      <code class="font-mono text-xs">Cuenta</code>; el servidor resuelve el efectivo —el derivado
-      manda y un piso menor no lo hace descender— y lo publica en
-      <code class="font-mono text-xs">EventSummary</code>.
+      2 abre una foto al borrador y desde 3, dos, y ese es el tope que la captura aplica al armar el
+      envío. La persona puede subirlo desde <code class="font-mono text-xs">Cuenta</code>; el
+      servidor resuelve el efectivo —el derivado manda y un piso menor no lo hace descender— y lo
+      publica en <code class="font-mono text-xs">EventSummary</code>.
     </p>
     <p>
       En la captura, el nivel 0 promueve <strong>Borrador con IA</strong> y deja discreto

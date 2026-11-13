@@ -3,17 +3,17 @@ import { AI_DRAFT_LIMITS } from '@mudanzapp/shared';
 import { createAiDraftProvider } from '../../src/ai/draft-provider.js';
 
 /**
- * La fábrica por modo (`plan-ciclo-3d` §8): `fake` devuelve el doble determinista, un modo
- * desconocido es `ai_mode_invalid` y un `live` incompleto es `ai_not_configured`. Los tres fallan en
- * la primera petición, con código estable y sin fingir un borrador.
+ * La fábrica por modo (`plan-ciclo-3d` §8; multifoto desde 3i): `fake` devuelve el doble determinista
+ * sobre el conjunto enviado, un modo desconocido es `ai_mode_invalid` y un `live` incompleto es
+ * `ai_not_configured`. Los tres fallan en la primera petición, con código estable y sin fingir un
+ * borrador.
  */
 const noFetch = (): Promise<Response> =>
   Promise.reject(new Error('the fake must not use the network'));
 
-/** La petición es la variante ya codificada: bytes y su tipo, sin URL y sin almacén. */
+/** La petición son las fotos ya codificadas: bytes y tipo de cada una, sin URL y sin almacén. */
 const REQUEST = {
-  bytes: Buffer.from([0x52, 0x49, 0x46, 0x46]),
-  contentType: 'image/webp',
+  photos: [{ bytes: Buffer.from([0x52, 0x49, 0x46, 0x46]), contentType: 'image/webp' }],
 } as const;
 
 describe('createAiDraftProvider', () => {
@@ -29,6 +29,23 @@ describe('createAiDraftProvider', () => {
     expect(draft.title.length).toBeLessThanOrEqual(AI_DRAFT_LIMITS.title);
     expect(draft.note.length).toBeLessThanOrEqual(AI_DRAFT_LIMITS.note);
     await expect(provider.draft(REQUEST)).resolves.toEqual(draft);
+  });
+
+  it('distinguishes two photos from one, so the e2e proves the whole bundle arrived', async () => {
+    const provider = createAiDraftProvider(
+      { mode: 'fake', model: null, apiKey: null },
+      { fetch: noFetch as unknown as typeof fetch },
+    );
+
+    const [single] = REQUEST.photos;
+    const one = await provider.draft({ photos: [single] });
+    const two = await provider.draft({ photos: [single, single] });
+
+    expect(two.title).not.toBe(one.title);
+    expect(two.title).toContain('2 fotos');
+    expect(one.title).toContain('1 foto');
+    // El mismo conjunto produce el mismo borrador: el doble no depende del azar.
+    await expect(provider.draft({ photos: [single, single] })).resolves.toEqual(two);
   });
 
   it('rejects an unknown mode with ai_mode_invalid', async () => {

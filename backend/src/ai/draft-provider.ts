@@ -6,28 +6,37 @@ import { createFakeDraftProvider } from './gemini-fake.js';
 import { createGeminiDraftProvider } from './gemini-draft.js';
 
 /**
- * Costura del borrador (`AI_MODE`) — `ai-draft`, ciclo 3d.
+ * Costura del borrador (`AI_MODE`) — `ai-draft`, ciclo 3d; multifoto desde 3i.
  *
  * Una interfaz, dos adaptadores y una fábrica por modo, con la misma forma que
  * [`object-store.ts`](../storage/object-store.ts:59) y [`oauth.ts`](../identity/oauth.ts:19). El
  * router no conoce al proveedor, no compone prompts y no lee `process.env`.
  *
- * La entrada son **los bytes** de la variante `medium` que el dispositivo ya codificó (forma B del
- * plan §6): el navegador envía el mismo `Blob` que después viaja a R2, el router lo lee como cuerpo
- * binario y el adaptador `live` lo convierte a base64. El almacén no participa en el borrador.
+ * La entrada son **las fotos** de la captura, en su orden: una o dos en la práctica, con el tope duro
+ * del contrato como techo (`plan-ciclo-3i` §4). El cuerpo no es base64 en el borde: el navegador
+ * envía los bytes que ya codificó, el router los decodifica del bundle y el adaptador `live` los
+ * convierte a base64 dentro de su propia llamada. El almacén no participa en el borrador.
  *
  * Los fallos lanzan `AppError` con los códigos del catálogo del borde: `ai_mode_invalid`,
  * `ai_not_configured`, `ai_unavailable` y `ai_output_invalid`.
  */
 
 /**
- * Lo que el adaptador recibe: la variante ya codificada, con el tipo real que produjo el codificador
- * del dispositivo. Sin `Buffer` en el router y sin URL: el `base64` que el protocolo del proveedor
- * exige nace y muere dentro del adaptador `live`.
+ * Una foto de la petición: los bytes del codificador del dispositivo y su tipo real. Sin URL y sin
+ * clave de almacén; el `base64` que el protocolo del proveedor exige nace y muere dentro del
+ * adaptador `live`.
  */
-export interface DraftRequest {
+export interface DraftPhoto {
   readonly bytes: Buffer;
   readonly contentType: ItemPhotoVariantContentType;
+}
+
+/**
+ * El conjunto a describir. **El índice es el orden** de la captura: no hay `position`, porque un
+ * segundo campo que dice lo mismo que el arreglo sería una fuente duplicada (`plan-ciclo-3e` §4).
+ */
+export interface DraftRequest {
+  readonly photos: readonly DraftPhoto[];
 }
 
 export interface AiDraftProvider {

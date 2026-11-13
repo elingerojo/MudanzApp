@@ -15,7 +15,11 @@ import {
   CAPTURE_LIMITS,
   ITEM_LIMITS,
   ITEM_PHOTO_CONTENT_TYPES,
+  PHOTO_BUNDLE_CONTENT_TYPE,
+  PhotoBundleError,
+  encodePhotoBundle,
   onboardingLevelCopy,
+  photosForLevel,
   promotionFor,
   type AiDraftResult,
   type CaptureTicket,
@@ -108,7 +112,7 @@ interface FormPhoto {
 
 /**
  * Captura de un artículo con borrador de la IA y publicación en la misma pantalla (`ai-draft`, 3d;
- * subida directa al almacén desde 4g; galería privada desde 3e).
+ * subida directa al almacén desde 4g; galería privada desde 3e; borrador multifoto desde 3i).
  *
  * El recorrido sigue siendo el del plan §6: la persona toma una o varias fotos, **pide** el borrador
  * con un toque, edita sin prisa y decide entre **Publicar** y **Solo guardar**. Tres reglas ordenan
@@ -118,7 +122,8 @@ interface FormPhoto {
  * 2. Nada de lo que hace el humano espera a la IA: `Publicar` y `Solo guardar` dependen de las fotos y
  *    del título, no de que el borrador haya vuelto.
  * 3. El orden lo decide la persona **durante la captura**: la primera foto es la portada, abre la
- *    ficha y alimenta el borrador, y el orden en que se adjuntan es el de la tira.
+ *    ficha, y el orden en que se adjuntan es el de la tira **y el del borrador**, que lee las primeras
+ *    fotos hasta el máximo del nivel del evento (`plan-ciclo-3i` §4 y §5).
  *
  * El cuerpo de la foto **no cruza el backend**: la tubería de [`photo-pipeline`](./photo-pipeline.ts)
  * pide el ticket, sube las tres variantes por sus URL prefirmadas y adjunta las capturas al artículo.
@@ -211,7 +216,7 @@ export class ItemFormComponent implements OnDestroy {
   );
 
   protected readonly canDraft = computed(
-    () => this.medium() !== null && !this.drafting() && !this.publishing(),
+    () => this.draftPhotos().length > 0 && !this.drafting() && !this.publishing(),
   );
 
   protected readonly primaryClasses = uiButtonClasses('primary');
@@ -245,9 +250,21 @@ export class ItemFormComponent implements OnDestroy {
     return promotionFor(level).draft === 'promoted' ? onboardingLevelCopy(level) : null;
   });
 
-  /** La variante que viaja al borrador: la `medium` de la portada, sin recodificar. */
-  protected readonly medium = computed(
-    () => this.cover()?.optimized.find((entry) => entry.variant === 'medium')?.blob ?? null,
+  /**
+   * Cuántas fotos lee el borrador: el tope del nivel de onboarding del evento (corte 3k). Es el mismo
+   * número que la tira usa para decir qué va a leer el modelo; el borde no lo conoce.
+   */
+  protected readonly draftMax = computed(() => photosForLevel(this.onboardingLevel()));
+
+  /**
+   * Las fotos que viajan al borrador: las primeras de la tira, en el orden de captura, sin
+   * recodificar. **El índice es el orden**, igual que en el bundle del contrato.
+   */
+  protected readonly draftPhotos = computed<readonly Blob[]>(() =>
+    this.photos()
+      .slice(0, this.draftMax())
+      .map((photo) => photo.prepared?.optimized.find((entry) => entry.variant === 'medium')?.blob)
+      .filter((blob): blob is Blob => blob !== undefined),
   );
 
   /** Los tres pesos de la portada: la tarjeta que demuestra la optimización en el dispositivo. */
@@ -392,12 +409,13 @@ export class ItemFormComponent implements OnDestroy {
   }
 
   /**
-   * Pide el borrador con la variante `medium` de la portada y rellena **solo los campos vacíos**: si
-   * la persona ya escribió, no se sobrescribe y el aviso lo dice.
+   * Pide el borrador con las primeras fotos de la tira —en el orden de captura y hasta el máximo del
+   * nivel— y rellena **solo los campos vacíos**: si la persona ya escribió, no se sobrescribe y el
+   * aviso lo dice.
    */
   protected async draft(): Promise<void> {
-    const blob = this.medium();
-    if (blob === null || !this.canDraft()) {
+    const photos = this.draftPhotos();
+    if (photos.length === 0 || !this.canDraft()) {
       return;
     }
 
@@ -406,11 +424,19 @@ export class ItemFormComponent implements OnDestroy {
     this.notice.set(null);
 
     try {
+      const parts = await Promise.all(
+        photos.map(async (blob) => ({
+          contentType: blob.type,
+          bytes: new Uint8Array(await blob.arrayBuffer()),
+        })),
+      );
+      const payload = encodePhotoBundle(parts);
+
       const result = await firstValueFrom(
         this.http.post<AiDraftResult>(
           `${this.apiBaseUrl}/events/${this.eventId()}/ai/drafts`,
-          blob,
-          { headers: { 'Content-Type': blob.type } },
+          new Blob([payload.buffer as ArrayBuffer], { type: PHOTO_BUNDLE_CONTENT_TYPE }),
+          { headers: { 'Content-Type': PHOTO_BUNDLE_CONTENT_TYPE } },
         ),
       );
 
@@ -429,7 +455,11 @@ export class ItemFormComponent implements OnDestroy {
           : 'Borrador de la IA: revísalo antes de publicar.',
       );
     } catch (error: unknown) {
-      this.error.set(draftMessage(apiErrorCode(error)));
+      // Un framing que no cumple el contrato es un fallo del cliente, no del proveedor: se explica
+      // como la foto y se deja la ficha a mano.
+      this.error.set(
+        draftMessage(error instanceof PhotoBundleError ? PHOTO_INVALID : apiErrorCode(error)),
+      );
     } finally {
       this.drafting.set(false);
     }

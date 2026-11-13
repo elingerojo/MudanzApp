@@ -12,9 +12,10 @@ import { ITEM_LIMITS } from '@mudanzapp/shared';
  * revisión humana lo corrige (§11). Se declara, no se finge.
  */
 export const DRAFT_INSTRUCTION = [
-  'Eres un asistente que redacta la ficha de un artículo de mudanza a partir de una sola foto.',
+  'Eres un asistente que redacta la ficha de un artículo de mudanza a partir de sus fotos, tomadas desde ángulos distintos.',
+  'Las fotos son el mismo artículo desde ángulos distintos: descríbelo como uno solo y nunca como artículos separados.',
   'Responde en español neutro y devuelve solo el objeto JSON pedido, sin texto alrededor.',
   `"title": qué es el artículo, en una frase corta de 1 a ${String(ITEM_LIMITS.title)} caracteres.`,
-  `"note": una nota breve de 1 a ${String(ITEM_LIMITS.note)} caracteres con lo que se ve en la foto.`,
-  'No inventes medidas, peso, precio, marca ni destino: si no se ve en la foto, no se escribe.',
+  `"note": una nota breve de 1 a ${String(ITEM_LIMITS.note)} caracteres con lo que se ve en las fotos.`,
+  'No inventes medidas, peso, precio, marca ni destino: si no se ve en las fotos, no se escribe.',
 ].join(' ');

@@ -13,7 +13,10 @@ const API_KEY = 'clave-de-prueba';
 /** Los bytes que el navegador enviaría: la salida del codificador, sin ninguna conversión previa. */
 const BYTES = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x0a, 0x00, 0xff, 0x7f]);
 
-const REQUEST = { bytes: BYTES, contentType: 'image/webp' } as const;
+/** Una segunda foto, distinta de la primera: el orden y la identidad de cada parte se pueden ver. */
+const OTHER_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+const REQUEST = { photos: [{ bytes: BYTES, contentType: 'image/webp' }] } as const;
 
 interface FetchCall {
   readonly url: string;
@@ -92,6 +95,38 @@ describe('gemini draft provider', () => {
       data: BYTES.toString('base64'),
     });
     expect(first?.parts.some((part) => 'file_data' in part)).toBe(false);
+  });
+
+  it('sends one inline_data part per photo, in the order received, in a single call', async () => {
+    const calls: FetchCall[] = [];
+    const provider = providerWith(() => jsonResponse(candidate(JSON.stringify(DRAFT))), calls);
+
+    await provider.draft({
+      photos: [
+        { bytes: BYTES, contentType: 'image/webp' },
+        { bytes: OTHER_BYTES, contentType: 'image/jpeg' },
+      ],
+    });
+
+    // Una sola llamada: el contexto se compone, no se multiplica el costo.
+    expect(calls).toHaveLength(1);
+
+    const [first] = sentBody(calls[0] as FetchCall).contents;
+    const parts = first?.parts ?? [];
+    const inline = parts.filter((part) => 'inline_data' in part) as {
+      inline_data: { mime_type: string; data: string };
+    }[];
+
+    expect(inline).toHaveLength(2);
+    expect(inline.map((part) => part.inline_data.mime_type)).toEqual(['image/webp', 'image/jpeg']);
+    expect(Buffer.from(inline[1]?.inline_data.data ?? '', 'base64').equals(OTHER_BYTES)).toBe(true);
+
+    // El texto va después de las fotos y dice que es el mismo artículo: sin esa frase el modelo
+    // puede describirlas como artículos separados (`plan-ciclo-3i` §4).
+    const last = parts[parts.length - 1];
+    expect(last !== undefined && 'text' in last).toBe(true);
+    expect(String((last as { text?: unknown }).text)).toContain('mismo artículo');
+    expect(parts).toHaveLength(3);
   });
 
   it('sends exactly the bytes it received, without re-encoding them', async () => {

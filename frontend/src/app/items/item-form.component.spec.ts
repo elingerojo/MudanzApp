@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { PHOTO_BUNDLE_CONTENT_TYPE, decodePhotoBundle } from '@mudanzapp/shared';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { PhotoInboxStore } from '../events/photo-inbox.store';
@@ -13,12 +14,12 @@ import { uploadVariants, type UploadTask } from './photo-upload';
 import { PHOTO_UPLOADER } from './photo-upload.token';
 
 /**
- * La captura en la interfaz (`plan-ciclo-4g-direct-upload` §3, §5 y §8): el ticket que firma las
- * subidas, las tres variantes que viajan **directo** al almacén con su progreso ponderado, la
- * adjunción al artículo y las reglas que no cambian desde 3d —
+ * La captura en la interfaz (`plan-ciclo-4g-direct-upload` §3, §5 y §8; borrador multifoto desde 3i):
+ * el ticket que firma las subidas, las tres variantes que viajan **directo** al almacén con su
+ * progreso ponderado, la adjunción al artículo y las reglas que no cambian desde 3d —
  *
  * 1. el borrador solo se pide con un toque y no bloquea a nadie;
- * 2. la mediana que viaja al borrador es el mismo `Blob` que después se sube;
+ * 2. el borrador lee las primeras medianas de la tira, en el orden de captura, dentro de un bundle;
  * 3. el cuerpo de la foto no cruza el API.
  */
 
@@ -180,15 +181,29 @@ describe('ItemFormComponent', () => {
   }
 
   /** Adjunta una foto válida, espera al optimizador y deja resuelto su ticket de captura. */
-  async function attachPhoto(fixture: Fixture): Promise<void> {
+  async function attachPhoto(fixture: Fixture, name = 'silla.webp'): Promise<void> {
     const input = query(fixture, 'item-photo-input') as HTMLInputElement;
-    const file = new File(['foto'], 'silla.webp', { type: 'image/webp' });
+    const file = new File(['foto'], name, { type: 'image/webp' });
     Object.defineProperty(input, 'files', { value: [file], configurable: true });
     input.dispatchEvent(new Event('change'));
 
     await settle(fixture);
     httpTesting.expectOne(TICKET_URL).flush(TICKET);
     await settle(fixture);
+  }
+
+  /** Lee el bundle que el formulario envió: el orden y los bytes llegan tal cual al contrato. */
+  async function sentBundle(
+    body: unknown,
+  ): Promise<readonly { contentType: string; text: string }[]> {
+    const blob = body as Blob;
+    const photos = decodePhotoBundle(new Uint8Array(await blob.arrayBuffer()));
+    const decoder = new TextDecoder();
+
+    return photos.map((photo) => ({
+      contentType: photo.contentType,
+      text: decoder.decode(photo.bytes),
+    }));
   }
 
   it('promotes the draft at level 0 and weighs both photo actions the same at level 1', () => {
@@ -252,17 +267,20 @@ describe('ItemFormComponent', () => {
     expect((query(fixture, 'item-form-draft') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('asks for the draft with the same medium Blob that travels to storage', async () => {
+  it('asks for the draft with the medium Blob inside a bundle, never as base64', async () => {
     const fixture = render();
     await attachPhoto(fixture);
 
     (query(fixture, 'item-form-draft') as HTMLButtonElement).click();
+    await settle(fixture);
 
     const request = httpTesting.expectOne(DRAFTS_URL);
     expect(request.request.method).toBe('POST');
-    // La identidad importa: es el mismo objeto, no una copia ni un base64.
-    expect(request.request.body).toBe(blobs.medium);
-    expect(request.request.headers.get('Content-Type')).toBe('image/webp');
+    expect(request.request.headers.get('Content-Type')).toBe(PHOTO_BUNDLE_CONTENT_TYPE);
+    // Los bytes de la mediana, sin recodificar: el sobre solo agrega la cabecera.
+    await expect(sentBundle(request.request.body)).resolves.toEqual([
+      { contentType: 'image/webp', text: 'medium-bytes' },
+    ]);
 
     request.flush({ draft: { title: 'Silla de madera', note: 'Con respaldo alto.' } });
     await settle(fixture);
@@ -271,12 +289,58 @@ describe('ItemFormComponent', () => {
     expect(query(fixture, 'item-form-draft-notice')?.textContent).toContain('revísalo');
   });
 
+  it('reads only the first photo at level 0 and says so in the strip', async () => {
+    const fixture = render();
+    await attachPhoto(fixture, 'una.webp');
+    await attachPhoto(fixture, 'dos.webp');
+    await attachPhoto(fixture, 'tres.webp');
+
+    expect(query(fixture, 'photo-gallery-draft-count')?.textContent?.trim()).toBe(
+      '1 de 3 fotos al borrador',
+    );
+    expect(query(fixture, 'photo-gallery-draft-cap')?.textContent?.trim()).toBe(
+      'El borrador usa hasta 1 foto: la primera.',
+    );
+
+    (query(fixture, 'item-form-draft') as HTMLButtonElement).click();
+    await settle(fixture);
+
+    const request = httpTesting.expectOne(DRAFTS_URL);
+    await expect(sentBundle(request.request.body)).resolves.toHaveLength(1);
+    request.flush({ draft: { title: 'Borrador', note: 'Nota del borrador.' } });
+    await settle(fixture);
+  });
+
+  it('reads the first two photos in capture order at level 1', async () => {
+    onboardingLevel.set(1);
+    const fixture = render();
+    await attachPhoto(fixture, 'una.webp');
+    await attachPhoto(fixture, 'dos.webp');
+    await attachPhoto(fixture, 'tres.webp');
+
+    expect(query(fixture, 'photo-gallery-draft-count')?.textContent?.trim()).toBe(
+      '2 de 3 fotos al borrador',
+    );
+    expect(query(fixture, 'photo-gallery-draft-cap')?.textContent?.trim()).toBe(
+      'El borrador usa hasta 2 fotos: las 2 primeras.',
+    );
+
+    (query(fixture, 'item-form-draft') as HTMLButtonElement).click();
+    await settle(fixture);
+
+    const request = httpTesting.expectOne(DRAFTS_URL);
+    await expect(sentBundle(request.request.body)).resolves.toHaveLength(2);
+    request.flush({ draft: { title: 'Borrador', note: 'Nota del borrador.' } });
+    await settle(fixture);
+  });
+
   it('keeps what the human wrote when the draft comes back', async () => {
     const fixture = render();
     await attachPhoto(fixture);
     fill(fixture, 'item-title-input', 'Mi título');
 
     (query(fixture, 'item-form-draft') as HTMLButtonElement).click();
+    await settle(fixture);
     httpTesting
       .expectOne(DRAFTS_URL)
       .flush({ draft: { title: 'Título de la IA', note: 'Nota de la IA.' } });
@@ -293,7 +357,7 @@ describe('ItemFormComponent', () => {
     fill(fixture, 'item-title-input', 'Mesa');
 
     (query(fixture, 'item-form-draft') as HTMLButtonElement).click();
-    fixture.detectChanges();
+    await settle(fixture);
 
     // La petición del borrador sigue pendiente y el humano ya puede publicar.
     expect((query(fixture, 'item-form-publish') as HTMLButtonElement).disabled).toBe(false);
@@ -310,6 +374,7 @@ describe('ItemFormComponent', () => {
     fill(fixture, 'item-title-input', 'Mesa');
 
     (query(fixture, 'item-form-draft') as HTMLButtonElement).click();
+    await settle(fixture);
     httpTesting
       .expectOne(DRAFTS_URL)
       .flush({ error: 'ai_unavailable' }, { status: 503, statusText: 'Unavailable' });

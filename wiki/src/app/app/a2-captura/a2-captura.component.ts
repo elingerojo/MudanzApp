@@ -33,6 +33,7 @@ export class A2CapturaComponent {
     'shared/src/ai.ts',
     'shared/src/capture.ts',
     'shared/src/onboarding.ts',
+    'shared/src/photo-bundle.ts',
   ];
 
   protected readonly decisions = ['§30', '§34', '§45'];

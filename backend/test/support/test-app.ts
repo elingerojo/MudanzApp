@@ -2,6 +2,7 @@ import type { AddressInfo } from 'node:net';
 
 import type { DatabaseState } from '@mudanzapp/shared';
 
+import type { AiDraftProvider } from '../../src/ai/draft-provider.js';
 import { createFakeDraftProvider } from '../../src/ai/gemini-fake.js';
 import { createApp } from '../../src/app.js';
 import type { Database } from '../../src/db.js';
@@ -30,6 +31,11 @@ export interface TestAppOptions {
    * (4c-1b) solo existe en `live`, así que su frontera se ejerce con un doble del verificador.
    */
   readonly oauth?: OAuthVerifier;
+  /**
+   * Proveedor que la prueba observa: el corte 3i demuestra qué fotos llegan a la costura, y eso exige
+   * un doble que **registre** en vez del fijo.
+   */
+  readonly ai?: AiDraftProvider;
 }
 
 /**
@@ -73,7 +79,7 @@ export async function startTestApp(
     now: options.now ?? (() => new Date()),
     storage,
     // La IA va en `fake`, como OAUTH: el gate no depende del proveedor (regla del gate).
-    ai: createFakeDraftProvider(),
+    ai: options.ai ?? createFakeDraftProvider(),
   }).listen(0);
 
   await new Promise<void>((resolve) => {
