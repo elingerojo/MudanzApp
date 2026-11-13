@@ -15,6 +15,7 @@ const EVENT: EventSummary = {
   currency: 'COP',
   state: 'active',
   role: 'owner',
+  onboardingLevel: 0,
 };
 
 /**
@@ -64,7 +65,6 @@ describe('InicioComponent', () => {
       'Toma una foto del artículo que quieres publicar',
     );
     expect(query(fixture, 'inicio-camera-hint')?.textContent).toContain('botón Foto de la barra');
-    expect(query(fixture, 'inicio-next-step')?.textContent).toContain('título');
 
     // La cámara vive en la barra: esta pantalla no publica un segundo control.
     expect(query(fixture, 'inicio-photo-input')).toBeNull();

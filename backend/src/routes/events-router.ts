@@ -1,5 +1,7 @@
 import {
   eventContactSchema,
+  onboardingLevelFor,
+  onboardingLevelSchema,
   parseContactPhone,
   type CartRequestSummary,
   type CreatedInvitation,
@@ -7,6 +9,7 @@ import {
   type EventContact,
   type EventDashboard,
   type EventSummary,
+  type OnboardingLevelResponse,
 } from '@mudanzapp/shared';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -32,6 +35,7 @@ import {
   readEventContact,
   revokeEventCoDeviceSession,
   updateEventContact,
+  updateEventOnboardingLevel,
 } from '../store/identity-store.js';
 import { createOpaqueToken, hashToken } from '../tokens.js';
 import { parseOrThrow } from '../validation.js';
@@ -221,6 +225,53 @@ export function createEventsRouter(deps: IdentityDeps): Router {
       }
 
       const payload: EventContact = { contactPhone: updated.contactPhone };
+      response.json(payload);
+    };
+
+    void handle().catch(next);
+  });
+
+  /**
+   * Sube el nivel de onboarding del evento (corte 3k).
+   *
+   * No es un permiso: cualquier sesión del evento puede promoverlo, igual que puede invitar un
+   * dispositivo (`decisiones` §30). Si una revisión `live` muestra que un co-dispositivo molesta al
+   * dueño, el corte siguiente lo restringe a `requireEventAdministrator` sin cambiar el contrato.
+   *
+   * La respuesta publica el **efectivo** —`max(derivado, piso)`— y no el piso guardado: es lo único
+   * que las superficies necesitan y evita que dos clientes calculen distinto. Escribir un valor menor
+   * que el derivado no es un error; la UI solo ofrece subir.
+   */
+  router.patch('/events/:eventId/onboarding-level', requireSession, (request, response, next) => {
+    const handle = async (): Promise<void> => {
+      const { eventId } = parseOrThrow(eventParamsSchema, request.params);
+      const identity = identityOf(request);
+      const input = parseOrThrow(onboardingLevelSchema, request.body);
+
+      // El alcance se pregunta antes del acto: un evento que la sesión no alcanza responde `not_found`
+      // y no se distingue de uno que no existe.
+      const reachable =
+        identity.user === null
+          ? identity.eventId === eventId
+          : (await findEventForUser(deps.database, eventId, identity.user.id)) !== null;
+      if (!reachable) {
+        throw new AppError('not_found');
+      }
+
+      const updated = await updateEventOnboardingLevel(deps.database, {
+        eventId,
+        level: input.level,
+      });
+      if (updated === null) {
+        throw new AppError('not_found');
+      }
+
+      const payload: OnboardingLevelResponse = {
+        level: onboardingLevelFor(
+          { publishedCount: updated.publishedCount },
+          updated.onboardingLevel,
+        ),
+      };
       response.json(payload);
     };
 

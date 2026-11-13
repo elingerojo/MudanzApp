@@ -56,6 +56,32 @@
           </a>
         }
 
+        <!-- Corte 3k: el nivel de onboarding es del evento y su pantalla es esta. El texto y el
+             umbral salen de `ONBOARDING_LEVELS`; la fila no repite el número. -->
+        @if (onboardingCopy(); as copy) {
+          <div class="space-y-1" data-testid="cuenta-onboarding">
+            <p class="text-sm text-slate-700" data-testid="cuenta-onboarding-copy">{{ copy }}</p>
+
+            @if (canRaiseOnboarding()) {
+              <button
+                type="button"
+                [class]="secondaryClasses"
+                [disabled]="raisingOnboarding()"
+                data-testid="cuenta-onboarding-raise"
+                (click)="raiseOnboarding()"
+              >
+                {{ raisingOnboarding() ? 'Subiendo…' : 'Subir de nivel' }}
+              </button>
+            }
+
+            @if (onboardingError(); as message) {
+              <p class="text-sm text-red-600" data-testid="cuenta-onboarding-error">
+                {{ message }}
+              </p>
+            }
+          </div>
+        }
+
         <!-- El enlace del evento existe desde que se crea: el índice nace vacío y sigue siendo un
              enlace válido (decisión §36). -->
         @if (publicUrl(); as link) {

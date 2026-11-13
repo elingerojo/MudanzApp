@@ -12,7 +12,7 @@
       (change)="onPhoto($event)"
     />
 
-    <label for="item-photo" [class]="secondaryClasses" data-testid="item-photo-label" class="mt-1">
+    <label for="item-photo" [class]="retryClasses()" data-testid="item-photo-label" class="mt-1">
       Repetir la foto
     </label>
 
@@ -57,7 +57,7 @@
   <div class="flex flex-wrap items-center gap-3">
     <button
       type="button"
-      [class]="secondaryClasses"
+      [class]="draftClasses()"
       [disabled]="!canDraft()"
       (click)="draft()"
       data-testid="item-form-draft"
@@ -67,6 +67,10 @@
 
     <span class="text-xs text-slate-500">La IA propone título y nota; tú los revisas.</span>
   </div>
+
+  @if (onboardingCopy(); as copy) {
+    <p class="text-xs text-slate-500" data-testid="item-form-onboarding">{{ copy }}</p>
+  }
 
   @if (notice(); as text) {
     <p class="rounded-lg bg-sky-50 p-2 text-xs text-sky-800" data-testid="item-form-draft-notice">

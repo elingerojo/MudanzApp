@@ -21,6 +21,7 @@ const EVENT_A: EventSummary = {
   currency: 'USD',
   state: 'open',
   role: 'owner',
+  onboardingLevel: 0,
 };
 
 const EVENT_B: EventSummary = { ...EVENT_A, id: 'event-b', role: 'member', originCity: 'Loja' };

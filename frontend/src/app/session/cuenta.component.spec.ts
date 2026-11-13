@@ -30,6 +30,7 @@ const EVENT: EventSummary = {
   currency: 'MXN',
   state: 'open',
   role: 'member',
+  onboardingLevel: 0,
 };
 
 const OWNER_EVENT: EventSummary = { ...EVENT, role: 'owner' };
@@ -43,9 +44,12 @@ describe('CuentaComponent', () => {
   const identityLoading = signal(false);
   const identityFailed = signal(false);
   const clear = vi.fn();
+  const raiseOnboardingLevel = vi.fn<() => Promise<boolean>>();
 
   beforeEach(async () => {
     clear.mockReset();
+    raiseOnboardingLevel.mockReset();
+    raiseOnboardingLevel.mockResolvedValue(true);
     user.set(null);
     events.set([EVENT]);
     activeEvent.set(EVENT);
@@ -67,7 +71,15 @@ describe('CuentaComponent', () => {
         { provide: OAUTH_FLOW, useValue: { begin: vi.fn() } },
         {
           provide: SessionStore,
-          useValue: { user, events, activeEvent, identityLoading, identityFailed, clear },
+          useValue: {
+            user,
+            events,
+            activeEvent,
+            identityLoading,
+            identityFailed,
+            clear,
+            raiseOnboardingLevel,
+          },
         },
       ],
     }).compileComponents();
@@ -172,6 +184,39 @@ describe('CuentaComponent', () => {
     expect(query(fixture, 'cuenta-session-invalid')?.textContent).toContain(
       'Canjea una invitación nueva',
     );
+  });
+
+  it('publishes the onboarding level of the event and offers to raise it at level 0', () => {
+    const fixture = render();
+
+    expect(query(fixture, 'cuenta-onboarding-copy')?.textContent).toContain('usa 1 foto');
+    expect(query(fixture, 'cuenta-onboarding-copy')?.textContent).toContain('Publica 3 artículos');
+    expect(query(fixture, 'cuenta-onboarding-raise')?.textContent).toContain('Subir de nivel');
+  });
+
+  it('shows the raised level without an action once the event is at level 1', () => {
+    const raised: EventSummary = { ...EVENT, onboardingLevel: 1 };
+    events.set([raised]);
+    activeEvent.set(raised);
+
+    const fixture = render();
+
+    expect(query(fixture, 'cuenta-onboarding-copy')?.textContent).toContain('usa 2 fotos');
+    expect(query(fixture, 'cuenta-onboarding-raise')).toBeNull();
+  });
+
+  it('keeps the previous level and explains a failed write', async () => {
+    raiseOnboardingLevel.mockRejectedValueOnce(new Error('boom'));
+
+    const fixture = render();
+    query(fixture, 'cuenta-onboarding-raise')?.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, 'cuenta-onboarding-error')?.textContent).toContain(
+      'No se pudo subir el nivel',
+    );
+    expect(query(fixture, 'cuenta-onboarding-copy')?.textContent).toContain('usa 1 foto');
   });
 
   it('clears the session and returns home on sign out', () => {

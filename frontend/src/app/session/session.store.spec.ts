@@ -23,6 +23,7 @@ function event(id: string, role: EventSummary['role'] = 'member'): EventSummary 
     currency: 'MXN',
     state: 'open',
     role,
+    onboardingLevel: 0,
   };
 }
 
@@ -115,6 +116,40 @@ describe('SessionStore', () => {
     store.clear();
 
     expect(localStorage.getItem(EVENT_STORAGE_KEY)).toBe('event-b');
+  });
+
+  it('raises the onboarding level of the active event and rereads the identity', async () => {
+    store.establish(issuedSession('fresh-token'));
+    TestBed.tick();
+    httpTesting.expectOne(IDENTITY_URL).flush(identityWith([event('event-a')]));
+    await tick();
+
+    const raised = store.raiseOnboardingLevel();
+    const patch = httpTesting.expectOne('/api/events/event-a/onboarding-level');
+    expect(patch.request.method).toBe('PATCH');
+    expect(patch.request.body).toEqual({ level: 1 });
+    patch.flush({ level: 1 });
+    await expect(raised).resolves.toBe(true);
+
+    TestBed.tick();
+    httpTesting
+      .expectOne(IDENTITY_URL)
+      .flush(identityWith([{ ...event('event-a'), onboardingLevel: 1 }]));
+    await tick();
+
+    expect(store.activeEvent()?.onboardingLevel).toBe(1);
+  });
+
+  it('does not write when the event is already at the highest level', async () => {
+    store.establish(issuedSession('fresh-token'));
+    TestBed.tick();
+    httpTesting
+      .expectOne(IDENTITY_URL)
+      .flush(identityWith([{ ...event('event-a'), onboardingLevel: 1 }]));
+    await tick();
+
+    await expect(store.raiseOnboardingLevel()).resolves.toBe(false);
+    httpTesting.expectNone('/api/events/event-a/onboarding-level');
   });
 
   it('finds the event the session can see', () => {

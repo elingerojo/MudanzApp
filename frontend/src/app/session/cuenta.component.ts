@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { ONBOARDING_MAX_LEVEL, onboardingLevelCopy, type OnboardingLevel } from '@mudanzapp/shared';
 
 import { DashboardDenialComponent } from '../events/dashboard-denial.component';
 import { eventPublicUrl } from '../events/event-public-url';
@@ -48,6 +49,50 @@ export class CuentaComponent {
   protected readonly user = this.session.user;
   protected readonly event = this.session.activeEvent;
   protected readonly signOutClasses = uiButtonClasses('danger');
+  protected readonly secondaryClasses = uiButtonClasses('secondary');
+
+  /**
+   * El nivel de onboarding **efectivo** del evento activo (corte 3k). Lo deriva y publica el borde;
+   * la pantalla solo lo pinta y ofrece subirlo. Una sesión sin evento no tiene nivel ni fila.
+   */
+  protected readonly onboardingLevel = computed<OnboardingLevel | null>(
+    () => this.event()?.onboardingLevel ?? null,
+  );
+
+  /** El texto de la fila, compuesto desde la tabla `ONBOARDING_LEVELS`; no repite el umbral. */
+  protected readonly onboardingCopy = computed(() => {
+    const level = this.onboardingLevel();
+    return level === null ? null : onboardingLevelCopy(level);
+  });
+
+  /** La acción solo existe mientras quede un escalón que subir. */
+  protected readonly canRaiseOnboarding = computed(() => {
+    const level = this.onboardingLevel();
+    return level !== null && level < ONBOARDING_MAX_LEVEL;
+  });
+
+  protected readonly raisingOnboarding = signal(false);
+  protected readonly onboardingError = signal<string | null>(null);
+
+  /**
+   * El acto de subir: la fila cambia en el mismo lugar porque la identidad se relee del borde. Un
+   * fallo deja el valor anterior y su mensaje; no navega ni abre un modal.
+   */
+  protected async raiseOnboarding(): Promise<void> {
+    if (this.raisingOnboarding()) {
+      return;
+    }
+
+    this.raisingOnboarding.set(true);
+    this.onboardingError.set(null);
+    try {
+      await this.session.raiseOnboardingLevel();
+    } catch {
+      this.onboardingError.set('No se pudo subir el nivel. Inténtalo de nuevo.');
+    } finally {
+      this.raisingOnboarding.set(false);
+    }
+  }
 
   /** Cuántas mudanzas alcanza la sesión: con dos o más, la Cuenta enlaza al selector. */
   protected readonly eventCount = computed(() => this.session.events().length);

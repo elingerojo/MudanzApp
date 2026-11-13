@@ -26,6 +26,7 @@ function event(
     destinationCity: overrides.destinationCity ?? 'Ciudad de México',
     currency: overrides.currency ?? 'MXN',
     state: overrides.state ?? 'active',
+    onboardingLevel: overrides.onboardingLevel ?? null,
     createdAt: overrides.createdAt ?? new Date('2026-11-01T10:00:00.000Z'),
     administratorName: overrides.administratorName ?? null,
   };

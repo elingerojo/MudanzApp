@@ -23,6 +23,7 @@ const EVENT = {
   currency: 'MXN',
   state: 'active',
   role: null,
+  onboardingLevel: 0,
 } as const satisfies EventSummary;
 
 const INVITATION = {

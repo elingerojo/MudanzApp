@@ -25,12 +25,14 @@ export class A2CapturaComponent {
   protected readonly areas = [
     'frontend/src/app/events/',
     'frontend/src/app/session/',
+    'frontend/src/app/items/',
     'backend/src/routes/events-router.ts',
     'backend/src/routes/ai-router.ts',
     'backend/src/routes/items-router.ts',
     'backend/src/routes/captures-router.ts',
     'shared/src/ai.ts',
     'shared/src/capture.ts',
+    'shared/src/onboarding.ts',
   ];
 
   protected readonly decisions = ['§30', '§34', '§45'];

@@ -1,9 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 
 import { API_BASE_URL } from '../api-base-url.token';
 import { PhotoInboxStore } from '../events/photo-inbox.store';
+import { SessionStore } from '../session/session.store';
 import { PROGRESS_DONE_FLASH_MS } from '../ui/ui-progress-button/ui-progress-button';
 import { ItemFormComponent } from './item-form.component';
 import { PHOTO_OPTIMIZER } from './photo-optimizer.token';
@@ -74,10 +76,12 @@ function tick(): Promise<void> {
 describe('ItemFormComponent', () => {
   let httpTesting: HttpTestingController;
   let uploads: { tasks: readonly UploadTask[]; contentType: string }[];
+  const onboardingLevel = signal<0 | 1>(0);
 
   beforeEach(async () => {
     localStorage.clear();
     uploads = [];
+    onboardingLevel.set(0);
 
     await TestBed.configureTestingModule({
       imports: [ItemFormComponent],
@@ -85,6 +89,11 @@ describe('ItemFormComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: API_BASE_URL, useValue: '/api' },
+        {
+          // El nivel lo publica el borde; el formulario solo lo lee para promover sus acciones.
+          provide: SessionStore,
+          useValue: { eventById: () => ({ onboardingLevel: onboardingLevel() }) },
+        },
         {
           provide: PHOTO_OPTIMIZER,
           useValue: () =>
@@ -181,6 +190,17 @@ describe('ItemFormComponent', () => {
     httpTesting.expectOne(TICKET_URL).flush(TICKET);
     await settle(fixture);
   }
+
+  it('promotes the draft at level 0 and weighs both photo actions the same at level 1', () => {
+    const atZero = render();
+    expect(query(atZero, 'item-form-draft')?.className).toContain('bg-slate-900');
+    expect(query(atZero, 'item-photo-label')?.className).not.toContain('bg-slate-900');
+
+    onboardingLevel.set(1);
+    const atOne = render();
+    expect(query(atOne, 'item-form-draft')?.className).not.toContain('bg-slate-900');
+    expect(query(atOne, 'item-photo-label')?.className).not.toContain('bg-slate-900');
+  });
 
   it('refuses to publish without a title and makes no request', () => {
     const fixture = render();

@@ -29,6 +29,10 @@ export type UserRecord = {
  * `adminUserId` es el event-administrator reclamado (ciclo 4c-2, decisión §37): `null` mientras nadie
  * lo reclame. Viaja en la misma fila que el evento porque se lee con ella; por eso la columna no lleva
  * índice.
+ *
+ * `onboardingLevel` es el **piso elegido** por la persona (corte 3k): `null` es «sin elección» y el
+ * nivel efectivo se deriva de la evidencia. El presentador compone el efectivo; la base guarda el
+ * acto, no la lectura.
  */
 export type EventRecord = {
   readonly id: string;
@@ -38,18 +42,37 @@ export type EventRecord = {
   readonly destinationCity: string;
   readonly currency: string;
   readonly state: string;
+  readonly onboardingLevel: number | null;
 };
 
 /** El evento ya con su identificador público resuelto: lo que el contrato puede publicar. */
 export type EventWithPublicSlug = EventRecord & { readonly publicSlug: string };
 
-export type EventMembershipRecord = EventRecord & {
+/**
+ * El evento con la evidencia del nivel de onboarding: cuántos de sus artículos se publicaron alguna
+ * vez. Es una subconsulta escalar en la misma lectura, para no pagar un N+1 por evento.
+ */
+export type EventWithPublished = EventRecord & { readonly publishedCount: number };
+
+export type EventMembershipRecord = EventWithPublished & {
   readonly role: EventRole;
 };
 
 const EVENT_COLUMNS =
   'id, public_slug AS "publicSlug", admin_user_id AS "adminUserId", ' +
-  'origin_city AS "originCity", destination_city AS "destinationCity", currency, state';
+  'origin_city AS "originCity", destination_city AS "destinationCity", currency, state, ' +
+  'onboarding_level AS "onboardingLevel"';
+
+/**
+ * El conteo publicado del evento, como columna escalar. `app.listing` conserva su fila al
+ * despublicar y al vender, así que cuenta artículos publicados **alguna vez**. Se usa con la tabla
+ * del evento aliasada `e`.
+ */
+const EVENT_PUBLISHED_COUNT =
+  '(SELECT count(*)::int ' +
+  'FROM app.listing l ' +
+  'JOIN app.item i ON i.id = l.item_id ' +
+  'WHERE i.event_id = e.id) AS "publishedCount"';
 
 /** ¿El índice único del `public_slug` rechazó la escritura? Es la única colisión que se reintenta. */
 function isPublicSlugConflict(error: unknown): boolean {
@@ -300,9 +323,9 @@ async function readPublicSlug(database: Queryable, eventId: string): Promise<str
 export async function findEventById(
   database: Queryable,
   eventId: string,
-): Promise<EventRecord | null> {
-  const { rows } = await database.query<EventRecord>(
-    `SELECT ${EVENT_COLUMNS} FROM app.event WHERE id = $1`,
+): Promise<EventWithPublished | null> {
+  const { rows } = await database.query<EventWithPublished>(
+    `SELECT ${EVENT_COLUMNS}, ${EVENT_PUBLISHED_COUNT} FROM app.event e WHERE e.id = $1`,
     [eventId],
   );
 
@@ -437,6 +460,8 @@ export async function listEventsForUser(
             e.destination_city AS "destinationCity",
             e.currency,
             e.state,
+            e.onboarding_level AS "onboardingLevel",
+            ${EVENT_PUBLISHED_COUNT},
             m.role
      FROM app.event_member m
      JOIN app.event e ON e.id = m.event_id
@@ -461,11 +486,39 @@ export async function findEventForUser(
             e.destination_city AS "destinationCity",
             e.currency,
             e.state,
+            e.onboarding_level AS "onboardingLevel",
+            ${EVENT_PUBLISHED_COUNT},
             m.role
      FROM app.event_member m
      JOIN app.event e ON e.id = m.event_id
      WHERE m.user_id = $1 AND e.id = $2`,
     [userId, eventId],
+  );
+
+  return rows[0] ?? null;
+}
+
+/**
+ * Escribe el piso elegido del nivel de onboarding (corte 3k) y devuelve lo que la respuesta
+ * necesita: el piso guardado y la evidencia vigente. `null` es «el evento no existe».
+ *
+ * No valida el rango: la frontera ya lo hizo contra `ONBOARDING_LEVELS`, y el `CHECK` de la
+ * migración `014` es la red de seguridad. Escribir un piso **menor** que el derivado no es un
+ * error: el efectivo lo eleva y la UI solo ofrece subir.
+ */
+export async function updateEventOnboardingLevel(
+  database: Queryable,
+  input: { readonly eventId: string; readonly level: number },
+): Promise<{ readonly onboardingLevel: number | null; readonly publishedCount: number } | null> {
+  const { rows } = await database.query<{
+    readonly onboardingLevel: number | null;
+    readonly publishedCount: number;
+  }>(
+    `UPDATE app.event e
+        SET onboarding_level = $2
+      WHERE e.id = $1
+      RETURNING e.onboarding_level AS "onboardingLevel", ${EVENT_PUBLISHED_COUNT}`,
+    [input.eventId, input.level],
   );
 
   return rows[0] ?? null;

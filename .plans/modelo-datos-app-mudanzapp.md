@@ -58,7 +58,7 @@ sigue **libre**. Todo corte se crea aditivo, idempotente y sin `DROP`.
 | `app.session` | Prueba temporal por dispositivo; de cuenta o de evento | `id`, `user_id`, `event_id`, `token_hash`, `scope`, `device_label`, `created_at`, `last_seen_at`, `revoked_at` |
 | `app.invitation` | Capacidad de entrada a un evento, acotada en tiempo y en canjes | `id`, `event_id`, `token_hash`, `created_by`, `expires_at`, `use_count`, `consumed_at`, `consumed_by`, `claimed_at`, `revoked_at`, `label` |
 | `app.invitation_label_sequence` | Puntero del anillo de nombres de invitación; una sola fila posible | `id`, `last_label`, `advanced_at` |
-| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `public_slug`, `admin_user_id`, `contact_phone`, `origin_city`, `destination_city`, `currency`, `state` |
+| `app.event` | El evento de mudanza | `id`, `owner_user_id`, `public_slug`, `admin_user_id`, `contact_phone`, `onboarding_level`, `origin_city`, `destination_city`, `currency`, `state` |
 | `app.event_member` | Quién participa y con qué rol | `event_id`, `user_id`, `role`, `invited_by`, `joined_at` |
 | `app.item` | Artículo documentado del evento | `id`, `event_id`, `title`, `note`, `width_cm`, `height_cm`, `depth_cm`, `weight_kg`, `price_cents`, `created_at` |
 | `app.item_photo` | Foto de un artículo, una por posición; sus columnas describen el tamaño `large` | `id`, `item_id`, `object_key`, `content_type`, `byte_size`, `position`, `created_at` |
@@ -150,6 +150,10 @@ Restricciones que el ciclo 4 agrega, cuando su corte escriba el DDL:
   (`^[0-9]{8,15}$`) y con `CHECK` porque `wa.me` no acepta `+`, espacios ni guiones. Sin él el botón del
   carrito no se habilita (`whatsapp_not_configured`). No es un dato del visitante y no relaja la regla
   sobre nombre, correo o dirección (decisión §44);
+- `app.event.onboarding_level` es el **piso elegido** del nivel de onboarding (corte 3k): `smallint`
+  nullable, donde `NULL` es «sin elección». El efectivo se deriva de los artículos publicados alguna
+  vez y nunca desciende por un piso menor; el máximo real vive en `ONBOARDING_LEVELS` (`shared`) y el
+  `CHECK 0..9` es la red de seguridad, no la regla;
 - `app.cart` tiene una fila por (comprador, evento) y `app.cart_item` una por (carrito, artículo): la
   tabla es la verdad y `localStorage` solo la pinta. Un artículo **sin precio** no entra al carrito
   (`price_missing`) y el **total no se guarda** (decisión §39, revisada);

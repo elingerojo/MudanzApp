@@ -70,7 +70,10 @@ export function createAdminRouter(deps: IdentityDeps): Router {
         currency: input.currency,
       });
 
-      response.status(201).json({ event: toEventSummary({ ...event, role: 'owner' }) });
+      // Un evento recién creado no tiene artículos publicados: la evidencia del nivel es cero.
+      response
+        .status(201)
+        .json({ event: toEventSummary({ ...event, role: 'owner', publishedCount: 0 }) });
     };
 
     void handle().catch(next);

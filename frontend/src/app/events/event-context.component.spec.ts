@@ -18,6 +18,7 @@ const EVENT: EventSummary = {
   currency: 'MXN',
   state: 'open',
   role: 'member',
+  onboardingLevel: 0,
 };
 
 describe('EventContextComponent', () => {

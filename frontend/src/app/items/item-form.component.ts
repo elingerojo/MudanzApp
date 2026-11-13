@@ -16,6 +16,8 @@ import {
   ITEM_PHOTO_ENCODING,
   ITEM_PHOTO_VARIANTS,
   ITEM_PHOTO_VARIANT_CONTENT_TYPES,
+  onboardingLevelCopy,
+  promotionFor,
   type AiDraftResult,
   type AttachedPhotos,
   type CaptureTicket,
@@ -23,6 +25,7 @@ import {
   type CreatedItem,
   type ItemPhotoVariant,
   type ItemPhotoVariantContentType,
+  type OnboardingLevel,
   type PublishedListing,
 } from '@mudanzapp/shared';
 import { firstValueFrom } from 'rxjs';
@@ -36,6 +39,7 @@ import {
   PHOTO_INVALID,
   apiErrorCode,
 } from '../session/api-error';
+import { SessionStore } from '../session/session.store';
 import { uiButtonClasses } from '../ui/ui-button/ui-button';
 import {
   PROGRESS_DONE_FLASH_MS,
@@ -126,6 +130,7 @@ export class ItemFormComponent implements OnDestroy {
   private readonly optimize = inject(PHOTO_OPTIMIZER);
   private readonly sendPhoto = inject(PHOTO_UPLOADER);
   private readonly inbox = inject(PhotoInboxStore);
+  private readonly session = inject(SessionStore);
 
   readonly eventId = input.required<string>();
 
@@ -181,6 +186,34 @@ export class ItemFormComponent implements OnDestroy {
 
   protected readonly primaryClasses = uiButtonClasses('primary');
   protected readonly secondaryClasses = uiButtonClasses('secondary');
+
+  /**
+   * El nivel de onboarding del evento que se está capturando (corte 3k). Se lee del resumen del
+   * borde y no se calcula aquí: la derivación y el piso viven en `shared` y en el servidor.
+   */
+  protected readonly onboardingLevel = computed<OnboardingLevel>(
+    () => this.session.eventById(this.eventId())?.onboardingLevel ?? 0,
+  );
+
+  /** El modelo de promoción de la pantalla; la plantilla no decide el peso de los botones. */
+  private readonly promotion = computed(() => promotionFor(this.onboardingLevel()));
+
+  protected readonly draftClasses = computed(() =>
+    this.promotion().draft === 'promoted' ? this.primaryClasses : this.secondaryClasses,
+  );
+
+  protected readonly retryClasses = computed(() =>
+    this.promotion().retry === 'promoted' ? this.primaryClasses : this.secondaryClasses,
+  );
+
+  /**
+   * La explicación de la promoción en el propio panel (inclinaciones 6 y 10), con el texto de la
+   * tabla. En el nivel máximo no hay nada que explicar y no se renderiza.
+   */
+  protected readonly onboardingCopy = computed(() => {
+    const level = this.onboardingLevel();
+    return promotionFor(level).draft === 'promoted' ? onboardingLevelCopy(level) : null;
+  });
 
   /** Los tres blobs ya optimizados en el dispositivo; el peso no se envía como dato. */
   private readonly optimized = signal<readonly OptimizedPhoto[]>([]);

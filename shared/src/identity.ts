@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { OnboardingLevel } from './onboarding.js';
+
 /**
  * Contrato del corte de identidad del ciclo 1 (`invite`, `session`, `account-link`).
  *
@@ -39,6 +41,11 @@ export interface EventSummary {
   readonly currency: string;
   readonly state: string;
   readonly role: EventRole | null;
+  /**
+   * Nivel de onboarding **efectivo** del evento (corte 3k), ya resuelto por el servidor: la
+   * derivación de la evidencia y el piso elegido no se duplican en el cliente.
+   */
+  readonly onboardingLevel: OnboardingLevel;
 }
 
 export interface SessionSummary {

@@ -163,6 +163,7 @@ describe('HomeComponent', () => {
         currency: 'USD',
         state: 'open',
         role: 'member',
+        onboardingLevel: 0,
       },
     ];
 
@@ -183,6 +184,7 @@ describe('HomeComponent', () => {
         currency: 'USD',
         state: 'open',
         role: 'owner',
+        onboardingLevel: 0,
       },
       {
         id: 'event-b',
@@ -192,6 +194,7 @@ describe('HomeComponent', () => {
         currency: 'USD',
         state: 'open',
         role: 'member',
+        onboardingLevel: 0,
       },
     ];
 

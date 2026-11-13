@@ -96,6 +96,24 @@ export {
   updateShopProfileSchema,
 } from './identity.js';
 export {
+  ONBOARDING_LEVELS,
+  ONBOARDING_MAX_LEVEL,
+  onboardingLevelCopy,
+  onboardingLevelFor,
+  onboardingLevelSchema,
+  photosForLevel,
+  promotionFor,
+} from './onboarding.js';
+export type {
+  OnboardingEvidence,
+  OnboardingLevel,
+  OnboardingLevelDefinition,
+  OnboardingLevelRequest,
+  OnboardingLevelResponse,
+  OnboardingPromotion,
+  PromotionEmphasis,
+} from './onboarding.js';
+export {
   ITEM_LIMITS,
   ITEM_PHOTO_CONTENT_TYPES,
   ITEM_PHOTO_ENCODING,

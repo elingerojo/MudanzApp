@@ -30,6 +30,7 @@ const ISSUED = {
     currency: 'MXN',
     state: 'active',
     role: 'member',
+    onboardingLevel: 0,
   },
 } as const satisfies IssuedSession;
 

@@ -138,6 +138,30 @@
   </section>
 
   <section class="flex flex-col gap-2">
+    <h3 class="text-base font-semibold text-slate-900">El nivel de onboarding</h3>
+    <p>
+      El nivel del evento se deriva de cuántos artículos publicó <strong>alguna vez</strong>: de 0 a
+      2 abre una foto al borrador y desde 3, dos. La persona puede subirlo desde
+      <code class="font-mono text-xs">Cuenta</code>; el servidor resuelve el efectivo —el derivado
+      manda y un piso menor no lo hace descender— y lo publica en
+      <code class="font-mono text-xs">EventSummary</code>.
+    </p>
+    <p>
+      En la captura, el nivel 0 promueve <strong>Borrador con IA</strong> y deja discreto
+      <code class="font-mono text-xs">Repetir la foto</code>; el nivel 1 iguala las dos acciones.
+      <strong>Publicar</strong> sigue siendo el primario real en todo nivel y nada se oculta. El
+      tope duro de {{ photosPerItem }} fotos por artículo no cambia, y no hay niveles futuros
+      declarados.
+    </p>
+    <p class="text-xs text-slate-500">
+      Evidencia: <code class="font-mono">shared/src/onboarding.ts</code>,
+      <code class="font-mono">backend/src/routes/events-router.ts</code>,
+      <code class="font-mono">frontend/src/app/items/item-form.component.ts</code>,
+      <code class="font-mono">frontend/src/app/session/cuenta.component.ts</code> (corte 3k).
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-2">
     <h3 class="text-base font-semibold text-slate-900">Revisar, publicar y corregir</h3>
     <ul class="flex list-disc flex-col gap-1 pl-5">
       <li>

@@ -59,14 +59,7 @@ ansiosas; el resto llega por chunk.
 - [`session.guard.ts`](../../../Wix-marketplace/ClickOnTheGoV1/frontend/src/app/session/session.guard.ts:12):
   guard funcional, síncrono, que devuelve `router.createUrlTree(['/invite'])`.
 
-### 1.4 El «nivel» como preferencia del dispositivo
-
-[`level/app-mode.service.ts`](../../../Wix-marketplace/ClickOnTheGoV1/frontend/src/app/level/app-mode.service.ts:118)
-guarda `basic | intermediate | advanced` en `localStorage` y expone señales derivadas
-(`showsDrafts`, `showsImageEditor`, `forcesAutoApprove`). Cambia **qué se ofrece**, nunca un flujo ni
-un endpoint; no viaja al servidor.
-
-### 1.5 Primitivas de presentación y disciplina de error y prueba
+### 1.4 Primitivas de presentación y disciplina de error y prueba
 
 - [`ui/ui-button`](../../../Wix-marketplace/ClickOnTheGoV1/frontend/src/app/ui/ui-button/ui-button.ts:24)
   exporta `uiButtonClasses()` para que un control que **no puede** ser `<button>` —el `<label>` que
@@ -78,7 +71,7 @@ un endpoint; no viaja al servidor.
 - Cada carpeta de pantalla lleva su `*.contract.ts` para las formas locales; lo que cruza la frontera
   HTTP vive en `shared`.
 - Convención de `data-testid` (`shell-*`, `<pantalla>-*`) y specs junto a cada archivo, con dobles
-  detrás de tokens (`QR_CODE_RENDERER`, `INVITE_SHARE`, `APP_MODE_STORE`, `CREDENTIAL_STORE`).
+  detrás de tokens (`QR_CODE_RENDERER`, `INVITE_SHARE`, `CREDENTIAL_STORE`).
 
 ## 2. Lo que se adopta como base
 
@@ -100,14 +93,13 @@ esto agrega funcionalidad; todo cambia la forma.
 
 ## 3. Lo que no se copia, y por qué
 
-| Rasgo del referente                                              | Por qué no entra                                                                                                                                                                                                                                           | Disparador que lo revisaría                                               |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `AppModeService` con tres niveles de experiencia                 | No está declarado en el resumen funcional. Además el **nombre colisiona**: en MudanzApp `APP_MODE` es el modo de la integración primaria, no un nivel de interfaz. Si algún día se quiere un nivel, se llama distinto (`uiLevel`) y es su propia capacidad | Un ciclo que declare niveles de experiencia                               |
-| Credencial redundante en IndexedDB                               | La decisión §27 fijó `localStorage` con CSP, scripts de terceros ausentes y sesiones revocables por dispositivo; sumar IndexedDB es una decisión nueva, no una mejora gratis                                                                               | Evicción real de `localStorage` en un webview o PWA                       |
-| QR + huella comparada en voz alta                                | Nuestro enlace es acotado por tiempo y canjes (§30) y el riesgo es el reenvío, no el emparejamiento en campo cercano                                                                                                                                       | Incidente con un enlace reenviado, que ya es el disparador de §30         |
-| Stream en vivo y avisos de publicación                           | El referente empuja a una cola de trabajos de Wix; MudanzApp no tiene cola ni trabajo en segundo plano                                                                                                                                                     | Un ciclo que introduzca un proceso asíncrono                              |
-| Captura multi-foto con presign, miniatura y compresión en worker | Nuestro corte es una foto y un `PUT` binario contra el backend; importar ese pipeline es alcance nuevo y contradice la costura de almacenamiento de §26                                                                                                    | El ciclo de `publish` + R2 `live`, que es donde la foto se vuelve pública |
-| Onboarding, splash, PWA, editor de imagen                        | No están declarados como capacidades                                                                                                                                                                                                                       | Su propia entrada en el resumen funcional                                 |
+| Rasgo del referente                                              | Por qué no entra                                                                                                                                                                                  | Disparador que lo revisaría                                                                                |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Credencial redundante en IndexedDB                               | La decisión §27 fijó `localStorage` con CSP, scripts de terceros ausentes y sesiones revocables por dispositivo; sumar IndexedDB es una decisión nueva, no una mejora gratis                      | Evicción real de `localStorage` en un webview o PWA                                                        |
+| QR + huella comparada en voz alta                                | Nuestro enlace es acotado por tiempo y canjes (§30) y el riesgo es el reenvío, no el emparejamiento en campo cercano                                                                              | Incidente con un enlace reenviado, que ya es el disparador de §30                                          |
+| Stream en vivo y avisos de publicación                           | El referente empuja a una cola de trabajos de Wix; MudanzApp no tiene cola ni trabajo en segundo plano                                                                                            | Un ciclo que introduzca un proceso asíncrono                                                               |
+| Captura multi-foto con presign, miniatura y compresión en worker | Nuestro corte es una foto y un `PUT` binario contra el backend; importar ese pipeline es alcance nuevo y contradice la costura de almacenamiento de §26                                           | El ciclo de `publish` + R2 `live`, que es donde la foto se vuelve pública                                  |
+| Nivel de onboarding                                              | Sí entra (corte 3k): se deriva de los artículos publicados alguna vez y se sube desde `Cuenta`; no añade ruta —vive en `/cuenta` y en el panel de captura— y no es un tour ni una pantalla propia | El corte 3k, para el nivel; su propia entrada en el resumen funcional, para splash, PWA y editor de imagen |
 
 ## 4. Mapa de navegación de MudanzApp
 
@@ -329,8 +321,8 @@ Consecuencias de forma:
 | Primitivas                             | `frontend/src/app/ui/ui-button/*`, `frontend/src/app/ui/ui-card/*`                     | Base #5       |
 | Captura                                | `frontend/src/app/items/item-form.component.*` con `<label for>` + input oculto        | Base #5       |
 
-Deliberadamente fuera de 3a: host de toasts (base #9), precarga (base #10), niveles de experiencia,
-IndexedDB, QR, stream y onboarding.
+Deliberadamente fuera de 3a: host de toasts (base #9), precarga (base #10), IndexedDB, QR, stream
+y onboarding.
 
 ## 6. Costo declarado
 

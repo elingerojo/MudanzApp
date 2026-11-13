@@ -7,6 +7,7 @@ import {
   deriveEventPublicSlug,
   indexVersion,
   listingVersion,
+  onboardingLevelFor,
   whatsappRequestUrl,
   type AdminEventSummary,
   type BuyerCartRequest,
@@ -54,9 +55,13 @@ export function toIdentityUser(user: UserRecord): IdentityUser {
 /**
  * `role` es `null` cuando la sesión es de evento: el hecho "es miembro" todavía no existe, y el
  * contrato no lo inventa (`decisiones` §30).
+ *
+ * Desde el corte 3k el resumen publica el nivel de onboarding **efectivo**: la derivación vive en
+ * `shared` y aquí se compone con la evidencia de la misma lectura, para que dos clientes no calculen
+ * distinto ni el cliente tenga que conocer el umbral.
  */
 export function toEventSummary(
-  event: EventRecord & { readonly role: EventRole | null },
+  event: EventRecord & { readonly role: EventRole | null; readonly publishedCount: number },
 ): EventSummary {
   return {
     id: event.id,
@@ -69,6 +74,10 @@ export function toEventSummary(
     currency: event.currency,
     state: event.state,
     role: event.role,
+    onboardingLevel: onboardingLevelFor(
+      { publishedCount: event.publishedCount },
+      event.onboardingLevel,
+    ),
   };
 }
 

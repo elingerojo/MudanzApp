@@ -1,12 +1,15 @@
-import { httpResource } from '@angular/common/http';
+import { HttpClient, httpResource } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import type {
-  CurrentIdentity,
-  EventSummary,
-  IdentityUser,
-  IssuedSession,
-  SessionScope,
+import {
+  ONBOARDING_MAX_LEVEL,
+  type CurrentIdentity,
+  type EventSummary,
+  type IdentityUser,
+  type IssuedSession,
+  type OnboardingLevelResponse,
+  type SessionScope,
 } from '@mudanzapp/shared';
+import { firstValueFrom } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url.token';
 
@@ -40,6 +43,7 @@ function browserStorage(): Storage | null {
 @Injectable({ providedIn: 'root' })
 export class SessionStore {
   private readonly apiBaseUrl = inject(API_BASE_URL);
+  private readonly http = inject(HttpClient);
 
   /** La credencial, en memoria. Nunca se renderiza ni se registra. */
   private readonly credential = signal<string | null>(null);
@@ -188,6 +192,31 @@ export class SessionStore {
   /** El evento visible con ese identificador, si la sesión lo alcanza. */
   eventById(eventId: string): EventSummary | null {
     return this.events().find((event) => event.id === eventId) ?? null;
+  }
+
+  /**
+   * Sube un escalón el nivel de onboarding del evento activo (corte 3k).
+   *
+   * La escritura la decide el servidor: aquí solo se pide el siguiente nivel del evento activo y se
+   * **relee** la identidad, porque el nivel efectivo es un hecho del borde y no de esta pestaña.
+   * Devuelve `false` sin llamar a la red cuando no hay evento activo o ya está en el máximo; un fallo
+   * de la escritura se propaga para que la pantalla lo traduzca y no navegue.
+   */
+  async raiseOnboardingLevel(): Promise<boolean> {
+    const event = this.activeEvent();
+    if (event === null || event.onboardingLevel >= ONBOARDING_MAX_LEVEL) {
+      return false;
+    }
+
+    await firstValueFrom(
+      this.http.patch<OnboardingLevelResponse>(
+        `${this.apiBaseUrl}/events/${event.id}/onboarding-level`,
+        { level: event.onboardingLevel + 1 },
+      ),
+    );
+
+    this.session.reload();
+    return true;
   }
 
   /**
