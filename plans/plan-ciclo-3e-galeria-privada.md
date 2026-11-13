@@ -1,7 +1,7 @@
 # Plan del ciclo 3e — `gallery`: hasta seis fotos por artículo, con el orden decidido durante la captura
 
-> **Estado:** **plan ejecutable, sin ejecutar.** Ninguna rama abierta, ninguna migración aplicada y
-> ningún commit.
+> **Estado:** **cerrado y revisado `live` en remoto el 2026-11-13.** Commit `817a007`, integrado a
+> `main` en fast-forward. Sin migración y sin dependencias nuevas.
 > **Hipótesis:** un co-dispositivo documenta un artículo con hasta seis fotos, decide el orden durante
 > la captura y lo cambia después solo para publicar, sin que publicar con una sola foto deje de
 > funcionar.
@@ -233,8 +233,22 @@ Gate proporcional (uno por invocación, una corrida a la vez):
 
 ## 13. Cierre
 
-Se escribe al cerrar: fecha, sha corto, evidencia observada, revisión `live` del dueño y lo que quede
-pendiente con su disparador.
+- **Fecha:** 2026-11-13.
+- **Commit:** `817a007 feat(shared): add the private ordered photo gallery`, integrado a `main` en
+  fast-forward.
+- **Evidencia observada:** `typecheck` (todos los workspaces), `typecheck:e2e`, `lint`,
+  `format:check`, `build`, `build:web:frontend` y `build:web:shop`; unitarias `test:web:frontend`
+  236, `test:web:shop` 70, `test:web:wiki` 13 y `test:api` 287; `test:api:db:branch` 316 sobre
+  `branch-test` migrada con `db:migrate:branch:test`; `test:e2e:branch` 28 passed, 50 skipped por
+  proyecto y 0 failed.
+- **Hallazgo del gate:** el primer `test:e2e:branch` falló porque el caché de Vite servía el bundle
+  viejo de `shared` sin `orderControlsVisible`; limpiar `frontend/.angular/cache` lo eliminó. El único
+  rojo restante era de la prueba, no del corte: el input del panel **añade** a la tira desde 3e, así
+  que el caso de una sola foto no elige una segunda.
+- **Revisión `live` del dueño:** 2026-11-13, en remoto, **OK** (confirmada por el dueño).
+- **Pendiente con su disparador:** el estado de subida por foto y el optimizador en `Web Worker` son
+  de 3f; la galería pública, de 3g; borrar una foto y arrastrar y soltar esperan un pedido explícito
+  del dueño.
 
 ## 14. Prueba `live` en remoto (paso manual del dueño)
 
